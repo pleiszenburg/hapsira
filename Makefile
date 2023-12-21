@@ -1,6 +1,24 @@
 DOCKER_BASE_IMAGE := "hapsira:dev"
 DOCKER_CONTAINER_NAME := "hapsira-dev"
 
+_clean_coverage:
+	coverage erase
+
+_clean_py:
+	find src/ tests/ contrib/ -name '*.pyc' -exec rm -f {} +
+	find src/ tests/ contrib/ -name '*.pyo' -exec rm -f {} +
+	find src/ tests/ contrib/ -name '*~' -exec rm -f {} +
+	find src/ tests/ contrib/ -name '__pycache__' -exec rm -fr {} +
+
+_clean_release:
+	-rm -r build/*
+	-rm -r dist/*
+
+clean:
+	make _clean_release
+	make _clean_coverage
+	make _clean_py
+
 docs:
 	tox -e docs
 

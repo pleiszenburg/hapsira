@@ -41,7 +41,7 @@ For other installation methods, see the [alternative installation methods](https
 
 ## Migrating from `poliastro` to `hapsira`
 
-Currently, both packages are near-identical and should therefore be fully compatible. Potentially breaking changes will be added here and in the documentation.
+`hapsira` is based on `poliastro main` as of the date of its archival, October 14 2023, [commit 1b01768c](https://github.com/poliastro/poliastro/commit/21fd7719e89a7d22b4eac63141a60a7f1b01768c). Therefore, `hapsira`'s initial release already includes a number of changes made since `poliastro`'s last release, `0.17.0`. Most notably, the plotter framework saw a redesign and is backwards incompatible, see [poliastro #1545](https://github.com/poliastro/poliastro/pull/1545). For further details, see [changelog](https://github.com/pleiszenburg/hapsira/blob/main/docs/source/changelog.md).
 
 
 ## Documentation

@@ -19,4 +19,15 @@ docker:
 	${DOCKER_BASE_IMAGE} \
 		bash
 
-.PHONY: docs docker image
+release:
+	make clean
+	flit build
+	gpg --detach-sign -a dist/hapsira*.whl
+	gpg --detach-sign -a dist/hapsira*.tar.gz
+
+upload:
+	for filename in $$(ls dist/*.tar.gz dist/*.whl) ; do \
+		twine upload $$filename $$filename.asc ; \
+	done
+
+.PHONY: docs docker image release upload

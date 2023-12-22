@@ -1,24 +1,52 @@
+from enum import Enum, auto
 import os
 
 import numba as nb
+from poliastro.errors import JitError
 
-TARGET = os.environ.get("HAPSIRA_TARGET", "cpu")
 
-if TARGET not in (
-    "cpu",
-    "parallel",
-    "cuda",
-):  # numba 0.54.0, 19 August 2021, removed AMD ROCm target
-    raise ValueError(f'unknown target "{TARGET:s}"')
+class TARGETS(Enum):
+    """
+    JIT targets
+    numba 0.54.0, 19 August 2021, removed AMD ROCm target
+    """
+
+    cpu = auto()
+    parallel = auto()
+    cuda = auto()
+
+    @classmethod
+    def get_default(cls):
+        """
+        default JIT target
+        """
+
+        return cls.cpu
+
+
+TARGET = os.environ.get("HAPSIRA_TARGET", TARGETS.default().name)
+
+try:
+    TARGET = TARGETS[TARGET]
+except KeyError as e:
+    raise JitError(
+        f'unknown target "{TARGET:s}"; known targets are {repr(TARGETS):s}'
+    ) from e
+
 if TARGET == "cuda":
-    from numba import (
-        cuda,
-    )
+    from numba import cuda
+
+    if not cuda.is_available():
+        raise JitError('no GPU for selected target "cuda" found')
 
 INLINE = os.environ.get(
-    "HAPSIRA_INLINE", "never"
+    "HAPSIRA_INLINE", "0"
 )  # currently only relevant for helpers on cpu and parallel targets
-if INLINE not in ("always", "never"):
+if INLINE.lower() in ("true", "1", "yes"):
+    INLINE = True
+elif INLINE.lower() in ("false", "0", "no"):
+    INLINE = False
+else:
     raise ValueError(f'unknown value for inline "{INLINE:s}"')
 
 PRECISIONS = ("f4", "f8")  # TODO allow f2, i.e. half, for CUDA at least?
@@ -68,7 +96,9 @@ def hjit(*args, **kwargs):
     def wrapper(func):
         cfg = {}
         if TARGET in ("cpu", "parallel"):
-            cfg.update({"nopython": NOPYTHON, "inline": INLINE})
+            cfg.update(
+                {"nopython": NOPYTHON, "inline": "always" if INLINE else "never"}
+            )
         if TARGET == "cuda":
             cfg.update({"device": True, "inline": True})
         cfg.update(kwargs)
@@ -118,10 +148,10 @@ def vjit(*args, **kwargs):
     return wrapper
 
 
-def jit(*args, **kwargs):
+def sjit(*args, **kwargs):
     """
-    Regular (n)jit, pre-configured, potentially user-facing, always CPU compiler target.
-    Functions decorated by it can only be called directly.
+    Regular "scalar" (n)jit, pre-configured, potentially user-facing, always CPU compiler target.
+    Functions decorated by it can always be called directly if needed.
     """
 
     if len(args) == 1 and callable(args[0]):
@@ -152,6 +182,6 @@ __all__ = [
     "PRECISIONS",
     "TARGET",
     "hjit",
-    "jit",
     "vjit",
+    "sjit",
 ]

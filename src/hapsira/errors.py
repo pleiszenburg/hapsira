@@ -1,0 +1,2 @@
+class JitError(Exception):
+    pass

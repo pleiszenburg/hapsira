@@ -1,6 +1,6 @@
 # What's new
 
-## hapsira 0.18.0 - 2023-12-21
+## hapsira 0.18.0 - 2023-12-24
 
 **CAUTION**: A number changes at least partially **BREAK BACKWARDS COMPATIBILITY** for certain use cases.
 

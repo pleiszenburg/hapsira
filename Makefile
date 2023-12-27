@@ -48,4 +48,7 @@ upload:
 		twine upload $$filename $$filename.asc ; \
 	done
 
+test:
+	DISPLAY= tox
+
 .PHONY: docs docker image release upload

@@ -1,7 +1,11 @@
 import numpy as np
 from scipy.interpolate import interp1d
 
-__all__ = ["interp1d", "spline_interp", "sinc_interp"]
+__all__ = [
+    "interp1d",
+    "spline_interp",
+    "sinc_interp",
+]
 
 
 def spline_interp(y, x, u, *, kind="cubic"):

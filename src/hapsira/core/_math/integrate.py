@@ -1,3 +1,5 @@
 from scipy.integrate import quad
 
-__all__ = ["quad"]
+__all__ = [
+    "quad",
+]

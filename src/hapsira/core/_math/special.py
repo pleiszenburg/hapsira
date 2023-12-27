@@ -3,6 +3,12 @@ from math import gamma
 from numba import njit as jit
 import numpy as np
 
+__all__ = [
+    "hyp2f1b",
+    "stumpff_c2",
+    "stumpff_c3",
+]
+
 
 @jit
 def hyp2f1b(x):

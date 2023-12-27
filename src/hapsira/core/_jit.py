@@ -1,10 +1,23 @@
 from enum import Enum, auto
-import os
 from typing import Callable
+import os
 
 import numba as nb
 from numba import cuda
-from poliastro.errors import JitError
+
+from hapsira.errors import JitError
+
+
+__all__ = [
+    "INLINE",
+    "NOPYTHON",
+    "PRECISIONS",
+    "TARGET",
+    "TARGETS",
+    "hjit",
+    "vjit",
+    "sjit",
+]
 
 
 def _str2bool(value: str) -> bool:
@@ -214,15 +227,3 @@ def sjit(*args, **kwargs) -> Callable:
         return wrapper(outer_func)
 
     return wrapper
-
-
-__all__ = [
-    "INLINE",
-    "NOPYTHON",
-    "PRECISIONS",
-    "TARGET",
-    "TARGETS",
-    "hjit",
-    "vjit",
-    "sjit",
-]

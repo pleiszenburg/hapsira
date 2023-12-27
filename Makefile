@@ -49,6 +49,6 @@ upload:
 	done
 
 test:
-	DISPLAY= tox
+	DISPLAY= tox -e style,tests-fast,tests-slow,docs
 
 .PHONY: docs docker image release upload

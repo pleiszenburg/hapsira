@@ -131,6 +131,7 @@ select = [
 
 ignore = [
     "E501",  # Line too long. Ignoring this so "black" manages line length.
+    "I001",  # import sort
 ]
 
 exclude = [
@@ -143,7 +144,7 @@ exclude = [
 
 [tool.ruff.isort]
 combine-as-imports = true
-force-sort-within-sections = true
+force-sort-within-sections = false
 known-first-party = ["hapsira"]
 
 [tool.ruff.mccabe]

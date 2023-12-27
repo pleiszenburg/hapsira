@@ -1,7 +1,8 @@
 import numpy as np
 
-from hapsira._math.ivp import DOP853, solve_ivp
 from hapsira.core.propagation.base import func_twobody
+
+from .._math.ivp import DOP853, solve_ivp
 
 
 def cowell(k, r, v, tofs, rtol=1e-11, *, events=None, f=func_twobody):

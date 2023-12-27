@@ -8,9 +8,10 @@ from numba import njit as jit, prange
 import numpy as np
 from numpy import cos, cross, sin, sqrt
 
-from hapsira._math.linalg import norm
 from hapsira.core.angles import E_to_nu, F_to_nu
 from hapsira.core.util import rotation_matrix
+
+from ._math.linalg import norm
 
 
 @jit

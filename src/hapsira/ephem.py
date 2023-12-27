@@ -10,8 +10,8 @@ from astropy.coordinates import (
 )
 from astroquery.jplhorizons import Horizons
 
-from hapsira._math.interpolate import interp1d, sinc_interp, spline_interp
 from hapsira.bodies import Earth
+from hapsira.core._math.interpolate import interp1d, sinc_interp, spline_interp
 from hapsira.frames import Planes
 from hapsira.frames.util import get_frame
 from hapsira.twobody.sampling import EpochsArray

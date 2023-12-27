@@ -4,7 +4,7 @@ from astropy.coordinates import Angle
 from astropy.time import Time
 import numpy as np
 
-from hapsira._math.linalg import norm as norm_fast
+from hapsira.core._math.linalg import norm as norm_fast
 from hapsira.core.util import alinspace as alinspace_fast
 
 

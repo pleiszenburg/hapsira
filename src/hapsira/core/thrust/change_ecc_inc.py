@@ -9,12 +9,13 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross
 
-from hapsira._math.linalg import norm
 from hapsira.core.elements import (
     circular_velocity,
     eccentricity_vector,
     rv2coe,
 )
+
+from .._math.linalg import norm
 
 
 @jit

@@ -1,9 +1,10 @@
 from numba import njit as jit
 import numpy as np
 
-from hapsira._math.linalg import norm
 from hapsira.core.elements import coe_rotation_matrix, rv2coe
 from hapsira.core.util import planetocentric_to_AltAz
+
+from ._math.linalg import norm
 
 
 @jit

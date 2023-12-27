@@ -1,8 +1,9 @@
 from numba import njit as jit
 import numpy as np
 
-from hapsira._math.linalg import norm
 from hapsira.core.events import line_of_sight as line_of_sight_fast
+
+from ._math.linalg import norm
 
 
 @jit

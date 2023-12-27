@@ -3,7 +3,7 @@
 from numba import njit as jit
 import numpy as np
 
-from hapsira._math.linalg import norm
+from ._math.linalg import norm
 
 
 @jit

@@ -105,6 +105,7 @@ test = [
     "pytest-mpl",
     "pytest-mypy",
     "pytest-remotedata",
+    "pytest-xdist[psutil]",
     "tox",
 ]
 

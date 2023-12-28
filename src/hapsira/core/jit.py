@@ -5,6 +5,7 @@ import os
 import numba as nb
 from numba import cuda
 
+from hapsira.debug import get_environ_switch, logger
 from hapsira.errors import JitError
 
 
@@ -18,18 +19,6 @@ __all__ = [
     "vjit",
     "sjit",
 ]
-
-
-def _str2bool(value: str) -> bool:
-    """
-    Helper for parsing environment variables
-    """
-
-    if value.strip().lower() in ("true", "1", "yes"):
-        return True
-    if value.strip().lower() in ("false", "0", "no"):
-        return False
-    raise ValueError(f'can not convert value "{value:s}" to bool')
 
 
 class TARGETS(Enum):
@@ -75,14 +64,17 @@ class TARGETS(Enum):
 
 
 TARGET = TARGETS.get_current()
+logger.debug("jit option target: %s", TARGET.name)
 
-INLINE = _str2bool(
-    os.environ.get("HAPSIRA_INLINE", "1" if TARGET is TARGET.cuda else "0")
+INLINE = get_environ_switch(
+    "HAPSIRA_INLINE", default=TARGET is TARGET.cuda
 )  # currently only relevant for helpers on cpu and parallel targets
+logger.debug("jit option inline: %s", "yes" if INLINE else "no")
 
-NOPYTHON = _str2bool(
-    os.environ.get("HAPSIRA_NOPYTHON", "1")
+NOPYTHON = get_environ_switch(
+    "HAPSIRA_NOPYTHON", default=True
 )  # only for debugging, True by default
+logger.debug("jit option nopython: %s", "yes" if NOPYTHON else "no")
 
 PRECISIONS = ("f4", "f8")  # TODO allow f2, i.e. half, for CUDA at least?
 
@@ -95,11 +87,15 @@ def _parse_signatures(signature: str) -> str | list[str]:
     if not any(
         notation in signature for notation in ("f", "V")
     ):  # leave this signature as it is
-        # TODO warn!
+        logger.warning(
+            "jit signature: no special notation, not parsing (%s)", signature
+        )
         return signature
 
     if any(level in signature for level in PRECISIONS):  # leave this signature as it is
-        # TODO warn!
+        logger.warning(
+            "jit signature: precision specified, not parsing (%s)", signature
+        )
         return signature
 
     signature = signature.replace(
@@ -141,10 +137,17 @@ def hjit(*args, **kwargs) -> Callable:
                 inline=INLINE,
             )
         else:
-            JitError(
+            raise JitError(
                 f'unknown target "{repr(TARGET):s}"; known targets are {repr(TARGETS):s}'
             )
         cfg.update(kwargs)
+
+        logger.debug(
+            "hjit: %s, %s, %s",
+            getattr(inner_func, "__name__", repr(inner_func)),
+            repr(args),
+            repr(cfg),
+        )
 
         return wjit(
             *args,
@@ -182,7 +185,18 @@ def vjit(*args, **kwargs) -> Callable:
         )
         if TARGET is not TARGETS.cuda:
             cfg["nopython"] = NOPYTHON
+        elif TARGET not in TARGETS:
+            raise JitError(
+                f'unknown target "{repr(TARGET):s}"; known targets are {repr(TARGETS):s}'
+            )
         cfg.update(kwargs)
+
+        logger.debug(
+            "vjit: %s, %s, %s",
+            getattr(inner_func, "__name__", repr(inner_func)),
+            repr(args),
+            repr(cfg),
+        )
 
         return nb.vectorize(
             *args,
@@ -215,8 +229,15 @@ def sjit(*args, **kwargs) -> Callable:
         cfg = dict(
             nopython=NOPYTHON,
             inline="always" if INLINE else "never",
+            **kwargs,
         )
-        cfg.update(kwargs)
+
+        logger.debug(
+            "sjit: %s, %s, %s",
+            getattr(inner_func, "__name__", repr(inner_func)),
+            repr(args),
+            repr(cfg),
+        )
 
         return nb.jit(
             *args,

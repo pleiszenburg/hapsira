@@ -79,11 +79,11 @@ class Setting:
         """
         if not isinstance(new_value, self._type):
             raise TypeError(
-                f'"{repr():s}" has type "{repr():s}", expected type"{repr():s}"'
+                f"{repr(new_value):s} has type {repr(type(new_value)):s}, expected type {repr(self._type):s}"
             )
         if self._options is not None and new_value not in self._options:
             raise ValueError(
-                f'value "{repr(new_value):s}" not a valid option, valid options are "{repr(self._options):s}"'
+                f"value {repr(new_value):s} not a valid option, valid options are {repr(self._options):s}"
             )
         self._value = new_value
 

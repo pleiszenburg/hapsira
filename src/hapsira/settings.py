@@ -134,15 +134,29 @@ class Settings:
         """
         self._settings[setting.name] = setting
 
+    def _validate(self, name: str):
+        """
+        Validate name
+        """
+        if name in self._settings.keys():
+            return
+        raise KeyError(
+            f'setting "{name:s}" unknown, possible settings are {repr(list(self._settings.keys())):s}'
+        )
+
     def __getitem__(self, name: str) -> Setting:
         """
         Return setting by name
         """
-        if name not in self._settings.keys():
-            raise KeyError(
-                f'setting "{name:s}" unknown, possible settings are {repr(list(self._settings.keys())):s}'
-            )
+        self._validate(name)
         return self._settings[name]
+
+    def __setitem__(self, name: str, new_value: Any):
+        """
+        Return setting by name
+        """
+        self._validate(name)
+        self._settings[name].value = new_value
 
     def keys(self) -> Generator:
         """

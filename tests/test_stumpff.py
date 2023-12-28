@@ -1,7 +1,7 @@
 from numpy import cos, cosh, sin, sinh
 from numpy.testing import assert_allclose
 
-from hapsira.core._math.special import stumpff_c2 as c2, stumpff_c3 as c3
+from hapsira.core.math.special import stumpff_c2 as c2, stumpff_c3 as c3
 
 
 def test_stumpff_functions_near_zero():

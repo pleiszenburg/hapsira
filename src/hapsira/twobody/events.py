@@ -4,7 +4,7 @@ from astropy import units as u
 from astropy.coordinates import get_body_barycentric_posvel
 import numpy as np
 
-from hapsira.core._math.linalg import norm
+from hapsira.core.math.linalg import norm
 from hapsira.core.events import (
     eclipse_function as eclipse_function_fast,
     line_of_sight as line_of_sight_fast,

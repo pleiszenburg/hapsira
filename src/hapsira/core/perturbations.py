@@ -3,7 +3,7 @@ import numpy as np
 
 from hapsira.core.events import line_of_sight as line_of_sight_fast
 
-from ._math.linalg import norm
+from .math.linalg import norm
 
 
 @jit

@@ -1,8 +1,8 @@
 from numba import njit as jit
 import numpy as np
 
-from .._math.linalg import norm
-from .._math.special import stumpff_c2 as c2, stumpff_c3 as c3
+from ..math.linalg import norm
+from ..math.special import stumpff_c2 as c2, stumpff_c3 as c3
 
 
 @jit

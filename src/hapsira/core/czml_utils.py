@@ -1,7 +1,7 @@
 from numba import njit as jit
 import numpy as np
 
-from ._math.linalg import norm
+from .math.linalg import norm
 
 
 @jit

@@ -11,7 +11,7 @@ from numpy import cos, cross, sin, sqrt
 from hapsira.core.angles import E_to_nu, F_to_nu
 from hapsira.core.util import rotation_matrix
 
-from ._math.linalg import norm
+from .math.linalg import norm
 
 
 @jit

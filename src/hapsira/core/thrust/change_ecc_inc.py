@@ -15,7 +15,7 @@ from hapsira.core.elements import (
     rv2coe,
 )
 
-from .._math.linalg import norm
+from ..math.linalg import norm
 
 
 @jit

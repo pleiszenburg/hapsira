@@ -2,8 +2,8 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross, pi
 
-from ._math.linalg import norm
-from ._math.special import hyp2f1b, stumpff_c2 as c2, stumpff_c3 as c3
+from .math.linalg import norm
+from .math.special import hyp2f1b, stumpff_c2 as c2, stumpff_c3 as c3
 
 
 @jit

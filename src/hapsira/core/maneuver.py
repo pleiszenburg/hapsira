@@ -6,7 +6,7 @@ from numpy import cross
 
 from hapsira.core.elements import coe_rotation_matrix, rv2coe, rv_pqw
 
-from ._math.linalg import norm
+from .math.linalg import norm
 
 
 @jit

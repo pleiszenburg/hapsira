@@ -7,7 +7,7 @@ Includes the computation of Lagrange points
 from astropy import units as u
 import numpy as np
 
-from hapsira.core._math.optimize import brentq
+from hapsira.core.math.optimize import brentq
 from hapsira.util import norm
 
 

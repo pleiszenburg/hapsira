@@ -4,7 +4,7 @@ from numpy import cross
 
 from hapsira.core.elements import circular_velocity
 
-from .._math.linalg import norm
+from ..math.linalg import norm
 
 
 @jit

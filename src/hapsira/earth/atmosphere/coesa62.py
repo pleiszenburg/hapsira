@@ -58,7 +58,7 @@ from astropy.units import imperial
 from astropy.utils.data import get_pkg_data_filename
 import numpy as np
 
-from hapsira.core._math.integrate import quad
+from hapsira.core.math.integrate import quad
 from hapsira.earth.atmosphere.base import COESA
 
 # Constants come from the original paper to achieve pure implementation

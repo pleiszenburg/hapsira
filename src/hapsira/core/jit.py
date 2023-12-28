@@ -1,80 +1,27 @@
-from enum import Enum, auto
 from typing import Callable
-import os
 
 import numba as nb
 from numba import cuda
 
-from hapsira.debug import get_environ_switch, logger
+from hapsira.debug import logger
 from hapsira.errors import JitError
+from hapsira.settings import settings
 
 
 __all__ = [
-    "INLINE",
-    "NOPYTHON",
     "PRECISIONS",
-    "TARGET",
-    "TARGETS",
     "hjit",
     "vjit",
     "sjit",
 ]
 
 
-class TARGETS(Enum):
-    """
-    JIT targets
-    """
+logger.debug("jit target: %s", settings["TARGET"].value)
+if settings["TARGET"].value == "cuda" and not cuda.is_available():
+    raise JitError('selected target "cuda" is not available')
 
-    cpu = auto()
-    parallel = auto()
-    cuda = auto()
-    # numba 0.54.0, 19 August 2021, removed AMD ROCm target
-
-    @classmethod
-    def get_default(cls):
-        """
-        Default JIT target
-        """
-
-        return cls.cpu
-
-    @classmethod
-    def get_current(cls):
-        """
-        Current JIT target
-        """
-
-        name = os.environ.get("HAPSIRA_TARGET", None)
-
-        if name is None:
-            target = cls.get_default()
-        else:
-            try:
-                target = cls[name]
-            except KeyError as e:
-                raise JitError(
-                    f'unknown target "{name:s}"; known targets are {repr(cls):s}'
-                ) from e
-
-        if target is cls.cuda and not cuda.is_available():
-            raise JitError('selected target "cuda" is not available')
-
-        return target
-
-
-TARGET = TARGETS.get_current()
-logger.debug("jit option target: %s", TARGET.name)
-
-INLINE = get_environ_switch(
-    "HAPSIRA_INLINE", default=TARGET is TARGET.cuda
-)  # currently only relevant for helpers on cpu and parallel targets
-logger.debug("jit option inline: %s", "yes" if INLINE else "no")
-
-NOPYTHON = get_environ_switch(
-    "HAPSIRA_NOPYTHON", default=True
-)  # only for debugging, True by default
-logger.debug("jit option nopython: %s", "yes" if NOPYTHON else "no")
+logger.debug("jit inline: %s", "yes" if settings["INLINE"].value else "no")
+logger.debug("jit nopython: %s", "yes" if settings["NOPYTHON"].value else "no")
 
 PRECISIONS = ("f4", "f8")  # TODO allow f2, i.e. half, for CUDA at least?
 
@@ -124,26 +71,22 @@ def hjit(*args, **kwargs) -> Callable:
         Applies JIT
         """
 
-        if TARGET in (TARGETS.cpu, TARGETS.parallel):
-            wjit = nb.jit
-            cfg = dict(
-                nopython=NOPYTHON,
-                inline="always" if INLINE else "never",
-            )
-        elif TARGET is TARGETS.cuda:
+        if settings["TARGET"].value == "cuda":
             wjit = cuda.jit
             cfg = dict(
                 device=True,
-                inline=INLINE,
+                inline=settings["INLINE"].value,
             )
         else:
-            raise JitError(
-                f'unknown target "{repr(TARGET):s}"; known targets are {repr(TARGETS):s}'
+            wjit = nb.jit
+            cfg = dict(
+                nopython=settings["NOPYTHON"].value,
+                inline="always" if settings["INLINE"].value else "never",
             )
         cfg.update(kwargs)
 
         logger.debug(
-            "hjit: %s, %s, %s",
+            "hjit: func=%s, args=%s, kwargs=%s",
             getattr(inner_func, "__name__", repr(inner_func)),
             repr(args),
             repr(cfg),
@@ -181,18 +124,14 @@ def vjit(*args, **kwargs) -> Callable:
         """
 
         cfg = dict(
-            target=TARGET.name,
+            target=settings["TARGET"].value,
         )
-        if TARGET is not TARGETS.cuda:
-            cfg["nopython"] = NOPYTHON
-        elif TARGET not in TARGETS:
-            raise JitError(
-                f'unknown target "{repr(TARGET):s}"; known targets are {repr(TARGETS):s}'
-            )
+        if settings["TARGET"].value != "cuda":
+            cfg["nopython"] = settings["NOPYTHON"].value
         cfg.update(kwargs)
 
         logger.debug(
-            "vjit: %s, %s, %s",
+            "vjit: func=%s, args=%s, kwargs=%s",
             getattr(inner_func, "__name__", repr(inner_func)),
             repr(args),
             repr(cfg),
@@ -227,13 +166,13 @@ def sjit(*args, **kwargs) -> Callable:
         """
 
         cfg = dict(
-            nopython=NOPYTHON,
-            inline="always" if INLINE else "never",
+            nopython=settings["NOPYTHON"].value,
+            inline="always" if settings["INLINE"].value else "never",
             **kwargs,
         )
 
         logger.debug(
-            "sjit: %s, %s, %s",
+            "sjit: func=%s, args=%s, kwargs=%s",
             getattr(inner_func, "__name__", repr(inner_func)),
             repr(args),
             repr(cfg),

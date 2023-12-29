@@ -160,6 +160,9 @@ def sjit(*args, **kwargs) -> Callable:
     else:
         pass
 
+    if len(args) > 0 and isinstance(args[0], str):
+        args = _parse_signatures(args[0]), *args[1:]
+
     def wrapper(inner_func: Callable) -> Callable:
         """
         Applies JIT

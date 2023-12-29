@@ -158,7 +158,7 @@ def sjit(*args, **kwargs) -> Callable:
         outer_func = args[0]
         args = tuple()
     else:
-        pass
+        outer_func = None
 
     if len(args) > 0 and isinstance(args[0], str):
         args = _parse_signatures(args[0]), *args[1:]

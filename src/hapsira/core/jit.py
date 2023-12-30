@@ -31,8 +31,15 @@ def _parse_signatures(signature: str) -> str | list[str]:
     Automatically generate signatures for single and double
     """
 
+    if "->" in signature:  # this is likely a layout for guvectorize
+        logger.warning(
+            "jit signature: likely a layout for guvectorize, not parsing (%s)",
+            signature,
+        )
+        return signature
+
     if not any(
-        notation in signature for notation in ("f", "V")
+        notation in signature for notation in ("f", "V", "M")
     ):  # leave this signature as it is
         logger.warning(
             "jit signature: no special notation, not parsing (%s)", signature

@@ -12,6 +12,7 @@ __all__ = [
     "PRECISIONS",
     "hjit",
     "vjit",
+    "gjit",
     "sjit",
 ]
 
@@ -146,6 +147,51 @@ def vjit(*args, **kwargs) -> Callable:
         )
 
         return nb.vectorize(
+            *args,
+            **cfg,
+        )(inner_func)
+
+    if outer_func is not None:
+        return wrapper(outer_func)
+
+    return wrapper
+
+
+def gjit(*args, **kwargs) -> Callable:
+    """
+    General vectorize on array, pre-configured, user-facing, switches compiler targets.
+    Functions decorated by it can always be called directly if needed.
+    """
+
+    if len(args) == 1 and callable(args[0]):
+        outer_func = args[0]
+        args = tuple()
+    else:
+        outer_func = None
+
+    if len(args) > 0 and isinstance(args[0], str):
+        args = _parse_signatures(args[0]), *args[1:]
+
+    def wrapper(inner_func: Callable) -> Callable:
+        """
+        Applies JIT
+        """
+
+        cfg = dict(
+            target=settings["TARGET"].value,
+        )
+        if settings["TARGET"].value != "cuda":
+            cfg["nopython"] = settings["NOPYTHON"].value
+        cfg.update(kwargs)
+
+        logger.debug(
+            "gjit: func=%s, args=%s, kwargs=%s",
+            getattr(inner_func, "__name__", repr(inner_func)),
+            repr(args),
+            repr(cfg),
+        )
+
+        return nb.guvectorize(
             *args,
             **cfg,
         )(inner_func)

@@ -27,7 +27,7 @@ logger.debug("jit nopython: %s", "yes" if settings["NOPYTHON"].value else "no")
 PRECISIONS = ("f4", "f8")  # TODO allow f2, i.e. half, for CUDA at least?
 
 
-def _parse_signatures(signature: str) -> str | list[str]:
+def _parse_signatures(signature: str, noreturn: bool = False) -> str | list[str]:
     """
     Automatically generate signatures for single and double
     """
@@ -38,6 +38,11 @@ def _parse_signatures(signature: str) -> str | list[str]:
             signature,
         )
         return signature
+
+    if noreturn and not signature.startswith("void("):
+        raise JitError(
+            "function does not allow return values, likely compiled via guvectorize"
+        )
 
     if not any(
         notation in signature for notation in ("f", "V", "M")
@@ -170,7 +175,7 @@ def gjit(*args, **kwargs) -> Callable:
         outer_func = None
 
     if len(args) > 0 and isinstance(args[0], str):
-        args = _parse_signatures(args[0]), *args[1:]
+        args = _parse_signatures(args[0], noreturn=True), *args[1:]
 
     def wrapper(inner_func: Callable) -> Callable:
         """

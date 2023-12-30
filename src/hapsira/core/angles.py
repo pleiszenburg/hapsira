@@ -1,53 +1,159 @@
-from numba import njit as jit
-import numpy as np
-
-
-@jit
-def _kepler_equation(E, M, ecc):
-    return E_to_M(E, ecc) - M
-
-
-@jit
-def _kepler_equation_prime(E, M, ecc):
-    return 1 - ecc * np.cos(E)
-
-
-@jit
-def _kepler_equation_hyper(F, M, ecc):
-    return F_to_M(F, ecc) - M
-
-
-@jit
-def _kepler_equation_prime_hyper(F, M, ecc):
-    return ecc * np.cosh(F) - 1
-
-
-def newton_factory(func, fprime):
-    @jit
-    def jit_newton_wrapper(x0, args=(), tol=1.48e-08, maxiter=50):
-        p0 = float(x0)
-        for _ in range(maxiter):
-            fval = func(p0, *args)
-            fder = fprime(p0, *args)
-            newton_step = fval / fder
-            p = p0 - newton_step
-            if abs(p - p0) < tol:
-                return p
-            p0 = p
-
-        return np.nan
-
-    return jit_newton_wrapper
-
-
-_newton_elliptic = newton_factory(_kepler_equation, _kepler_equation_prime)
-_newton_hyperbolic = newton_factory(
-    _kepler_equation_hyper, _kepler_equation_prime_hyper
+from math import (
+    asinh,
+    atan,
+    atan2,
+    atanh,
+    cos,
+    cosh,
+    nan,
+    pi,
+    sin,
+    sinh,
+    sqrt,
+    tan,
+    tanh,
 )
 
+from .jit import hjit, vjit
 
-@jit
-def D_to_nu(D):
+
+_TOL = 1.48e-08
+
+
+@hjit("f(f,f)")
+def E_to_M_hf(E, ecc):
+    r"""Mean anomaly from eccentric anomaly.
+
+    .. versionadded:: 0.4.0
+
+    Parameters
+    ----------
+    E : float
+        Eccentric anomaly in radians.
+    ecc : float
+        Eccentricity.
+
+    Returns
+    -------
+    M : float
+        Mean anomaly.
+
+    Warnings
+    --------
+    The mean anomaly will be outside of (-π, π]
+    if the eccentric anomaly is.
+    No validation or wrapping is performed.
+
+    Notes
+    -----
+    The implementation uses the plain original Kepler equation:
+
+    .. math::
+        M = E - e \sin{E}
+
+    """
+    M = E - ecc * sin(E)
+    return M
+
+
+@vjit("f(f,f)")
+def E_to_M_vf(E, ecc):
+    """
+    Vectorized E_to_M
+    """
+
+    return E_to_M_hf(E, ecc)
+
+
+@hjit("f(f,f)")
+def F_to_M_hf(F, ecc):
+    r"""Mean anomaly from hyperbolic anomaly.
+
+    Parameters
+    ----------
+    F : float
+        Hyperbolic anomaly.
+    ecc : float
+        Eccentricity (>1).
+
+    Returns
+    -------
+    M : float
+        Mean anomaly.
+
+    Notes
+    -----
+    As noted in [5]_, by manipulating
+    the parametric equations of the hyperbola
+    we can derive a quantity that is equivalent
+    to the mean anomaly in the elliptic case:
+
+    .. math::
+
+        M = e \sinh{F} - F
+
+    """
+    M = ecc * sinh(F) - F
+    return M
+
+
+@vjit("f(f,f)")
+def F_to_M_vf(F, ecc):
+    """
+    Vectorized F_to_M
+    """
+
+    return F_to_M_hf(F, ecc)
+
+
+@hjit("f(f,f,f)")
+def _kepler_equation_hf(E, M, ecc):
+    return E_to_M_hf(E, ecc) - M
+
+
+@hjit("f(f,f,f)")
+def _kepler_equation_prime_hf(E, M, ecc):
+    return 1 - ecc * cos(E)
+
+
+@hjit("f(f,f,f)")
+def _kepler_equation_hyper_hf(F, M, ecc):
+    return F_to_M_hf(F, ecc) - M
+
+
+@hjit("f(f,f,f)")
+def _kepler_equation_prime_hyper_hf(F, M, ecc):
+    return ecc * cosh(F) - 1
+
+
+@hjit("f(f,f,f,f,i64)")
+def _newton_elliptic_hf(p0, M, ecc, tol, maxiter):
+    for _ in range(maxiter):
+        fval = _kepler_equation_hf(p0, M, ecc)
+        fder = _kepler_equation_prime_hf(p0, M, ecc)
+        newton_step = fval / fder
+        p = p0 - newton_step
+        if abs(p - p0) < tol:
+            return p
+        p0 = p
+    return nan
+
+
+@hjit("f(f,f,f,f,i64)")
+def _newton_hyperbolic_hf(p0, M, ecc, tol, maxiter):
+    for _ in range(maxiter):
+        fval = _kepler_equation_hyper_hf(p0, M, ecc)
+        fder = _kepler_equation_prime_hyper_hf(p0, M, ecc)
+        newton_step = fval / fder
+        p = p0 - newton_step
+        if abs(p - p0) < tol:
+            return p
+        p0 = p
+    return nan
+
+
+@hjit("f(f)")
+def D_to_nu_hf(D):
     r"""True anomaly from parabolic anomaly.
 
     Parameters
@@ -69,11 +175,20 @@ def D_to_nu(D):
         \nu = 2 \arctan{D}
 
     """
-    return 2.0 * np.arctan(D)
+    return 2 * atan(D)
 
 
-@jit
-def nu_to_D(nu):
+@vjit("f(f)")
+def D_to_nu_vf(D):
+    """
+    Vectorized D_to_nu
+    """
+
+    return D_to_nu_hf(D)
+
+
+@hjit("f(f)")
+def nu_to_D_hf(nu):
     r"""Parabolic anomaly from true anomaly.
 
     Parameters
@@ -121,11 +236,20 @@ def nu_to_D(nu):
 
     """
     # TODO: Rename to B
-    return np.tan(nu / 2.0)
+    return tan(nu / 2)
 
 
-@jit
-def nu_to_E(nu, ecc):
+@vjit("f(f)")
+def nu_to_D_vf(nu):
+    """
+    Vectorized nu_to_D
+    """
+
+    return nu_to_D_hf(nu)
+
+
+@hjit("f(f,f)")
+def nu_to_E_hf(nu, ecc):
     r"""Eccentric anomaly from true anomaly.
 
     .. versionadded:: 0.4.0
@@ -156,12 +280,21 @@ def nu_to_E(nu, ecc):
         \in (-\pi, \pi]
 
     """
-    E = 2 * np.arctan(np.sqrt((1 - ecc) / (1 + ecc)) * np.tan(nu / 2))
+    E = 2 * atan(sqrt((1 - ecc) / (1 + ecc)) * tan(nu / 2))
     return E
 
 
-@jit
-def nu_to_F(nu, ecc):
+@vjit("f(f,f)")
+def nu_to_E_vf(nu, ecc):
+    """
+    Vectorized nu_to_E
+    """
+
+    return nu_to_E_hf(nu, ecc)
+
+
+@hjit("f(f,f)")
+def nu_to_F_hf(nu, ecc):
     r"""Hyperbolic anomaly from true anomaly.
 
     Parameters
@@ -192,12 +325,21 @@ def nu_to_F(nu, ecc):
         F = 2 \operatorname{arctanh} \left( \sqrt{\frac{e-1}{e+1}} \tan{\frac{\nu}{2}} \right)
 
     """
-    F = 2 * np.arctanh(np.sqrt((ecc - 1) / (ecc + 1)) * np.tan(nu / 2))
+    F = 2 * atanh(sqrt((ecc - 1) / (ecc + 1)) * tan(nu / 2))
     return F
 
 
-@jit
-def E_to_nu(E, ecc):
+@vjit("f(f,f)")
+def nu_to_F_vf(nu, ecc):
+    """
+    Vectorized nu_to_F
+    """
+
+    return nu_to_F_hf(nu, ecc)
+
+
+@hjit("f(f,f)")
+def E_to_nu_hf(E, ecc):
     r"""True anomaly from eccentric anomaly.
 
     .. versionadded:: 0.4.0
@@ -228,12 +370,21 @@ def E_to_nu(E, ecc):
         \in (-\pi, \pi]
 
     """
-    nu = 2 * np.arctan(np.sqrt((1 + ecc) / (1 - ecc)) * np.tan(E / 2))
+    nu = 2 * atan(sqrt((1 + ecc) / (1 - ecc)) * tan(E / 2))
     return nu
 
 
-@jit
-def F_to_nu(F, ecc):
+@vjit("f(f,f)")
+def E_to_nu_vf(E, ecc):
+    """
+    Vectorized E_to_nu
+    """
+
+    return E_to_nu_hf(E, ecc)
+
+
+@hjit("f(f,f)")
+def F_to_nu_hf(F, ecc):
     r"""True anomaly from hyperbolic anomaly.
 
     Parameters
@@ -257,12 +408,21 @@ def F_to_nu(F, ecc):
         \in (-\pi, \pi]
 
     """
-    nu = 2 * np.arctan(np.sqrt((ecc + 1) / (ecc - 1)) * np.tanh(F / 2))
+    nu = 2 * atan(sqrt((ecc + 1) / (ecc - 1)) * tanh(F / 2))
     return nu
 
 
-@jit
-def M_to_E(M, ecc):
+@vjit("f(f,f)")
+def F_to_nu_vf(F, ecc):
+    """
+    Vectorized F_to_nu
+    """
+
+    return F_to_nu_hf(F, ecc)
+
+
+@hjit("f(f,f)")
+def M_to_E_hf(M, ecc):
     """Eccentric anomaly from mean anomaly.
 
     .. versionadded:: 0.4.0
@@ -284,16 +444,25 @@ def M_to_E(M, ecc):
     This uses a Newton iteration on the Kepler equation.
 
     """
-    if -np.pi < M < 0 or np.pi < M:
+    if -pi < M < 0 or pi < M:
         E0 = M - ecc
     else:
         E0 = M + ecc
-    E = _newton_elliptic(E0, args=(M, ecc))
+    E = _newton_elliptic_hf(E0, M, ecc, _TOL, 50)
     return E
 
 
-@jit
-def M_to_F(M, ecc):
+@vjit("f(f,f)")
+def M_to_E_vf(M, ecc):
+    """
+    Vectorized M_to_E
+    """
+
+    return M_to_E_hf(M, ecc)
+
+
+@hjit("f(f,f)")
+def M_to_F_hf(M, ecc):
     """Hyperbolic anomaly from mean anomaly.
 
     Parameters
@@ -313,13 +482,22 @@ def M_to_F(M, ecc):
     This uses a Newton iteration on the hyperbolic Kepler equation.
 
     """
-    F0 = np.arcsinh(M / ecc)
-    F = _newton_hyperbolic(F0, args=(M, ecc), maxiter=100)
+    F0 = asinh(M / ecc)
+    F = _newton_hyperbolic_hf(F0, M, ecc, _TOL, 100)
     return F
 
 
-@jit
-def M_to_D(M):
+@vjit("f(f,f)")
+def M_to_F_vf(M, ecc):
+    """
+    Vectorized M_to_F
+    """
+
+    return M_to_F_hf(M, ecc)
+
+
+@hjit("f(f)")
+def M_to_D_hf(M):
     """Parabolic anomaly from mean anomaly.
 
     Parameters
@@ -343,76 +521,17 @@ def M_to_D(M):
     return D
 
 
-@jit
-def E_to_M(E, ecc):
-    r"""Mean anomaly from eccentric anomaly.
-
-    .. versionadded:: 0.4.0
-
-    Parameters
-    ----------
-    E : float
-        Eccentric anomaly in radians.
-    ecc : float
-        Eccentricity.
-
-    Returns
-    -------
-    M : float
-        Mean anomaly.
-
-    Warnings
-    --------
-    The mean anomaly will be outside of (-π, π]
-    if the eccentric anomaly is.
-    No validation or wrapping is performed.
-
-    Notes
-    -----
-    The implementation uses the plain original Kepler equation:
-
-    .. math::
-        M = E - e \sin{E}
-
+@vjit("f(f)")
+def M_to_D_vf(M):
     """
-    M = E - ecc * np.sin(E)
-    return M
-
-
-@jit
-def F_to_M(F, ecc):
-    r"""Mean anomaly from hyperbolic anomaly.
-
-    Parameters
-    ----------
-    F : float
-        Hyperbolic anomaly.
-    ecc : float
-        Eccentricity (>1).
-
-    Returns
-    -------
-    M : float
-        Mean anomaly.
-
-    Notes
-    -----
-    As noted in [5]_, by manipulating
-    the parametric equations of the hyperbola
-    we can derive a quantity that is equivalent
-    to the mean anomaly in the elliptic case:
-
-    .. math::
-
-        M = e \sinh{F} - F
-
+    Vectorized M_to_D
     """
-    M = ecc * np.sinh(F) - F
-    return M
+
+    return M_to_D_hf(M)
 
 
-@jit
-def D_to_M(D):
+@hjit("f(f)")
+def D_to_M_hf(D):
     r"""Mean anomaly from parabolic anomaly.
 
     Parameters
@@ -444,8 +563,17 @@ def D_to_M(D):
     return M
 
 
-@jit
-def fp_angle(nu, ecc):
+@vjit("f(f)")
+def D_to_M_vf(D):
+    """
+    Vectorized D_to_M
+    """
+
+    return D_to_M_hf(D)
+
+
+@hjit("f(f,f)")
+def fp_angle_hf(nu, ecc):
     r"""Returns the flight path angle.
 
     Parameters
@@ -469,4 +597,13 @@ def fp_angle(nu, ecc):
         \phi = \arctan(\frac {e \sin{\nu}}{1 + e \cos{\nu}})
 
     """
-    return np.arctan2(ecc * np.sin(nu), 1 + ecc * np.cos(nu))
+    return atan2(ecc * sin(nu), 1 + ecc * cos(nu))
+
+
+@vjit("f(f,f)")
+def fp_angle_vf(nu, ecc):
+    """
+    Vectorized fp_angle
+    """
+
+    return fp_angle_hf(nu, ecc)

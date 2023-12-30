@@ -38,7 +38,7 @@ def eccentricity_vector(k, r, v):
 
 @jit
 def circular_velocity(k, a):
-    r"""Compute circular velocity for a given body given thegravitational parameter and the semimajor axis.
+    r"""Compute circular velocity for a given body given the gravitational parameter and the semimajor axis.
 
     .. math::
 

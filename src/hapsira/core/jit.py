@@ -45,9 +45,10 @@ def _parse_signatures(signature: str) -> str | list[str]:
         )
         return signature
 
-    signature = signature.replace(
-        "V", "Tuple([f,f,f])"
-    )  # TODO hope for support of "f[:]" return values in cuda target; 2D/4D vectors?
+    # TODO hope for support of "f[:]" return values in cuda target; 2D/4D vectors?
+    signature = signature.replace("M", "Tuple([V,V,V])")  # matrix is a tuple of vectors
+    signature = signature.replace("V", "Tuple([f,f,f])")  # vector is a tuple of floats
+
     return [signature.replace("f", dtype) for dtype in PRECISIONS]
 
 

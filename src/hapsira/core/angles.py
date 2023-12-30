@@ -20,6 +20,40 @@ from .jit import hjit, vjit
 _TOL = 1.48e-08
 
 
+__all__ = [
+    "E_to_M_hf",
+    "E_to_M_vf",
+    "F_to_M_hf",
+    "F_to_M_vf",
+    "kepler_equation_hf",
+    "kepler_equation_prime_hf",
+    "kepler_equation_hyper_hf",
+    "kepler_equation_prime_hyper_hf",
+    "D_to_nu_hf",
+    "D_to_nu_vf",
+    "nu_to_D_hf",
+    "nu_to_D_vf",
+    "nu_to_E_hf",
+    "nu_to_E_vf",
+    "nu_to_F_hf",
+    "nu_to_F_vf",
+    "E_to_nu_hf",
+    "E_to_nu_vf",
+    "F_to_nu_hf",
+    "F_to_nu_vf",
+    "M_to_E_hf",
+    "M_to_E_vf",
+    "M_to_F_hf",
+    "M_to_F_vf",
+    "M_to_D_hf",
+    "M_to_D_vf",
+    "D_to_M_hf",
+    "D_to_M_vf",
+    "fp_angle_hf",
+    "fp_angle_vf",
+]
+
+
 @hjit("f(f,f)")
 def E_to_M_hf(E, ecc):
     r"""Mean anomaly from eccentric anomaly.

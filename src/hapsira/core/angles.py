@@ -126,7 +126,7 @@ def kepler_equation_prime_hyper_hf(F, M, ecc):
     return ecc * cosh(F) - 1
 
 
-@hjit("f(f,f,f,f,i64)")
+@hjit("f(f,f,f,f,i8)")
 def _newton_elliptic_hf(p0, M, ecc, tol, maxiter):
     for _ in range(maxiter):
         fval = kepler_equation_hf(p0, M, ecc)
@@ -139,7 +139,7 @@ def _newton_elliptic_hf(p0, M, ecc, tol, maxiter):
     return nan
 
 
-@hjit("f(f,f,f,f,i64)")
+@hjit("f(f,f,f,f,i8)")
 def _newton_hyperbolic_hf(p0, M, ecc, tol, maxiter):
     for _ in range(maxiter):
         fval = kepler_equation_hyper_hf(p0, M, ecc)

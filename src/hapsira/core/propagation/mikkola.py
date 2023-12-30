@@ -2,13 +2,13 @@ from numba import njit as jit
 import numpy as np
 
 from hapsira.core.angles import (
-    D_to_nu,
-    E_to_M,
-    E_to_nu,
-    F_to_M,
-    F_to_nu,
-    nu_to_E,
-    nu_to_F,
+    D_to_nu_hf,
+    E_to_M_hf,
+    E_to_nu_hf,
+    F_to_M_hf,
+    F_to_nu_hf,
+    nu_to_E_hf,
+    nu_to_F_hf,
 )
 from hapsira.core.elements import coe2rv, rv2coe
 
@@ -22,10 +22,10 @@ def mikkola_coe(k, p, ecc, inc, raan, argp, nu, tof):
     if ecc < 1.0:
         # Equation (9a)
         alpha = (1 - ecc) / (4 * ecc + 1 / 2)
-        M0 = E_to_M(nu_to_E(nu, ecc), ecc)
+        M0 = E_to_M_hf(nu_to_E_hf(nu, ecc), ecc)
     else:
         alpha = (ecc - 1) / (4 * ecc + 1 / 2)
-        M0 = F_to_M(nu_to_F(nu, ecc), ecc)
+        M0 = F_to_M_hf(nu_to_F_hf(nu, ecc), ecc)
 
     M = M0 + n * tof
     beta = M / 2 / (4 * ecc + 1 / 2)
@@ -82,14 +82,14 @@ def mikkola_coe(k, p, ecc, inc, raan, argp, nu, tof):
     E += u5
 
     if ecc < 1.0:
-        nu = E_to_nu(E, ecc)
+        nu = E_to_nu_hf(E, ecc)
     else:
         if ecc == 1.0:
             # Parabolic
-            nu = D_to_nu(E)
+            nu = D_to_nu_hf(E)
         else:
             # Hyperbolic
-            nu = F_to_nu(E, ecc)
+            nu = F_to_nu_hf(E, ecc)
 
     return nu
 

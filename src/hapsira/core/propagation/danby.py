@@ -1,7 +1,7 @@
 from numba import njit as jit
 import numpy as np
 
-from hapsira.core.angles import E_to_M, F_to_M, nu_to_E, nu_to_F
+from hapsira.core.angles import E_to_M_hf, F_to_M_hf, nu_to_E_hf, nu_to_F_hf
 from hapsira.core.elements import coe2rv, rv2coe
 
 
@@ -19,14 +19,14 @@ def danby_coe(k, p, ecc, inc, raan, argp, nu, tof, numiter=20, rtol=1e-8):
 
     elif ecc < 1.0:
         # For elliptical orbit
-        M0 = E_to_M(nu_to_E(nu, ecc), ecc)
+        M0 = E_to_M_hf(nu_to_E_hf(nu, ecc), ecc)
         M = M0 + n * tof
         xma = M - 2 * np.pi * np.floor(M / 2 / np.pi)
         E = xma + 0.85 * np.sign(np.sin(xma)) * ecc
 
     else:
         # For parabolic and hyperbolic
-        M0 = F_to_M(nu_to_F(nu, ecc), ecc)
+        M0 = F_to_M_hf(nu_to_F_hf(nu, ecc), ecc)
         M = M0 + n * tof
         xma = M - 2 * np.pi * np.floor(M / 2 / np.pi)
         E = np.log(2 * xma / ecc + 1.8)

@@ -2,18 +2,18 @@ from numba import njit as jit
 import numpy as np
 
 from hapsira.core.angles import (
-    D_to_M,
-    D_to_nu,
-    E_to_M,
-    E_to_nu,
-    F_to_M,
-    F_to_nu,
-    M_to_D,
-    M_to_E,
-    M_to_F,
-    nu_to_D,
-    nu_to_E,
-    nu_to_F,
+    D_to_M_hf,
+    D_to_nu_hf,
+    E_to_M_hf,
+    E_to_nu_hf,
+    F_to_M_hf,
+    F_to_nu_hf,
+    M_to_D_hf,
+    M_to_E_hf,
+    M_to_F_hf,
+    nu_to_D_hf,
+    nu_to_E_hf,
+    nu_to_F_hf,
 )
 from hapsira.core.elements import coe2rv, rv2coe
 
@@ -110,7 +110,7 @@ def M_to_D_near_parabolic(M, ecc, tol=1.48e-08, maxiter=50):
         Parabolic eccentric anomaly.
 
     """
-    D0 = M_to_D(M)
+    D0 = M_to_D_hf(M)
 
     for _ in range(maxiter):
         fval = _kepler_equation_near_parabolic(D0, M, ecc)
@@ -152,18 +152,18 @@ def delta_t_from_nu(nu, ecc, k=1.0, q=1.0, delta=1e-2):
     assert -np.pi <= nu < np.pi
     if ecc < 1 - delta:
         # Strong elliptic
-        E = nu_to_E(nu, ecc)  # (-pi, pi]
-        M = E_to_M(E, ecc)  # (-pi, pi]
+        E = nu_to_E_hf(nu, ecc)  # (-pi, pi]
+        M = E_to_M_hf(E, ecc)  # (-pi, pi]
         n = np.sqrt(k * (1 - ecc) ** 3 / q**3)
     elif 1 - delta <= ecc < 1:
-        E = nu_to_E(nu, ecc)  # (-pi, pi]
+        E = nu_to_E_hf(nu, ecc)  # (-pi, pi]
         if delta <= 1 - ecc * np.cos(E):
             # Strong elliptic
-            M = E_to_M(E, ecc)  # (-pi, pi]
+            M = E_to_M_hf(E, ecc)  # (-pi, pi]
             n = np.sqrt(k * (1 - ecc) ** 3 / q**3)
         else:
             # Near parabolic
-            D = nu_to_D(nu)  # (-∞, ∞)
+            D = nu_to_D_hf(nu)  # (-∞, ∞)
             # If |nu| is far from pi this result is bounded
             # because the near parabolic region shrinks in its vicinity,
             # otherwise the eccentricity is very close to 1
@@ -172,8 +172,8 @@ def delta_t_from_nu(nu, ecc, k=1.0, q=1.0, delta=1e-2):
             n = np.sqrt(k / (2 * q**3))
     elif ecc == 1:
         # Parabolic
-        D = nu_to_D(nu)  # (-∞, ∞)
-        M = D_to_M(D)  # (-∞, ∞)
+        D = nu_to_D_hf(nu)  # (-∞, ∞)
+        M = D_to_M_hf(D)  # (-∞, ∞)
         n = np.sqrt(k / (2 * q**3))
     elif 1 + ecc * np.cos(nu) < 0:
         # Unfeasible region
@@ -182,20 +182,20 @@ def delta_t_from_nu(nu, ecc, k=1.0, q=1.0, delta=1e-2):
         # NOTE: Do we need to wrap nu here?
         # For hyperbolic orbits, it should anyway be in
         # (-arccos(-1 / ecc), +arccos(-1 / ecc))
-        F = nu_to_F(nu, ecc)  # (-∞, ∞)
+        F = nu_to_F_hf(nu, ecc)  # (-∞, ∞)
         if delta <= ecc * np.cosh(F) - 1:
             # Strong hyperbolic
-            M = F_to_M(F, ecc)  # (-∞, ∞)
+            M = F_to_M_hf(F, ecc)  # (-∞, ∞)
             n = np.sqrt(k * (ecc - 1) ** 3 / q**3)
         else:
             # Near parabolic
-            D = nu_to_D(nu)  # (-∞, ∞)
+            D = nu_to_D_hf(nu)  # (-∞, ∞)
             M = D_to_M_near_parabolic(D, ecc)  # (-∞, ∞)
             n = np.sqrt(k / (2 * q**3))
     elif 1 + delta < ecc:
         # Strong hyperbolic
-        F = nu_to_F(nu, ecc)  # (-∞, ∞)
-        M = F_to_M(F, ecc)  # (-∞, ∞)
+        F = nu_to_F_hf(nu, ecc)  # (-∞, ∞)
+        M = F_to_M_hf(F, ecc)  # (-∞, ∞)
         n = np.sqrt(k * (ecc - 1) ** 3 / q**3)
     else:
         raise RuntimeError
@@ -232,8 +232,8 @@ def nu_from_delta_t(delta_t, ecc, k=1.0, q=1.0, delta=1e-2):
         M = n * delta_t
         # This might represent several revolutions,
         # so we wrap the true anomaly
-        E = M_to_E((M + np.pi) % (2 * np.pi) - np.pi, ecc)
-        nu = E_to_nu(E, ecc)
+        E = M_to_E_hf((M + np.pi) % (2 * np.pi) - np.pi, ecc)
+        nu = E_to_nu_hf(E, ecc)
     elif 1 - delta <= ecc < 1:
         E_delta = np.arccos((1 - delta) / ecc)
         # We compute M assuming we are in the strong elliptic case
@@ -241,24 +241,24 @@ def nu_from_delta_t(delta_t, ecc, k=1.0, q=1.0, delta=1e-2):
         n = np.sqrt(k * (1 - ecc) ** 3 / q**3)
         M = n * delta_t
         # We check against abs(M) because E_delta could also be negative
-        if E_to_M(E_delta, ecc) <= abs(M):
+        if E_to_M_hf(E_delta, ecc) <= abs(M):
             # Strong elliptic, proceed
             # This might represent several revolutions,
             # so we wrap the true anomaly
-            E = M_to_E((M + np.pi) % (2 * np.pi) - np.pi, ecc)
-            nu = E_to_nu(E, ecc)
+            E = M_to_E_hf((M + np.pi) % (2 * np.pi) - np.pi, ecc)
+            nu = E_to_nu_hf(E, ecc)
         else:
             # Near parabolic, recompute M
             n = np.sqrt(k / (2 * q**3))
             M = n * delta_t
             D = M_to_D_near_parabolic(M, ecc)
-            nu = D_to_nu(D)
+            nu = D_to_nu_hf(D)
     elif ecc == 1:
         # Parabolic
         n = np.sqrt(k / (2 * q**3))
         M = n * delta_t
-        D = M_to_D(M)
-        nu = D_to_nu(D)
+        D = M_to_D_hf(M)
+        nu = D_to_nu_hf(D)
     elif 1 < ecc <= 1 + delta:
         F_delta = np.arccosh((1 + delta) / ecc)
         # We compute M assuming we are in the strong hyperbolic case
@@ -266,23 +266,23 @@ def nu_from_delta_t(delta_t, ecc, k=1.0, q=1.0, delta=1e-2):
         n = np.sqrt(k * (ecc - 1) ** 3 / q**3)
         M = n * delta_t
         # We check against abs(M) because F_delta could also be negative
-        if F_to_M(F_delta, ecc) <= abs(M):
+        if F_to_M_hf(F_delta, ecc) <= abs(M):
             # Strong hyperbolic, proceed
-            F = M_to_F(M, ecc)
-            nu = F_to_nu(F, ecc)
+            F = M_to_F_hf(M, ecc)
+            nu = F_to_nu_hf(F, ecc)
         else:
             # Near parabolic, recompute M
             n = np.sqrt(k / (2 * q**3))
             M = n * delta_t
             D = M_to_D_near_parabolic(M, ecc)
-            nu = D_to_nu(D)
+            nu = D_to_nu_hf(D)
     # elif 1 + delta < ecc:
     else:
         # Strong hyperbolic
         n = np.sqrt(k * (ecc - 1) ** 3 / q**3)
         M = n * delta_t
-        F = M_to_F(M, ecc)
-        nu = F_to_nu(F, ecc)
+        F = M_to_F_hf(M, ecc)
+        nu = F_to_nu_hf(F, ecc)
 
     return nu
 

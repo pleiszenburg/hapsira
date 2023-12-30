@@ -1,7 +1,7 @@
 from numba import njit as jit
 import numpy as np
 
-from hapsira.core.angles import E_to_M, E_to_nu, nu_to_E
+from hapsira.core.angles import E_to_M_hf, E_to_nu_hf, nu_to_E_hf
 from hapsira.core.elements import coe2rv, rv2coe
 
 
@@ -41,7 +41,7 @@ def recseries_coe(
         # Solving for elliptical orbit
 
         # compute initial mean anoamly
-        M0 = E_to_M(nu_to_E(nu, ecc), ecc)
+        M0 = E_to_M_hf(nu_to_E_hf(nu, ecc), ecc)
         # final mean anaomaly
         M = M0 + n * tof
         # snapping anomaly to [0,pi] range
@@ -64,7 +64,7 @@ def recseries_coe(
                 break
             E = En
 
-        return E_to_nu(E, ecc)
+        return E_to_nu_hf(E, ecc)
 
     else:
         # Parabolic/Hyperbolic orbits are not supported

@@ -107,30 +107,30 @@ def F_to_M_vf(F, ecc):
 
 
 @hjit("f(f,f,f)")
-def _kepler_equation_hf(E, M, ecc):
+def kepler_equation_hf(E, M, ecc):
     return E_to_M_hf(E, ecc) - M
 
 
 @hjit("f(f,f,f)")
-def _kepler_equation_prime_hf(E, M, ecc):
+def kepler_equation_prime_hf(E, M, ecc):
     return 1 - ecc * cos(E)
 
 
 @hjit("f(f,f,f)")
-def _kepler_equation_hyper_hf(F, M, ecc):
+def kepler_equation_hyper_hf(F, M, ecc):
     return F_to_M_hf(F, ecc) - M
 
 
 @hjit("f(f,f,f)")
-def _kepler_equation_prime_hyper_hf(F, M, ecc):
+def kepler_equation_prime_hyper_hf(F, M, ecc):
     return ecc * cosh(F) - 1
 
 
 @hjit("f(f,f,f,f,i64)")
 def _newton_elliptic_hf(p0, M, ecc, tol, maxiter):
     for _ in range(maxiter):
-        fval = _kepler_equation_hf(p0, M, ecc)
-        fder = _kepler_equation_prime_hf(p0, M, ecc)
+        fval = kepler_equation_hf(p0, M, ecc)
+        fder = kepler_equation_prime_hf(p0, M, ecc)
         newton_step = fval / fder
         p = p0 - newton_step
         if abs(p - p0) < tol:
@@ -142,8 +142,8 @@ def _newton_elliptic_hf(p0, M, ecc, tol, maxiter):
 @hjit("f(f,f,f,f,i64)")
 def _newton_hyperbolic_hf(p0, M, ecc, tol, maxiter):
     for _ in range(maxiter):
-        fval = _kepler_equation_hyper_hf(p0, M, ecc)
-        fder = _kepler_equation_prime_hyper_hf(p0, M, ecc)
+        fval = kepler_equation_hyper_hf(p0, M, ecc)
+        fder = kepler_equation_prime_hyper_hf(p0, M, ecc)
         newton_step = fval / fder
         p = p0 - newton_step
         if abs(p - p0) < tol:

@@ -1,5 +1,5 @@
 import os
-from typing import Any, Generator, Optional, Type
+from typing import Any, Generator, Optional, Tuple, Type
 
 __all__ = [
     "Setting",
@@ -26,7 +26,7 @@ class Setting:
     Holds one setting settable by user before sub-module import
     """
 
-    def __init__(self, name: str, default: Any, options: Optional[tuple[Any]] = None):
+    def __init__(self, name: str, default: Any, options: Optional[Tuple[Any]] = None):
         self._name = name
         self._type = type(default)
         self._value = default
@@ -59,7 +59,7 @@ class Setting:
         return self._type
 
     @property
-    def options(self) -> Optional[tuple[Any]]:
+    def options(self) -> Optional[Tuple[Any]]:
         """
         Return options for value
         """

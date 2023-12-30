@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, List, Union
 
 import numba as nb
 from numba import cuda
@@ -27,7 +27,7 @@ logger.debug("jit nopython: %s", "yes" if settings["NOPYTHON"].value else "no")
 PRECISIONS = ("f4", "f8")  # TODO allow f2, i.e. half, for CUDA at least?
 
 
-def _parse_signatures(signature: str, noreturn: bool = False) -> str | list[str]:
+def _parse_signatures(signature: str, noreturn: bool = False) -> Union[str, List[str]]:
     """
     Automatically generate signatures for single and double
     """

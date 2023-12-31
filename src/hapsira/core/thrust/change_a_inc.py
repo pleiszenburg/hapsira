@@ -4,7 +4,8 @@ from numpy import cross
 
 from hapsira.core.elements import circular_velocity
 
-from ..math.linalg import norm
+from ..jit import _arr2tup_hf
+from ..math.linalg import norm_hf
 
 
 @jit
@@ -101,8 +102,8 @@ def change_a_inc(k, a_0, a_f, inc_0, inc_f, f):
         # Change sign of beta with the out-of-plane velocity
         beta_ = beta(t0, V_0, f, beta_0_) * np.sign(r[0] * (inc_f - inc_0))
 
-        t_ = v / norm(v)
-        w_ = cross(r, v) / norm(cross(r, v))
+        t_ = v / norm_hf(_arr2tup_hf(v))
+        w_ = cross(r, v) / norm_hf(_arr2tup_hf(cross(r, v)))
         accel_v = f * (np.cos(beta_) * t_ + np.sin(beta_) * w_)
         return accel_v
 

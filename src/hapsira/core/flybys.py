@@ -4,7 +4,8 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross
 
-from .math.linalg import norm
+from .jit import _arr2tup_hf
+from .math.linalg import norm_hf
 
 
 @jit
@@ -33,7 +34,7 @@ def compute_flyby(v_spacecraft, v_body, k, r_p, theta):
 
     """
     v_inf_1 = v_spacecraft - v_body  # Hyperbolic excess velocity
-    v_inf = norm(v_inf_1)
+    v_inf = norm_hf(_arr2tup_hf(v_inf_1))
 
     ecc = 1 + r_p * v_inf**2 / k  # Eccentricity of the entry hyperbola
     delta = 2 * np.arcsin(1 / ecc)  # Turn angle
@@ -48,7 +49,7 @@ def compute_flyby(v_spacecraft, v_body, k, r_p, theta):
     S_vec = v_inf_1 / v_inf
     c_vec = np.array([0, 0, 1])
     T_vec = cross(S_vec, c_vec)
-    T_vec = T_vec / norm(T_vec)
+    T_vec = T_vec / norm_hf(_arr2tup_hf(T_vec))
     R_vec = cross(S_vec, T_vec)
 
     # This vector defines the B-Plane
@@ -62,7 +63,7 @@ def compute_flyby(v_spacecraft, v_body, k, r_p, theta):
     # And now we rotate the outbound hyperbolic excess velocity
     # u_vec = v_inf_1 / norm(v_inf) = S_vec
     v_vec = cross(rot_v, v_inf_1)
-    v_vec = v_vec / norm(v_vec)
+    v_vec = v_vec / norm_hf(_arr2tup_hf(v_vec))
 
     v_inf_2 = v_inf * (np.cos(delta) * S_vec + np.sin(delta) * v_vec)
 

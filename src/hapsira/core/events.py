@@ -4,7 +4,8 @@ import numpy as np
 from hapsira.core.elements import coe_rotation_matrix, rv2coe
 from hapsira.core.util import planetocentric_to_AltAz
 
-from .math.linalg import norm
+from .jit import _arr2tup_hf
+from .math.linalg import norm_hf
 
 
 @jit
@@ -41,7 +42,7 @@ def eclipse_function(k, u_, r_sec, R_sec, R_primary, umbra=True):
     # Make arrays contiguous for faster dot product with numba.
     P_, Q_ = np.ascontiguousarray(PQW[:, 0]), np.ascontiguousarray(PQW[:, 1])
 
-    r_sec_norm = norm(r_sec)
+    r_sec_norm = norm_hf(_arr2tup_hf(r_sec))
     beta = (P_ @ r_sec) / r_sec_norm
     zeta = (Q_ @ r_sec) / r_sec_norm
 
@@ -78,8 +79,8 @@ def line_of_sight(r1, r2, R):
         located by r1 and r2, else negative.
 
     """
-    r1_norm = norm(r1)
-    r2_norm = norm(r2)
+    r1_norm = norm_hf(_arr2tup_hf(r1))
+    r2_norm = norm_hf(_arr2tup_hf(r2))
 
     theta = np.arccos((r1 @ r2) / r1_norm / r2_norm)
     theta_1 = np.arccos(R / r1_norm)

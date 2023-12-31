@@ -11,7 +11,8 @@ from numpy import cos, cross, sin, sqrt
 from hapsira.core.angles import E_to_nu_hf, F_to_nu_hf
 from hapsira.core.util import rotation_matrix
 
-from .math.linalg import norm
+from .jit import _arr2tup_hf
+from .math.linalg import norm_hf
 
 
 @jit
@@ -33,7 +34,7 @@ def eccentricity_vector(k, r, v):
     v : numpy.ndarray
         Velocity vector (km / s)
     """
-    return ((v @ v - k / norm(r)) * r - (r @ v) * v) / k
+    return ((v @ v - k / norm_hf(_arr2tup_hf(r))) * r - (r @ v) * v) / k
 
 
 @jit
@@ -381,10 +382,10 @@ def rv2coe(k, r, v, tol=1e-8):
     """
     h = cross(r, v)
     n = cross([0, 0, 1], h)
-    e = ((v @ v - k / norm(r)) * r - (r @ v) * v) / k
-    ecc = norm(e)
+    e = ((v @ v - k / norm_hf(_arr2tup_hf(r))) * r - (r @ v) * v) / k
+    ecc = norm_hf(_arr2tup_hf(e))
     p = (h @ h) / k
-    inc = np.arccos(h[2] / norm(h))
+    inc = np.arccos(h[2] / norm_hf(_arr2tup_hf(h)))
 
     circular = ecc < tol
     equatorial = abs(inc) < tol
@@ -392,12 +393,12 @@ def rv2coe(k, r, v, tol=1e-8):
     if equatorial and not circular:
         raan = 0
         argp = np.arctan2(e[1], e[0]) % (2 * np.pi)  # Longitude of periapsis
-        nu = np.arctan2((h @ cross(e, r)) / norm(h), r @ e)
+        nu = np.arctan2((h @ cross(e, r)) / norm_hf(_arr2tup_hf(h)), r @ e)
     elif not equatorial and circular:
         raan = np.arctan2(n[1], n[0]) % (2 * np.pi)
         argp = 0
         # Argument of latitude
-        nu = np.arctan2((r @ cross(h, n)) / norm(h), r @ n)
+        nu = np.arctan2((r @ cross(h, n)) / norm_hf(_arr2tup_hf(h)), r @ n)
     elif equatorial and circular:
         raan = 0
         argp = 0
@@ -407,16 +408,16 @@ def rv2coe(k, r, v, tol=1e-8):
         ka = k * a
         if a > 0:
             e_se = (r @ v) / sqrt(ka)
-            e_ce = norm(r) * (v @ v) / k - 1
+            e_ce = norm_hf(_arr2tup_hf(r)) * (v @ v) / k - 1
             nu = E_to_nu_hf(np.arctan2(e_se, e_ce), ecc)
         else:
             e_sh = (r @ v) / sqrt(-ka)
-            e_ch = norm(r) * (norm(v) ** 2) / k - 1
+            e_ch = norm_hf(_arr2tup_hf(r)) * (norm_hf(_arr2tup_hf(v)) ** 2) / k - 1
             nu = F_to_nu_hf(np.log((e_ch + e_sh) / (e_ch - e_sh)) / 2, ecc)
 
         raan = np.arctan2(n[1], n[0]) % (2 * np.pi)
         px = r @ n
-        py = (r @ cross(h, n)) / norm(h)
+        py = (r @ cross(h, n)) / norm_hf(_arr2tup_hf(h))
         argp = (np.arctan2(py, px) - nu) % (2 * np.pi)
 
     nu = (nu + np.pi) % (2 * np.pi) - np.pi

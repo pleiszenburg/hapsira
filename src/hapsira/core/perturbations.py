@@ -3,7 +3,8 @@ import numpy as np
 
 from hapsira.core.events import line_of_sight as line_of_sight_fast
 
-from .math.linalg import norm
+from .jit import _arr2tup_hf
+from .math.linalg import norm_hf
 
 
 @jit
@@ -36,7 +37,7 @@ def J2_perturbation(t0, state, k, J2, R):
 
     """
     r_vec = state[:3]
-    r = norm(r_vec)
+    r = norm_hf(_arr2tup_hf(r_vec))
 
     factor = (3.0 / 2.0) * k * J2 * (R**2) / (r**5)
 
@@ -71,7 +72,7 @@ def J3_perturbation(t0, state, k, J3, R):
 
     """
     r_vec = state[:3]
-    r = norm(r_vec)
+    r = norm_hf(_arr2tup_hf(r_vec))
 
     factor = (1.0 / 2.0) * k * J3 * (R**3) / (r**5)
     cos_phi = r_vec[2] / r
@@ -119,10 +120,10 @@ def atmospheric_drag_exponential(t0, state, k, R, C_D, A_over_m, H0, rho0):
     the atmospheric density model is rho(H) = rho0 x exp(-H / H0)
 
     """
-    H = norm(state[:3])
+    H = norm_hf(_arr2tup_hf(state[:3]))
 
     v_vec = state[3:]
-    v = norm(v_vec)
+    v = norm_hf(_arr2tup_hf(v_vec))
     B = C_D * A_over_m
     rho = rho0 * np.exp(-(H - R) / H0)
 
@@ -161,7 +162,7 @@ def atmospheric_drag(t0, state, k, C_D, A_over_m, rho):
 
     """
     v_vec = state[3:]
-    v = norm(v_vec)
+    v = norm_hf(_arr2tup_hf(v_vec))
     B = C_D * A_over_m
 
     return -(1.0 / 2.0) * rho * B * v * v_vec
@@ -196,7 +197,10 @@ def third_body(t0, state, k, k_third, perturbation_body):
     """
     body_r = perturbation_body(t0)
     delta_r = body_r - state[:3]
-    return k_third * delta_r / norm(delta_r) ** 3 - k_third * body_r / norm(body_r) ** 3
+    return (
+        k_third * delta_r / norm_hf(_arr2tup_hf(delta_r)) ** 3
+        - k_third * body_r / norm_hf(_arr2tup_hf(body_r)) ** 3
+    )
 
 
 def radiation_pressure(t0, state, k, R, C_R, A_over_m, Wdivc_s, star):
@@ -234,7 +238,7 @@ def radiation_pressure(t0, state, k, R, C_R, A_over_m, Wdivc_s, star):
     """
     r_star = star(t0)
     r_sat = state[:3]
-    P_s = Wdivc_s / (norm(r_star) ** 2)
+    P_s = Wdivc_s / (norm_hf(_arr2tup_hf(r_star)) ** 2)
 
     nu = float(line_of_sight_fast(r_sat, r_star, R) > 0)
-    return -nu * P_s * (C_R * A_over_m) * r_star / norm(r_star)
+    return -nu * P_s * (C_R * A_over_m) * r_star / norm_hf(_arr2tup_hf(r_star))

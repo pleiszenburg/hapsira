@@ -1,7 +1,8 @@
 from numba import njit as jit
 import numpy as np
 
-from ..math.linalg import norm
+from ..jit import _arr2tup_hf
+from ..math.linalg import norm_hf
 from ..math.special import stumpff_c2 as c2, stumpff_c3 as c3
 
 
@@ -73,7 +74,7 @@ def vallado(k, r0, v0, tof, numiter):
     """
     # Cache some results
     dot_r0v0 = r0 @ v0
-    norm_r0 = norm(r0)
+    norm_r0 = norm_hf(_arr2tup_hf(r0))
     sqrt_mu = k**0.5
     alpha = -(v0 @ v0) / k + 2 / norm_r0
 

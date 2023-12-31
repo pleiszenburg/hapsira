@@ -249,3 +249,8 @@ def sjit(*args, **kwargs) -> Callable:
         return wrapper(outer_func)
 
     return wrapper
+
+
+@hjit("V(f[:])")  # TODO remove, only for code refactor
+def _arr2tup_hf(x):
+    return x[0], x[1], x[2]

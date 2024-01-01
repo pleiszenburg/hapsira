@@ -15,6 +15,20 @@ from .jit import _arr2tup_hf
 from .math.linalg import norm_hf
 
 
+__all__ = [
+    "eccentricity_vector",
+    "circular_velocity",
+    "rv_pqw",
+    "coe_rotation_matrix",
+    "coe2rv",
+    "coe2rv_many",
+    "coe2mee",
+    "rv2coe",
+    "mee2coe",
+    "mee2rv",
+]
+
+
 @jit
 def eccentricity_vector(k, r, v):
     r"""Eccentricity vector.

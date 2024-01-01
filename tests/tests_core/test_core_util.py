@@ -17,7 +17,7 @@ from hapsira.core.util import (
 
 def _test_rotation_matrix_with_v(v, angle, axis):
     exp = rotation_matrix_astropy(np.degrees(-angle), "xyz"[axis]) @ v
-    res = np.zeros((3, 3), dtype=exp.dtype)
+    res = np.zeros(np.asarray(angle).shape + (3, 3), dtype=exp.dtype)
     rotation_matrix_gf(angle, axis, np.zeros((3,), dtype="u1"), res)
     res = res @ v
     assert_allclose(exp, res)

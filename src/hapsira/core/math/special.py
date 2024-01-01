@@ -1,17 +1,20 @@
-from math import gamma
+from math import gamma, inf
 
 from numba import njit as jit
 import numpy as np
 
+from ..jit import hjit, vjit
+
 __all__ = [
-    "hyp2f1b",
+    "hyp2f1b_hf",
+    "hyp2f1b_vf",
     "stumpff_c2",
     "stumpff_c3",
 ]
 
 
-@jit
-def hyp2f1b(x):
+@hjit("f(f)")
+def hyp2f1b_hf(x):
     """Hypergeometric function 2F1(3, 1, 5/2, x), see [Battin].
 
     .. todo::
@@ -24,18 +27,27 @@ def hyp2f1b(x):
 
     """
     if x >= 1.0:
-        return np.inf
-    else:
-        res = 1.0
-        term = 1.0
-        ii = 0
-        while True:
-            term = term * (3 + ii) * (1 + ii) / (5 / 2 + ii) * x / (ii + 1)
-            res_old = res
-            res += term
-            if res_old == res:
-                return res
-            ii += 1
+        return inf
+
+    res = 1.0
+    term = 1.0
+    ii = 0
+    while True:
+        term = term * (3 + ii) * (1 + ii) / (5 / 2 + ii) * x / (ii + 1)
+        res_old = res
+        res += term
+        if res_old == res:
+            return res
+        ii += 1
+
+
+@vjit("f(f)")
+def hyp2f1b_vf(x):
+    """
+    Vectorized hyp2f1b
+    """
+
+    return hyp2f1b_hf(x)
 
 
 @jit

@@ -4,7 +4,7 @@ from numpy import cross, pi
 
 from .jit import _arr2tup_hf
 from .math.linalg import norm_hf
-from .math.special import hyp2f1b, stumpff_c2 as c2, stumpff_c3 as c3
+from .math.special import hyp2f1b_hf, stumpff_c2 as c2, stumpff_c3 as c3
 
 
 @jit
@@ -342,7 +342,7 @@ def _tof_equation_y(x, y, T0, ll, M):
     if M == 0 and np.sqrt(0.6) < x < np.sqrt(1.4):
         eta = y - ll * x
         S_1 = (1 - ll - x * eta) * 0.5
-        Q = 4 / 3 * hyp2f1b(S_1)
+        Q = 4 / 3 * hyp2f1b_hf(S_1)
         T_ = (eta**3 * Q + 4 * ll * eta) * 0.5
     else:
         psi = _compute_psi(x, y, ll)

@@ -17,16 +17,16 @@ from hapsira.core.util import (
 
 def _test_rotation_matrix_with_v(v, angle, axis):
     exp = rotation_matrix_astropy(np.degrees(-angle), "xyz"[axis]) @ v
-    res = np.zeros(exp.shape, dtype=exp.dtype)
-    rotation_matrix_gf(angle, axis, res)
+    res = np.zeros((3, 3), dtype=exp.dtype)
+    rotation_matrix_gf(angle, axis, np.zeros((3,), dtype="u1"), res)
     res = res @ v
     assert_allclose(exp, res)
 
 
 def _test_rotation_matrix(angle, axis):
     expected = rotation_matrix_astropy(-np.rad2deg(angle), "xyz"[axis])
-    result = np.zeros(expected.shape, dtype=expected.dtype)
-    rotation_matrix_gf(angle, axis, result)
+    result = np.zeros((3, 3), dtype=expected.dtype)
+    rotation_matrix_gf(angle, axis, np.zeros((3,), dtype="u1"), result)
     assert_allclose(expected, result)
 
 
@@ -41,13 +41,13 @@ def test_rotation_matrix():
 # https://github.com/astropy/astropy/blob/main/astropy/coordinates/tests/test_matrix_utilities.py
 def test_rotation_matrix_astropy():
     exp = np.eye(3)
-    res = np.zeros(exp.shape, dtype=exp.dtype)
-    rotation_matrix_gf(0, 0, res)
+    res = np.zeros((3, 3), dtype=exp.dtype)
+    rotation_matrix_gf(0, 0, np.zeros((3,), dtype="u1"), res)
     assert_array_equal(res, exp)
 
     exp = np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]], dtype=float)
-    res = np.zeros(exp.shape, dtype=exp.dtype)
-    rotation_matrix_gf(np.deg2rad(-90), 1, res)
+    res = np.zeros((3, 3), dtype=exp.dtype)
+    rotation_matrix_gf(np.deg2rad(-90), 1, np.zeros((3,), dtype="u1"), res)
     assert_allclose(
         res,
         exp,
@@ -55,8 +55,8 @@ def test_rotation_matrix_astropy():
     )
 
     exp = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype=float)
-    res = np.zeros(exp.shape, dtype=exp.dtype)
-    rotation_matrix_gf(np.deg2rad(90), 2, res)
+    res = np.zeros((3, 3), dtype=exp.dtype)
+    rotation_matrix_gf(np.deg2rad(90), 2, np.zeros((3,), dtype="u1"), res)
     assert_allclose(
         res,
         exp,
@@ -65,8 +65,8 @@ def test_rotation_matrix_astropy():
 
     # make sure it also works for very small angles
     exp = rotation_matrix_astropy(-0.000001, "x")
-    res = np.zeros(exp.shape, dtype=exp.dtype)
-    rotation_matrix_gf(np.deg2rad(0.000001), 0, res)
+    res = np.zeros((3, 3), dtype=exp.dtype)
+    rotation_matrix_gf(np.deg2rad(0.000001), 0, np.zeros((3,), dtype="u1"), res)
     assert_allclose(
         exp,
         res,

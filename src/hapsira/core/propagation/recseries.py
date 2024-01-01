@@ -2,7 +2,7 @@ from numba import njit as jit
 import numpy as np
 
 from hapsira.core.angles import E_to_M_hf, E_to_nu_hf, nu_to_E_hf
-from hapsira.core.elements import coe2rv, rv2coe
+from hapsira.core.elements import coe2rv_hf, rv2coe
 
 
 @jit
@@ -117,4 +117,4 @@ def recseries(k, r0, v0, tof, method="rtol", order=8, numiter=100, rtol=1e-8):
         k, p, ecc, inc, raan, argp, nu, tof, method, order, numiter, rtol
     )
 
-    return coe2rv(k, p, ecc, inc, raan, argp, nu)
+    return np.array(coe2rv_hf(k, p, ecc, inc, raan, argp, nu))

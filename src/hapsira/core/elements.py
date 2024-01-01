@@ -3,9 +3,8 @@ convert between different elements that define the orbit of a body.
 """
 
 from math import cos, sqrt, sin
-import sys
 
-from numba import njit as jit, prange
+from numba import njit as jit
 import numpy as np
 from numpy import cross
 
@@ -16,10 +15,12 @@ from .jit import array_to_V_hf, hjit, gjit, vjit
 from .math.linalg import (
     div_Vs_hf,
     matmul_MM_hf,
+    matmul_VM_hf,
     matmul_VV_hf,
     mul_Vs_hf,
     norm_hf,
     sub_VV_hf,
+    transpose_M_hf,
 )
 
 
@@ -30,9 +31,9 @@ __all__ = [
     "circular_velocity_vf",
     "rv_pqw_hf",
     "coe_rotation_matrix_hf",
+    "coe2rv_hf",
+    "coe2rv_gf",
     # TODO
-    "coe2rv",
-    "coe2rv_many",
     "coe2mee",
     "rv2coe",
     "mee2coe",
@@ -177,8 +178,8 @@ def coe_rotation_matrix_hf(inc, raan, argp):
     return r
 
 
-@jit
-def coe2rv(k, p, ecc, inc, raan, argp, nu):
+@hjit("Tuple([V,V])(f,f,f,f,f,f,f)")
+def coe2rv_hf(k, p, ecc, inc, raan, argp, nu):
     r"""Converts from classical orbital to state vectors.
 
     Classical orbital elements are converted into position and velocity
@@ -204,9 +205,9 @@ def coe2rv(k, p, ecc, inc, raan, argp, nu):
 
     Returns
     -------
-    r_ijk: numpy.ndarray
+    r_ijk: tuple[float,float,float]
         Position vector in basis ijk.
-    v_ijk: numpy.ndarray
+    v_ijk: tuple[float,float,float]
         Velocity vector in basis ijk.
 
     Notes
@@ -232,26 +233,23 @@ def coe2rv(k, p, ecc, inc, raan, argp, nu):
         \end{bmatrix}
 
     """
-    pqw = rv_pqw_hf(k, p, ecc, nu)
-    rm = np.array(coe_rotation_matrix_hf(inc, raan, argp))
-
-    ijk = np.array(pqw) @ rm.T
-
-    return ijk
+    r, v = rv_pqw_hf(k, p, ecc, nu)
+    rm = transpose_M_hf(coe_rotation_matrix_hf(inc, raan, argp))
+    return matmul_VM_hf(r, rm), matmul_VM_hf(v, rm)
 
 
-@jit(parallel=sys.maxsize > 2**31)
-def coe2rv_many(k, p, ecc, inc, raan, argp, nu):
-    """Parallel version of coe2rv."""
-    n = nu.shape[0]
-    rr = np.zeros((n, 3))
-    vv = np.zeros((n, 3))
+@gjit("void(f,f,f,f,f,f,f,u1[:],f[:],f[:])", "(),(),(),(),(),(),(),(n)->(n),(n)")
+def coe2rv_gf(k, p, ecc, inc, raan, argp, nu, dummy, rr, vv):
+    """
+    Vectorized coe2rv
 
-    # Disabling pylint warning, see https://github.com/PyCQA/pylint/issues/2910
-    for i in prange(n):  # pylint: disable=not-an-iterable
-        rr[i, :], vv[i, :] = coe2rv(k[i], p[i], ecc[i], inc[i], raan[i], argp[i], nu[i])
+    `dummy` because of https://github.com/numba/numba/issues/2797
+    """
+    assert dummy.shape == (3,)
 
-    return rr, vv
+    (rr[0], rr[1], rr[2]), (vv[0], vv[1], vv[2]) = coe2rv_hf(
+        k, p, ecc, inc, raan, argp, nu
+    )
 
 
 @jit

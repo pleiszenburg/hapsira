@@ -8,7 +8,7 @@ from hapsira.core.angles import (
     kepler_equation_prime_hf,
     nu_to_E_hf,
 )
-from hapsira.core.elements import coe2rv, rv2coe
+from hapsira.core.elements import coe2rv_hf, rv2coe
 
 
 @jit
@@ -91,4 +91,4 @@ def markley(k, r0, v0, tof):
     p, ecc, inc, raan, argp, nu = rv2coe(k, r0, v0)
     nu = markley_coe(k, p, ecc, inc, raan, argp, nu, tof)
 
-    return coe2rv(k, p, ecc, inc, raan, argp, nu)
+    return np.array(coe2rv_hf(k, p, ecc, inc, raan, argp, nu))

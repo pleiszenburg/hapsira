@@ -3,7 +3,7 @@ from astropy.coordinates import CartesianDifferential, CartesianRepresentation
 import numpy as np
 
 from hapsira.twobody.angles import E_to_nu, nu_to_E
-from hapsira.twobody.elements import coe2rv_many, hyp_nu_limit, t_p
+from hapsira.twobody.elements import coe2rv, hyp_nu_limit, t_p
 from hapsira.twobody.propagation import FarnocchiaPropagator
 from hapsira.util import alinspace, wrap_angle
 
@@ -144,7 +144,7 @@ class TrueAnomalyBounds(SamplingStrategy):
         epochs = orbit.epoch + (delta_ts - orbit.t_p)
 
         n = nu_values.shape[0]
-        rr, vv = coe2rv_many(
+        rr, vv = coe2rv(
             np.tile(orbit.attractor.k, n),
             np.tile(orbit.p, n),
             np.tile(orbit.ecc, n),

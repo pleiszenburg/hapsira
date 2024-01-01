@@ -2,7 +2,7 @@ from numba import njit as jit
 import numpy as np
 
 from hapsira.core.angles import E_to_M_hf, F_to_M_hf, nu_to_E_hf, nu_to_F_hf
-from hapsira.core.elements import coe2rv, rv2coe
+from hapsira.core.elements import coe2rv_hf, rv2coe
 
 
 @jit
@@ -107,4 +107,4 @@ def danby(k, r0, v0, tof, numiter=20, rtol=1e-8):
     p, ecc, inc, raan, argp, nu = rv2coe(k, r0, v0)
     nu = danby_coe(k, p, ecc, inc, raan, argp, nu, tof, numiter, rtol)
 
-    return coe2rv(k, p, ecc, inc, raan, argp, nu)
+    return np.array(coe2rv_hf(k, p, ecc, inc, raan, argp, nu))

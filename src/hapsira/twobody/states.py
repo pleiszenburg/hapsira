@@ -1,8 +1,9 @@
 from functools import cached_property
 
 from astropy import units as u
+import numpy as np
 
-from hapsira.core.elements import coe2mee, coe2rv, mee2coe, mee2rv, rv2coe
+from hapsira.core.elements import coe2mee, coe2rv_gf, mee2coe, mee2rv, rv2coe
 from hapsira.twobody.elements import mean_motion, period, t_p
 
 
@@ -171,7 +172,17 @@ class ClassicalState(BaseState):
 
     def to_vectors(self):
         """Converts to position and velocity vector representation."""
-        r, v = coe2rv(self.attractor.k.to_value(u.km**3 / u.s**2), *self.to_value())
+
+        r = np.zeros(self.attractor.k.shape + (3,), dtype=self.attractor.k.dtype)
+        v = np.zeros(self.attractor.k.shape + (3,), dtype=self.attractor.k.dtype)
+
+        coe2rv_gf(
+            self.attractor.k.to_value(u.km**3 / u.s**2),
+            *self.to_value(),
+            np.zeros((3,), dtype="u1"),  # dummy
+            r,
+            v,
+        )
 
         return RVState(self.attractor, (r << u.km, v << u.km / u.s), self.plane)
 

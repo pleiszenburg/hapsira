@@ -1,4 +1,4 @@
-from math import gamma, inf
+from math import cos, cosh, gamma, inf, sqrt
 
 from numba import njit as jit
 import numpy as np
@@ -8,7 +8,8 @@ from ..jit import hjit, vjit
 __all__ = [
     "hyp2f1b_hf",
     "hyp2f1b_vf",
-    "stumpff_c2",
+    "stumpff_c2_hf",
+    "stumpff_c2_vf",
     "stumpff_c3",
 ]
 
@@ -50,8 +51,8 @@ def hyp2f1b_vf(x):
     return hyp2f1b_hf(x)
 
 
-@jit
-def stumpff_c2(psi):
+@hjit("f(f)")
+def stumpff_c2_hf(psi):
     r"""Second Stumpff function.
 
     For positive arguments:
@@ -62,20 +63,30 @@ def stumpff_c2(psi):
 
     """
     eps = 1.0
-    if psi > eps:
-        res = (1 - np.cos(np.sqrt(psi))) / psi
-    elif psi < -eps:
-        res = (np.cosh(np.sqrt(-psi)) - 1) / (-psi)
-    else:
-        res = 1.0 / 2.0
-        delta = (-psi) / gamma(2 + 2 + 1)
-        k = 1
-        while res + delta != res:
-            res = res + delta
-            k += 1
-            delta = (-psi) ** k / gamma(2 * k + 2 + 1)
 
+    if psi > eps:
+        return (1 - cos(sqrt(psi))) / psi
+
+    if psi < -eps:
+        return (cosh(sqrt(-psi)) - 1) / (-psi)
+
+    res = 1.0 / 2.0
+    delta = (-psi) / gamma(2 + 2 + 1)
+    k = 1
+    while res + delta != res:
+        res = res + delta
+        k += 1
+        delta = (-psi) ** k / gamma(2 * k + 2 + 1)
     return res
+
+
+@vjit("f(f)")
+def stumpff_c2_vf(psi):
+    """
+    Vectorized stumpff_c2
+    """
+
+    return stumpff_c2_hf(psi)
 
 
 @jit

@@ -3,7 +3,7 @@ import numpy as np
 
 from ..jit import _arr2tup_hf
 from ..math.linalg import norm_hf
-from ..math.special import stumpff_c2_hf, stumpff_c3 as c3
+from ..math.special import stumpff_c2_hf, stumpff_c3_hf
 
 
 @jit
@@ -106,7 +106,7 @@ def vallado(k, r0, v0, tof, numiter):
         xi = xi_new
         psi = xi * xi * alpha
         c2_psi = stumpff_c2_hf(psi)
-        c3_psi = c3(psi)
+        c3_psi = stumpff_c3_hf(psi)
         norm_r = (
             xi * xi * c2_psi
             + dot_r0v0 / sqrt_mu * xi * (1 - psi * c3_psi)

@@ -4,7 +4,7 @@ from numpy import cross, pi
 
 from .jit import _arr2tup_hf
 from .math.linalg import norm_hf
-from .math.special import hyp2f1b_hf, stumpff_c2_hf, stumpff_c3 as c3
+from .math.special import hyp2f1b_hf, stumpff_c2_hf, stumpff_c3_hf
 
 
 @jit
@@ -130,7 +130,10 @@ def vallado(k, r0, r, tof, M, prograde, lowpath, numiter, rtol):
     count = 0
 
     while count < numiter:
-        y = norm_r0_plus_norm_r + A * (psi * c3(psi) - 1) / stumpff_c2_hf(psi) ** 0.5
+        y = (
+            norm_r0_plus_norm_r
+            + A * (psi * stumpff_c3_hf(psi) - 1) / stumpff_c2_hf(psi) ** 0.5
+        )
         if A > 0.0:
             # Readjust xi_low until y > 0.0
             # Translated directly from Vallado
@@ -138,16 +141,16 @@ def vallado(k, r0, r, tof, M, prograde, lowpath, numiter, rtol):
                 psi_low = psi
                 psi = (
                     0.8
-                    * (1.0 / c3(psi))
+                    * (1.0 / stumpff_c3_hf(psi))
                     * (1.0 - norm_r0_times_norm_r * np.sqrt(stumpff_c2_hf(psi)) / A)
                 )
                 y = (
                     norm_r0_plus_norm_r
-                    + A * (psi * c3(psi) - 1) / stumpff_c2_hf(psi) ** 0.5
+                    + A * (psi * stumpff_c3_hf(psi) - 1) / stumpff_c2_hf(psi) ** 0.5
                 )
 
         xi = np.sqrt(y / stumpff_c2_hf(psi))
-        tof_new = (xi**3 * c3(psi) + A * np.sqrt(y)) / np.sqrt(k)
+        tof_new = (xi**3 * stumpff_c3_hf(psi) + A * np.sqrt(y)) / np.sqrt(k)
 
         # Convergence check
         if np.abs((tof_new - tof) / tof) < rtol:

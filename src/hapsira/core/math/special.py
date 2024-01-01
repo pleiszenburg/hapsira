@@ -1,7 +1,4 @@
-from math import cos, cosh, gamma, inf, sqrt
-
-from numba import njit as jit
-import numpy as np
+from math import cos, cosh, gamma, inf, sin, sinh, sqrt
 
 from ..jit import hjit, vjit
 
@@ -10,7 +7,8 @@ __all__ = [
     "hyp2f1b_vf",
     "stumpff_c2_hf",
     "stumpff_c2_vf",
-    "stumpff_c3",
+    "stumpff_c3_hf",
+    "stumpff_c3_vf",
 ]
 
 
@@ -89,8 +87,8 @@ def stumpff_c2_vf(psi):
     return stumpff_c2_hf(psi)
 
 
-@jit
-def stumpff_c3(psi):
+@hjit("f(f)")
+def stumpff_c3_hf(psi):
     r"""Third Stumpff function.
 
     For positive arguments:
@@ -101,17 +99,27 @@ def stumpff_c3(psi):
 
     """
     eps = 1.0
-    if psi > eps:
-        res = (np.sqrt(psi) - np.sin(np.sqrt(psi))) / (psi * np.sqrt(psi))
-    elif psi < -eps:
-        res = (np.sinh(np.sqrt(-psi)) - np.sqrt(-psi)) / (-psi * np.sqrt(-psi))
-    else:
-        res = 1.0 / 6.0
-        delta = (-psi) / gamma(2 + 3 + 1)
-        k = 1
-        while res + delta != res:
-            res = res + delta
-            k += 1
-            delta = (-psi) ** k / gamma(2 * k + 3 + 1)
 
+    if psi > eps:
+        return (sqrt(psi) - sin(sqrt(psi))) / (psi * sqrt(psi))
+
+    if psi < -eps:
+        return (sinh(sqrt(-psi)) - sqrt(-psi)) / (-psi * sqrt(-psi))
+
+    res = 1.0 / 6.0
+    delta = (-psi) / gamma(2 + 3 + 1)
+    k = 1
+    while res + delta != res:
+        res = res + delta
+        k += 1
+        delta = (-psi) ** k / gamma(2 * k + 3 + 1)
     return res
+
+
+@vjit("f(f)")
+def stumpff_c3_vf(psi):
+    """
+    Vectorized stumpff_c3
+    """
+
+    return stumpff_c3_hf(psi)

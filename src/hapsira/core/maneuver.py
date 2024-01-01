@@ -4,7 +4,7 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross
 
-from hapsira.core.elements import coe_rotation_matrix, rv2coe, rv_pqw
+from hapsira.core.elements import coe_rotation_matrix, rv2coe, rv_pqw_hf
 
 from .jit import array_to_V_hf
 from .math.linalg import norm_hf
@@ -46,10 +46,10 @@ def hohmann(k, rv, r_f):
     h_i = norm_hf(array_to_V_hf(cross(*rv)))
     p_i = h_i**2 / k
 
-    r_i, v_i = rv_pqw(k, p_i, ecc, nu)
+    r_i, v_i = rv_pqw_hf(k, p_i, ecc, nu)
 
-    r_i = norm_hf(array_to_V_hf(r_i))
-    v_i = norm_hf(array_to_V_hf(v_i))
+    r_i = norm_hf(r_i)
+    v_i = norm_hf(v_i)
     a_trans = (r_i + r_f) / 2
 
     dv_a = np.sqrt(2 * k / r_i - k / a_trans) - v_i
@@ -116,10 +116,10 @@ def bielliptic(k, r_b, r_f, rv):
     h_i = norm_hf(array_to_V_hf(cross(*rv)))
     p_i = h_i**2 / k
 
-    r_i, v_i = rv_pqw(k, p_i, ecc, nu)
+    r_i, v_i = rv_pqw_hf(k, p_i, ecc, nu)
 
-    r_i = norm_hf(array_to_V_hf(r_i))
-    v_i = norm_hf(array_to_V_hf(v_i))
+    r_i = norm_hf(r_i)
+    v_i = norm_hf(v_i)
     a_trans1 = (r_i + r_b) / 2
     a_trans2 = (r_b + r_f) / 2
 

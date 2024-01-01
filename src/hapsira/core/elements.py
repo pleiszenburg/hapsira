@@ -2,12 +2,12 @@
 convert between different elements that define the orbit of a body.
 """
 
-from math import sqrt
+from math import cos, sqrt, sin
 import sys
 
 from numba import njit as jit, prange
 import numpy as np
-from numpy import cos, cross, sin
+from numpy import cross
 
 from hapsira.core.angles import E_to_nu_hf, F_to_nu_hf
 from hapsira.core.util import rotation_matrix
@@ -27,8 +27,8 @@ __all__ = [
     "eccentricity_vector_gf",
     "circular_velocity_hf",
     "circular_velocity_vf",
+    "rv_pqw_hf",
     # TODO
-    "rv_pqw",
     "coe_rotation_matrix",
     "coe2rv",
     "coe2rv_many",
@@ -100,8 +100,8 @@ def circular_velocity_vf(k, a):
     return circular_velocity_hf(k, a)
 
 
-@jit
-def rv_pqw(k, p, ecc, nu):
+@hjit("Tuple([V,V])(f,f,f,f)")
+def rv_pqw_hf(k, p, ecc, nu):
     r"""Returns r and v vectors in perifocal frame.
 
     Parameters
@@ -155,10 +155,16 @@ def rv_pqw(k, p, ecc, nu):
     v = [-5753.30180931 -1328.66813933  0] [m]/[s]
 
     """
-    pqw = np.array([[cos(nu), sin(nu), 0], [-sin(nu), ecc + cos(nu), 0]]) * np.array(
-        [[p / (1 + ecc * cos(nu))], [sqrt(k / p)]]
+
+    sin_nu = sin(nu)
+    cos_nu = cos(nu)
+    a = p / (1 + ecc * cos_nu)
+    b = sqrt(k / p)
+
+    return (
+        (cos_nu * a, sin_nu * a, 0.0),
+        (-sin_nu * b, (ecc + cos_nu) * b, 0.0),
     )
-    return pqw
 
 
 @jit
@@ -225,10 +231,10 @@ def coe2rv(k, p, ecc, inc, raan, argp, nu):
         \end{bmatrix}
 
     """
-    pqw = rv_pqw(k, p, ecc, nu)
+    pqw = rv_pqw_hf(k, p, ecc, nu)
     rm = coe_rotation_matrix(inc, raan, argp)
 
-    ijk = pqw @ rm.T
+    ijk = np.array(pqw) @ rm.T
 
     return ijk
 

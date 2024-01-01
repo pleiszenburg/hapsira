@@ -193,15 +193,12 @@ class ClassicalState(BaseState):
     def to_equinoctial(self):
         """Converts to modified equinoctial elements representation."""
 
-        p, ecc, inc, raan, argp, nu = self.to_value()
-        p_, f, g, h, k, L = coe2mee_gf(
-            p, ecc, inc, raan, argp, nu
-        )  # pylint: disable=E1120,E0633
+        p, f, g, h, k, L = coe2mee_gf(*self.to_value())  # pylint: disable=E1120,E0633
 
         return ModifiedEquinoctialState(
             self.attractor,
             (
-                p_ << u.km,
+                p << u.km,
                 f << u.rad,
                 g << u.rad,
                 h << u.rad,

@@ -42,8 +42,9 @@ def energy(k, r, v):
 @u.quantity_input(k=u_km3s2, r=u.km, v=u_kms)
 def eccentricity_vector(k, r, v):
     """Eccentricity vector."""
-    e = np.zeros(r.shape, dtype=r.dtype)
-    eccentricity_vector_gf(k.to_value(u_km3s2), r.to_value(u.km), v.to_value(u_kms), e)
+    e = eccentricity_vector_gf(
+        k.to_value(u_km3s2), r.to_value(u.km), v.to_value(u_kms)
+    )  # pylint: disable=E1120
     return e << u.one
 
 
@@ -197,21 +198,29 @@ def coe2rv(k, p, ecc, inc, raan, argp, nu, rr=None, vv=None):
     """
 
     if rr is None and vv is None:
-        rr = np.zeros(k.shape + (3,), dtype=k.dtype)
-        vv = np.zeros(k.shape + (3,), dtype=k.dtype)
-
-    coe2rv_gf(
-        k.to_value(u_km3s2),
-        p.to_value(u.km),
-        ecc.to_value(u.one),
-        inc.to_value(u.rad),
-        raan.to_value(u.rad),
-        argp.to_value(u.rad),
-        nu.to_value(u.rad),
-        np.zeros((3,), dtype="u1"),  # dummy
-        rr,
-        vv,
-    )
+        rr, vv = coe2rv_gf(  # pylint: disable=E1120,E0633
+            k.to_value(u_km3s2),
+            p.to_value(u.km),
+            ecc.to_value(u.one),
+            inc.to_value(u.rad),
+            raan.to_value(u.rad),
+            argp.to_value(u.rad),
+            nu.to_value(u.rad),
+            np.zeros((3,), dtype="u1"),  # dummy
+        )
+    else:
+        coe2rv_gf(
+            k.to_value(u_km3s2),
+            p.to_value(u.km),
+            ecc.to_value(u.one),
+            inc.to_value(u.rad),
+            raan.to_value(u.rad),
+            argp.to_value(u.rad),
+            nu.to_value(u.rad),
+            np.zeros((3,), dtype="u1"),  # dummy
+            rr,
+            vv,
+        )
 
     rr = rr << u.km
     vv = vv << (u.km / u.s)

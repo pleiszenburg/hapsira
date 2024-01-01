@@ -58,8 +58,7 @@ def delta_t(delta_v, f):
 def change_ecc_inc(k, a, ecc_0, ecc_f, inc_0, inc_f, argp, r, v, f):
     # We fix the inertial direction at the beginning
     if ecc_0 > 0.001:  # Arbitrary tolerance
-        e_vec = np.zeros_like(r)
-        eccentricity_vector_gf(k, r, v, e_vec)
+        e_vec = eccentricity_vector_gf(k, r, v)  # pylint: disable=E1120
         ref_vec = e_vec / ecc_0
     else:
         ref_vec = r / norm_hf(array_to_V_hf(r))

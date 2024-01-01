@@ -10,7 +10,7 @@ import numpy as np
 from numpy import cross
 
 from hapsira.core.elements import (
-    circular_velocity,
+    circular_velocity_vf,
     eccentricity_vector_gf,
     rv2coe,
 )
@@ -85,7 +85,7 @@ def change_ecc_inc(k, a, ecc_0, ecc_f, inc_0, inc_f, argp, r, v, f):
         accel_v = f * (np.cos(beta_) * thrust_unit + np.sin(beta_) * w_)
         return accel_v
 
-    delta_v = delta_V(circular_velocity(k, a), ecc_0, ecc_f, beta_0)
+    delta_v = delta_V(circular_velocity_vf(k, a), ecc_0, ecc_f, beta_0)
     t_f = delta_t(delta_v, f)
 
     return a_d, delta_v, t_f

@@ -2,7 +2,7 @@ from astropy import units as u
 import numpy as np
 
 from hapsira.core.elements import (
-    circular_velocity as circular_velocity_fast,
+    circular_velocity_vf,
     coe2rv as coe2rv_fast,
     coe2rv_many as coe2rv_many_fast,
     eccentricity_vector_gf,
@@ -18,7 +18,7 @@ u_km3s2 = u.km**3 / u.s**2
 @u.quantity_input(k=u_km3s2, a=u.km)
 def circular_velocity(k, a):
     """Circular velocity for a given body (k) and semimajor axis (a)."""
-    return circular_velocity_fast(k.to_value(u_km3s2), a.to_value(u.km)) * u_kms
+    return circular_velocity_vf(k.to_value(u_km3s2), a.to_value(u.km)) * u_kms
 
 
 @u.quantity_input(k=u_km3s2, a=u.km)

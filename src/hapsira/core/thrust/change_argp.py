@@ -2,7 +2,7 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross
 
-from hapsira.core.elements import circular_velocity, rv2coe
+from hapsira.core.elements import circular_velocity_hf, rv2coe
 
 from ..jit import array_to_V_hf
 from ..math.linalg import norm_hf
@@ -20,7 +20,7 @@ def delta_V(V, ecc, argp_0, argp_f, f, A):
 @jit
 def extra_quantities(k, a, ecc, argp_0, argp_f, f, A=0.0):
     """Extra quantities given by the model."""
-    V = circular_velocity(k, a)
+    V = circular_velocity_hf(k, a)
     delta_V_ = delta_V(V, ecc, argp_0, argp_f, f, A)
     t_f_ = delta_V_ / f
 

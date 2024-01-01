@@ -2,16 +2,17 @@
 convert between different elements that define the orbit of a body.
 """
 
+from math import sqrt
 import sys
 
 from numba import njit as jit, prange
 import numpy as np
-from numpy import cos, cross, sin, sqrt
+from numpy import cos, cross, sin
 
 from hapsira.core.angles import E_to_nu_hf, F_to_nu_hf
 from hapsira.core.util import rotation_matrix
 
-from .jit import array_to_V_hf, hjit, gjit
+from .jit import array_to_V_hf, hjit, gjit, vjit
 from .math.linalg import (
     div_Vs_hf,
     matmul_VV_hf,
@@ -24,8 +25,9 @@ from .math.linalg import (
 __all__ = [
     "eccentricity_vector_hf",
     "eccentricity_vector_gf",
+    "circular_velocity_hf",
+    "circular_velocity_vf",
     # TODO
-    "circular_velocity",
     "rv_pqw",
     "coe_rotation_matrix",
     "coe2rv",
@@ -70,8 +72,8 @@ def eccentricity_vector_gf(k, r, v, e):
     e[0], e[1], e[2] = eccentricity_vector_hf(k, array_to_V_hf(r), array_to_V_hf(v))
 
 
-@jit
-def circular_velocity(k, a):
+@hjit("f(f,f)")
+def circular_velocity_hf(k, a):
     r"""Compute circular velocity for a given body given the gravitational parameter and the semimajor axis.
 
     .. math::
@@ -86,7 +88,16 @@ def circular_velocity(k, a):
         Semimajor Axis
 
     """
-    return np.sqrt(k / a)
+    return sqrt(k / a)
+
+
+@vjit("f(f,f)")
+def circular_velocity_vf(k, a):
+    """
+    Vectorized circular_velocity
+    """
+
+    return circular_velocity_hf(k, a)
 
 
 @jit

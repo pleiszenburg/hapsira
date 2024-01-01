@@ -2,7 +2,7 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross
 
-from hapsira.core.elements import circular_velocity
+from hapsira.core.elements import circular_velocity_hf
 
 from ..jit import array_to_V_hf
 from ..math.linalg import norm_hf
@@ -37,8 +37,8 @@ def beta_0(V_0, V_f, inc_0, inc_f):
 @jit
 def compute_parameters(k, a_0, a_f, inc_0, inc_f):
     """Compute parameters of the model."""
-    V_0 = circular_velocity(k, a_0)
-    V_f = circular_velocity(k, a_f)
+    V_0 = circular_velocity_hf(k, a_0)
+    V_f = circular_velocity_hf(k, a_f)
     beta_0_ = beta_0(V_0, V_f, inc_0, inc_f)
 
     return V_0, V_f, beta_0_

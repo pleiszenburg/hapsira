@@ -14,6 +14,7 @@ __all__ = [
     "vjit",
     "gjit",
     "sjit",
+    "_arr2tup_hf",
 ]
 
 

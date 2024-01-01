@@ -5,7 +5,7 @@ from hapsira.core.elements import (
     circular_velocity as circular_velocity_fast,
     coe2rv as coe2rv_fast,
     coe2rv_many as coe2rv_many_fast,
-    eccentricity_vector as eccentricity_vector_fast,
+    eccentricity_vector_gf,
 )
 from hapsira.core.propagation.farnocchia import (
     delta_t_from_nu as delta_t_from_nu_fast,
@@ -43,12 +43,9 @@ def energy(k, r, v):
 @u.quantity_input(k=u_km3s2, r=u.km, v=u_kms)
 def eccentricity_vector(k, r, v):
     """Eccentricity vector."""
-    return (
-        eccentricity_vector_fast(
-            k.to_value(u_km3s2), r.to_value(u.km), v.to_value(u_kms)
-        )
-        * u.one
-    )
+    e = np.zeros(r.shape, dtype=r.dtype)
+    eccentricity_vector_gf(k.to_value(u_km3s2), r.to_value(u.km), v.to_value(u_kms), e)
+    return e << u.one
 
 
 @u.quantity_input(nu=u.rad, ecc=u.one, k=u_km3s2, r_p=u.km)

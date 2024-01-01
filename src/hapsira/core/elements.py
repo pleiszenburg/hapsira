@@ -11,12 +11,20 @@ from numpy import cos, cross, sin, sqrt
 from hapsira.core.angles import E_to_nu_hf, F_to_nu_hf
 from hapsira.core.util import rotation_matrix
 
-from .jit import _arr2tup_hf
-from .math.linalg import norm_hf
+from .jit import _arr2tup_hf, hjit, gjit
+from .math.linalg import (
+    div_Vs_hf,
+    matmul_VV_hf,
+    mul_Vs_hf,
+    norm_hf,
+    sub_VV_hf,
+)
 
 
 __all__ = [
-    "eccentricity_vector",
+    "eccentricity_vector_hf",
+    "eccentricity_vector_gf",
+    # TODO
     "circular_velocity",
     "rv_pqw",
     "coe_rotation_matrix",
@@ -29,8 +37,8 @@ __all__ = [
 ]
 
 
-@jit
-def eccentricity_vector(k, r, v):
+@hjit("V(f,V,V)")
+def eccentricity_vector_hf(k, r, v):
     r"""Eccentricity vector.
 
     .. math::
@@ -43,12 +51,23 @@ def eccentricity_vector(k, r, v):
     ----------
     k : float
         Standard gravitational parameter (km^3 / s^2).
-    r : numpy.ndarray
+    r : tuple[float,float,float]
         Position vector (km)
-    v : numpy.ndarray
+    v : tuple[float,float,float]
         Velocity vector (km / s)
     """
-    return ((v @ v - k / norm_hf(_arr2tup_hf(r))) * r - (r @ v) * v) / k
+    a = matmul_VV_hf(v, v) - k / norm_hf(r)
+    b = matmul_VV_hf(r, v)
+    return div_Vs_hf(sub_VV_hf(mul_Vs_hf(r, a), mul_Vs_hf(v, b)), k)
+
+
+@gjit("void(f,f[:],f[:],f[:])", "(),(n),(n)->(n)")
+def eccentricity_vector_gf(k, r, v, e):
+    """
+    Vectorized eccentricity_vector
+    """
+
+    e[0], e[1], e[2] = eccentricity_vector_hf(k, _arr2tup_hf(r), _arr2tup_hf(v))
 
 
 @jit

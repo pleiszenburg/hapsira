@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 
-@hjit("M(f,u1)")
+@hjit("M(f,i8)")
 def rotation_matrix_hf(angle, axis):
     c = cos(angle)
     s = sin(angle)
@@ -29,7 +29,7 @@ def rotation_matrix_hf(angle, axis):
         return (
             (c, 0.0, s),
             (0.0, 1.0, 0.0),
-            (s, 0.0, c),
+            (-s, 0.0, c),
         )
     if axis == 2:
         return (
@@ -40,12 +40,14 @@ def rotation_matrix_hf(angle, axis):
     raise ValueError("Invalid axis: must be one of 0, 1 or 2")
 
 
-@gjit("void(f,u1,f[:,:])", "(),()->(3,3)")
-def rotation_matrix_gf(angle, axis, r):
+@gjit("void(f,i8,u1[:],f[:,:])", "(),(),(n)->(n,n)")
+def rotation_matrix_gf(angle, axis, dummy, r):
     """
     Vectorized rotation_matrix
-    """
 
+    `dummy` because of https://github.com/numba/numba/issues/2797
+    """
+    assert dummy.shape == (3,)
     (
         (r[0, 0], r[0, 1], r[0, 2]),
         (r[1, 0], r[1, 1], r[1, 2]),

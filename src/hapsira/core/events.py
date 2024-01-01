@@ -1,7 +1,7 @@
 from numba import njit as jit
 import numpy as np
 
-from hapsira.core.elements import coe_rotation_matrix, rv2coe
+from hapsira.core.elements import coe_rotation_matrix_hf, rv2coe
 from hapsira.core.util import planetocentric_to_AltAz
 
 from .jit import array_to_V_hf
@@ -38,7 +38,7 @@ def eclipse_function(k, u_, r_sec, R_sec, R_primary, umbra=True):
     pm = 1 if umbra else -1
     p, ecc, inc, raan, argp, nu = rv2coe(k, u_[:3], u_[3:])
 
-    PQW = coe_rotation_matrix(inc, raan, argp)
+    PQW = np.array(coe_rotation_matrix_hf(inc, raan, argp))
     # Make arrays contiguous for faster dot product with numba.
     P_, Q_ = np.ascontiguousarray(PQW[:, 0]), np.ascontiguousarray(PQW[:, 1])
 

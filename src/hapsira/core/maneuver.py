@@ -4,7 +4,7 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross
 
-from hapsira.core.elements import coe_rotation_matrix, rv2coe, rv_pqw_hf
+from hapsira.core.elements import coe_rotation_matrix_hf, rv2coe, rv_pqw_hf
 
 from .jit import array_to_V_hf
 from .math.linalg import norm_hf
@@ -58,7 +58,7 @@ def hohmann(k, rv, r_f):
     dv_a = np.array([0, dv_a, 0])
     dv_b = np.array([0, -dv_b, 0])
 
-    rot_matrix = coe_rotation_matrix(inc, raan, argp)
+    rot_matrix = np.array(coe_rotation_matrix_hf(inc, raan, argp))
 
     dv_a = rot_matrix @ dv_a
     dv_b = rot_matrix @ dv_b
@@ -131,7 +131,7 @@ def bielliptic(k, r_b, r_f, rv):
     dv_b = np.array([0, -dv_b, 0])
     dv_c = np.array([0, dv_c, 0])
 
-    rot_matrix = coe_rotation_matrix(inc, raan, argp)
+    rot_matrix = np.array(coe_rotation_matrix_hf(inc, raan, argp))
 
     dv_a = rot_matrix @ dv_a
     dv_b = rot_matrix @ dv_b

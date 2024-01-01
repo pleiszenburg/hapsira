@@ -10,11 +10,12 @@ import numpy as np
 from numpy import cross
 
 from hapsira.core.angles import E_to_nu_hf, F_to_nu_hf
-from hapsira.core.util import rotation_matrix
+from hapsira.core.util import rotation_matrix_hf
 
 from .jit import array_to_V_hf, hjit, gjit, vjit
 from .math.linalg import (
     div_Vs_hf,
+    matmul_MM_hf,
     matmul_VV_hf,
     mul_Vs_hf,
     norm_hf,
@@ -28,8 +29,8 @@ __all__ = [
     "circular_velocity_hf",
     "circular_velocity_vf",
     "rv_pqw_hf",
+    "coe_rotation_matrix_hf",
     # TODO
-    "coe_rotation_matrix",
     "coe2rv",
     "coe2rv_many",
     "coe2mee",
@@ -167,12 +168,12 @@ def rv_pqw_hf(k, p, ecc, nu):
     )
 
 
-@jit
-def coe_rotation_matrix(inc, raan, argp):
+@hjit("M(f,f,f)")
+def coe_rotation_matrix_hf(inc, raan, argp):
     """Create a rotation matrix for coe transformation."""
-    r = rotation_matrix(raan, 2)
-    r = r @ rotation_matrix(inc, 0)
-    r = r @ rotation_matrix(argp, 2)
+    r = rotation_matrix_hf(raan, 2)
+    r = matmul_MM_hf(r, rotation_matrix_hf(inc, 0))
+    r = matmul_MM_hf(r, rotation_matrix_hf(argp, 2))
     return r
 
 
@@ -232,7 +233,7 @@ def coe2rv(k, p, ecc, inc, raan, argp, nu):
 
     """
     pqw = rv_pqw_hf(k, p, ecc, nu)
-    rm = coe_rotation_matrix(inc, raan, argp)
+    rm = np.array(coe_rotation_matrix_hf(inc, raan, argp))
 
     ijk = np.array(pqw) @ rm.T
 

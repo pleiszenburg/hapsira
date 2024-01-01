@@ -6,7 +6,7 @@ from numpy import cross
 
 from hapsira.core.elements import coe_rotation_matrix, rv2coe, rv_pqw
 
-from .jit import _arr2tup_hf
+from .jit import array_to_V_hf
 from .math.linalg import norm_hf
 
 
@@ -43,13 +43,13 @@ def hohmann(k, rv, r_f):
 
     """
     _, ecc, inc, raan, argp, nu = rv2coe(k, *rv)
-    h_i = norm_hf(_arr2tup_hf(cross(*rv)))
+    h_i = norm_hf(array_to_V_hf(cross(*rv)))
     p_i = h_i**2 / k
 
     r_i, v_i = rv_pqw(k, p_i, ecc, nu)
 
-    r_i = norm_hf(_arr2tup_hf(r_i))
-    v_i = norm_hf(_arr2tup_hf(v_i))
+    r_i = norm_hf(array_to_V_hf(r_i))
+    v_i = norm_hf(array_to_V_hf(v_i))
     a_trans = (r_i + r_f) / 2
 
     dv_a = np.sqrt(2 * k / r_i - k / a_trans) - v_i
@@ -113,13 +113,13 @@ def bielliptic(k, r_b, r_f, rv):
 
     """
     _, ecc, inc, raan, argp, nu = rv2coe(k, *rv)
-    h_i = norm_hf(_arr2tup_hf(cross(*rv)))
+    h_i = norm_hf(array_to_V_hf(cross(*rv)))
     p_i = h_i**2 / k
 
     r_i, v_i = rv_pqw(k, p_i, ecc, nu)
 
-    r_i = norm_hf(_arr2tup_hf(r_i))
-    v_i = norm_hf(_arr2tup_hf(v_i))
+    r_i = norm_hf(array_to_V_hf(r_i))
+    v_i = norm_hf(array_to_V_hf(v_i))
     a_trans1 = (r_i + r_b) / 2
     a_trans2 = (r_b + r_f) / 2
 
@@ -192,6 +192,6 @@ def correct_pericenter(k, R, J2, max_delta_r, v, a, inc, ecc):
     delta_t = abs(delta_w / dw)
     delta_v = 0.5 * n * a * ecc * abs(delta_w)
 
-    vf_ = v / norm_hf(_arr2tup_hf(v)) * delta_v
+    vf_ = v / norm_hf(array_to_V_hf(v)) * delta_v
 
     return delta_t, vf_

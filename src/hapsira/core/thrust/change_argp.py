@@ -4,7 +4,7 @@ from numpy import cross
 
 from hapsira.core.elements import circular_velocity, rv2coe
 
-from ..jit import _arr2tup_hf
+from ..jit import array_to_V_hf
 from ..math.linalg import norm_hf
 
 
@@ -62,8 +62,8 @@ def change_argp(k, a, ecc, argp_0, argp_f, f):
 
         alpha_ = nu - np.pi / 2
 
-        r_ = r / norm_hf(_arr2tup_hf(r))
-        w_ = cross(r, v) / norm_hf(_arr2tup_hf(cross(r, v)))
+        r_ = r / norm_hf(array_to_V_hf(r))
+        w_ = cross(r, v) / norm_hf(array_to_V_hf(cross(r, v)))
         s_ = cross(w_, r_)
         accel_v = f * (np.cos(alpha_) * s_ + np.sin(alpha_) * r_)
         return accel_v

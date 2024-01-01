@@ -14,7 +14,7 @@ __all__ = [
     "vjit",
     "gjit",
     "sjit",
-    "_arr2tup_hf",
+    "array_to_V_hf",
 ]
 
 
@@ -252,6 +252,6 @@ def sjit(*args, **kwargs) -> Callable:
     return wrapper
 
 
-@hjit("V(f[:])")  # TODO remove, only for code refactor
-def _arr2tup_hf(x):
+@hjit("V(f[:])")
+def array_to_V_hf(x):
     return x[0], x[1], x[2]

@@ -2,7 +2,7 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross, pi
 
-from .jit import _arr2tup_hf
+from .jit import array_to_V_hf
 from .math.linalg import norm_hf
 from .math.special import hyp2f1b_hf, stumpff_c2_hf, stumpff_c3_hf
 
@@ -111,8 +111,8 @@ def vallado(k, r0, r, tof, M, prograde, lowpath, numiter, rtol):
 
     t_m = 1 if prograde else -1
 
-    norm_r0 = norm_hf(_arr2tup_hf(r0))
-    norm_r = norm_hf(_arr2tup_hf(r))
+    norm_r0 = norm_hf(array_to_V_hf(r0))
+    norm_r = norm_hf(array_to_V_hf(r))
     norm_r0_times_norm_r = norm_r0 * norm_r
     norm_r0_plus_norm_r = norm_r0 + norm_r
 
@@ -221,9 +221,9 @@ def izzo(k, r1, r2, tof, M, prograde, lowpath, numiter, rtol):
     # Chord
     c = r2 - r1
     c_norm, r1_norm, r2_norm = (
-        norm_hf(_arr2tup_hf(c)),
-        norm_hf(_arr2tup_hf(r1)),
-        norm_hf(_arr2tup_hf(r2)),
+        norm_hf(array_to_V_hf(c)),
+        norm_hf(array_to_V_hf(r1)),
+        norm_hf(array_to_V_hf(r2)),
     )
 
     # Semiperimeter
@@ -232,7 +232,7 @@ def izzo(k, r1, r2, tof, M, prograde, lowpath, numiter, rtol):
     # Versors
     i_r1, i_r2 = r1 / r1_norm, r2 / r2_norm
     i_h = cross(i_r1, i_r2)
-    i_h = i_h / norm_hf(_arr2tup_hf(i_h))  # Fixed from paper
+    i_h = i_h / norm_hf(array_to_V_hf(i_h))  # Fixed from paper
 
     # Geometry of the problem
     ll = np.sqrt(1 - min(1.0, c_norm / s))

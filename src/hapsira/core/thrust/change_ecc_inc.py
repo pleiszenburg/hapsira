@@ -15,7 +15,7 @@ from hapsira.core.elements import (
     rv2coe,
 )
 
-from ..jit import _arr2tup_hf
+from ..jit import array_to_V_hf
 from ..math.linalg import norm_hf
 
 
@@ -62,10 +62,10 @@ def change_ecc_inc(k, a, ecc_0, ecc_f, inc_0, inc_f, argp, r, v, f):
         eccentricity_vector_gf(k, r, v, e_vec)
         ref_vec = e_vec / ecc_0
     else:
-        ref_vec = r / norm_hf(_arr2tup_hf(r))
+        ref_vec = r / norm_hf(array_to_V_hf(r))
 
     h_vec = cross(r, v)  # Specific angular momentum vector
-    h_unit = h_vec / norm_hf(_arr2tup_hf(h_vec))
+    h_unit = h_vec / norm_hf(array_to_V_hf(h_vec))
     thrust_unit = cross(h_unit, ref_vec) * np.sign(ecc_f - ecc_0)
 
     beta_0 = beta(ecc_0, ecc_f, inc_0, inc_f, argp)
@@ -79,7 +79,7 @@ def change_ecc_inc(k, a, ecc_0, ecc_f, inc_0, inc_f, argp, r, v, f):
             np.cos(nu)
         )  # The sign of ß reverses at minor axis crossings
 
-        w_ = (cross(r_, v_) / norm_hf(_arr2tup_hf(cross(r_, v_)))) * np.sign(
+        w_ = (cross(r_, v_) / norm_hf(array_to_V_hf(cross(r_, v_)))) * np.sign(
             inc_f - inc_0
         )
         accel_v = f * (np.cos(beta_) * thrust_unit + np.sin(beta_) * w_)

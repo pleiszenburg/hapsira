@@ -3,7 +3,7 @@ from functools import cached_property
 from astropy import units as u
 import numpy as np
 
-from hapsira.core.elements import coe2mee, coe2rv_gf, mee2coe, mee2rv, rv2coe
+from hapsira.core.elements import coe2mee_gf, coe2rv_gf, mee2coe, mee2rv, rv2coe
 from hapsira.twobody.elements import mean_motion, period, t_p
 
 
@@ -192,12 +192,16 @@ class ClassicalState(BaseState):
 
     def to_equinoctial(self):
         """Converts to modified equinoctial elements representation."""
-        p, f, g, h, k, L = coe2mee(*self.to_value())
+
+        p, ecc, inc, raan, argp, nu = self.to_value()
+        p_, f, g, h, k, L = coe2mee_gf(
+            p, ecc, inc, raan, argp, nu
+        )  # pylint: disable=E1120,E0633
 
         return ModifiedEquinoctialState(
             self.attractor,
             (
-                p << u.km,
+                p_ << u.km,
                 f << u.rad,
                 g << u.rad,
                 h << u.rad,

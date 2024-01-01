@@ -2,7 +2,7 @@
 convert between different elements that define the orbit of a body.
 """
 
-from math import cos, sqrt, sin
+from math import cos, pi, sin, sqrt, tan
 
 from numba import njit as jit
 import numpy as np
@@ -33,8 +33,9 @@ __all__ = [
     "coe_rotation_matrix_hf",
     "coe2rv_hf",
     "coe2rv_gf",
+    "coe2mee_hf",
+    "coe2mee_gf",
     # TODO
-    "coe2mee",
     "rv2coe",
     "mee2coe",
     "mee2rv",
@@ -252,8 +253,8 @@ def coe2rv_gf(k, p, ecc, inc, raan, argp, nu, dummy, rr, vv):
     )
 
 
-@jit
-def coe2mee(p, ecc, inc, raan, argp, nu):
+@hjit("Tuple([f,f,f,f,f,f])(f,f,f,f,f,f)")
+def coe2mee_hf(p, ecc, inc, raan, argp, nu):
     r"""Converts from classical orbital elements to modified equinoctial orbital elements.
 
     The definition of the modified equinoctial orbital elements is taken from [Walker, 1985].
@@ -310,18 +311,30 @@ def coe2mee(p, ecc, inc, raan, argp, nu):
         \end{align}
 
     """
-    if inc == np.pi:
+    if inc == pi:
         raise ValueError(
             "Cannot compute modified equinoctial set for 180 degrees orbit inclination due to `h` and `k` singularity."
         )
 
     lonper = raan + argp
-    f = ecc * np.cos(lonper)
-    g = ecc * np.sin(lonper)
-    h = np.tan(inc / 2) * np.cos(raan)
-    k = np.tan(inc / 2) * np.sin(raan)
+    f = ecc * cos(lonper)
+    g = ecc * sin(lonper)
+    h = tan(inc / 2) * cos(raan)
+    k = tan(inc / 2) * sin(raan)
     L = lonper + nu
     return p, f, g, h, k, L
+
+
+@gjit(
+    "void(f,f,f,f,f,f,f[:],f[:],f[:],f[:],f[:],f[:])",
+    "(),(),(),(),(),()->(),(),(),(),(),()",
+)
+def coe2mee_gf(p, ecc, inc, raan, argp, nu, p_, f, g, h, k, L):
+    """
+    Vectorized coe2mee
+    """
+
+    p_[0], f[0], g[0], h[0], k[0], L[0] = coe2mee_hf(p, ecc, inc, raan, argp, nu)
 
 
 @jit

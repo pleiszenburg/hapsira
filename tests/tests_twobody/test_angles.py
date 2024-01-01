@@ -5,7 +5,7 @@ from numpy.testing import assert_allclose
 import pytest
 
 from hapsira.bodies import Earth
-from hapsira.core.elements import coe2mee, coe2rv_gf, mee2coe, rv2coe
+from hapsira.core.elements import coe2mee_gf, coe2rv_gf, mee2coe, rv2coe
 from hapsira.twobody.angles import (
     E_to_M,
     E_to_nu,
@@ -222,7 +222,7 @@ def test_convert_between_coe_and_rv_is_transitive(classical):
 
 
 def test_convert_between_coe_and_mee_is_transitive(classical):
-    res = mee2coe(*coe2mee(*classical))
+    res = mee2coe(*coe2mee_gf(*classical))  # pylint: disable=E1133
     assert_allclose(res, classical)
 
 

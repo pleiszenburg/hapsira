@@ -2,7 +2,7 @@
 convert between different elements that define the orbit of a body.
 """
 
-from math import acos, atan2, cos, log, pi, sin, sqrt, tan
+from math import acos, atan, atan2, cos, log, pi, sin, sqrt, tan
 
 from numba import njit as jit
 import numpy as np
@@ -38,8 +38,9 @@ __all__ = [
     "RV2COE_TOL",
     "rv2coe_hf",
     "rv2coe_gf",
+    "mee2coe_hf",
+    "mee2coe_gf",
     # TODO
-    "mee2coe",
     "mee2rv",
 ]
 
@@ -515,8 +516,8 @@ def rv2coe_gf(k, r, v, tol, p, ecc, inc, raan, argp, nu):
     )
 
 
-@jit
-def mee2coe(p, f, g, h, k, L):
+@hjit("Tuple([f,f,f,f,f,f])(f,f,f,f,f,f)")
+def mee2coe_hf(p, f, g, h, k, L):
     r"""Converts from modified equinoctial orbital elements to classical
     orbital elements.
 
@@ -570,13 +571,25 @@ def mee2coe(p, f, g, h, k, L):
     arguments.
 
     """
-    ecc = np.sqrt(f**2 + g**2)
-    inc = 2 * np.arctan(np.sqrt(h**2 + k**2))
-    lonper = np.arctan2(g, f)
-    raan = np.arctan2(k, h) % (2 * np.pi)
-    argp = (lonper - raan) % (2 * np.pi)
-    nu = (L - lonper) % (2 * np.pi)
+    ecc = sqrt(f**2 + g**2)
+    inc = 2 * atan(sqrt(h**2 + k**2))
+    lonper = atan2(g, f)
+    raan = atan2(k, h) % (2 * pi)
+    argp = (lonper - raan) % (2 * pi)
+    nu = (L - lonper) % (2 * pi)
     return p, ecc, inc, raan, argp, nu
+
+
+@gjit(
+    "void(f,f,f,f,f,f,f[:],f[:],f[:],f[:],f[:],f[:])",
+    "(),(),(),(),(),()->(),(),(),(),(),()",
+)
+def mee2coe_gf(p, f, g, h, k, L, p_, ecc, inc, raan, argp, nu):
+    """
+    Vectorized mee2coe
+    """
+
+    p_[0], ecc[0], inc[0], raan[0], argp[0], nu[0] = mee2coe_hf(p, f, g, h, k, L)
 
 
 @jit

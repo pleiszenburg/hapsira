@@ -6,7 +6,7 @@ import numpy as np
 from hapsira.core.elements import (
     coe2mee_gf,
     coe2rv_gf,
-    mee2coe,
+    mee2coe_gf,
     mee2rv,
     rv2coe_gf,
     RV2COE_TOL,
@@ -332,7 +332,9 @@ class ModifiedEquinoctialState(BaseState):
 
     def to_classical(self):
         """Converts to classical orbital elements representation."""
-        p, ecc, inc, raan, argp, nu = mee2coe(*self.to_value())
+        p, ecc, inc, raan, argp, nu = mee2coe_gf(  # pylint: disable=E1120,E0633
+            *self.to_value()
+        )
 
         return ClassicalState(
             self.attractor,

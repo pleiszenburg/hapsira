@@ -3,7 +3,7 @@
 References
 ----------
 * Pollard, J. E. "Simplified Analysis of Low-Thrust Orbital Maneuvers", 2000.
-
+rv2coe
 """
 from numba import njit as jit
 import numpy as np
@@ -12,7 +12,8 @@ from numpy import cross
 from hapsira.core.elements import (
     circular_velocity_vf,
     eccentricity_vector_gf,
-    rv2coe,
+    rv2coe_hf,
+    RV2COE_TOL,
 )
 
 from ..jit import array_to_V_hf
@@ -73,7 +74,7 @@ def change_ecc_inc(k, a, ecc_0, ecc_f, inc_0, inc_f, argp, r, v, f):
     def a_d(t0, u_, k_):
         r_ = u_[:3]
         v_ = u_[3:]
-        nu = rv2coe(k_, r_, v_)[-1]
+        nu = rv2coe_hf(k_, array_to_V_hf(r_), array_to_V_hf(v_), RV2COE_TOL)[-1]
         beta_ = beta_0 * np.sign(
             np.cos(nu)
         )  # The sign of ß reverses at minor axis crossings

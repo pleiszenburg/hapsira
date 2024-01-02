@@ -4,7 +4,12 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross
 
-from hapsira.core.elements import coe_rotation_matrix_hf, rv2coe, rv_pqw_hf
+from hapsira.core.elements import (
+    coe_rotation_matrix_hf,
+    rv2coe_hf,
+    RV2COE_TOL,
+    rv_pqw_hf,
+)
 
 from .jit import array_to_V_hf
 from .math.linalg import norm_hf
@@ -42,7 +47,9 @@ def hohmann(k, rv, r_f):
         Final orbital radius
 
     """
-    _, ecc, inc, raan, argp, nu = rv2coe(k, *rv)
+    _, ecc, inc, raan, argp, nu = rv2coe_hf(
+        k, array_to_V_hf(rv[0]), array_to_V_hf(rv[1]), RV2COE_TOL
+    )
     h_i = norm_hf(array_to_V_hf(cross(*rv)))
     p_i = h_i**2 / k
 
@@ -112,7 +119,9 @@ def bielliptic(k, r_b, r_f, rv):
         Position and velocity vectors
 
     """
-    _, ecc, inc, raan, argp, nu = rv2coe(k, *rv)
+    _, ecc, inc, raan, argp, nu = rv2coe_hf(
+        k, array_to_V_hf(rv[0]), array_to_V_hf(rv[1]), RV2COE_TOL
+    )
     h_i = norm_hf(array_to_V_hf(cross(*rv)))
     p_i = h_i**2 / k
 

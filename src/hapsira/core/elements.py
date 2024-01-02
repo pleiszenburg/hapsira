@@ -2,17 +2,17 @@
 convert between different elements that define the orbit of a body.
 """
 
-from math import cos, pi, sin, sqrt, tan
+from math import acos, atan2, cos, log, pi, sin, sqrt, tan
 
 from numba import njit as jit
 import numpy as np
-from numpy import cross
 
 from hapsira.core.angles import E_to_nu_hf, F_to_nu_hf
 from hapsira.core.util import rotation_matrix_hf
 
 from .jit import array_to_V_hf, hjit, gjit, vjit
 from .math.linalg import (
+    cross_VV_hf,
     div_Vs_hf,
     matmul_MM_hf,
     matmul_VM_hf,
@@ -35,11 +35,16 @@ __all__ = [
     "coe2rv_gf",
     "coe2mee_hf",
     "coe2mee_gf",
+    "RV2COE_TOL",
+    "rv2coe_hf",
+    "rv2coe_gf",
     # TODO
-    "rv2coe",
     "mee2coe",
     "mee2rv",
 ]
+
+
+RV2COE_TOL = 1e-8
 
 
 @hjit("V(f,V,V)")
@@ -337,17 +342,17 @@ def coe2mee_gf(p, ecc, inc, raan, argp, nu, p_, f, g, h, k, L):
     p_[0], f[0], g[0], h[0], k[0], L[0] = coe2mee_hf(p, ecc, inc, raan, argp, nu)
 
 
-@jit
-def rv2coe(k, r, v, tol=1e-8):
+@hjit("Tuple([f,f,f,f,f,f])(f,V,V,f)")
+def rv2coe_hf(k, r, v, tol):
     r"""Converts from vectors to classical orbital elements.
 
     Parameters
     ----------
     k : float
         Standard gravitational parameter (km^3 / s^2)
-    r : numpy.ndarray
+    r : tuple[float,float,float]
         Position vector (km)
-    v : numpy.ndarray
+    v : tuple[float,float,float]
         Velocity vector (km / s)
     tol : float, optional
         Tolerance for eccentricity and inclination checks, default to 1e-8
@@ -393,7 +398,7 @@ def rv2coe(k, r, v, tol=1e-8):
         N &= \sqrt{\vec{N}\cdot\vec{N}}
         \end{align}
 
-    4. The rigth ascension node is computed:
+    4. The right ascension node is computed:
 
     .. math::
         \Omega = \left\{ \begin{array}{lcc}
@@ -442,49 +447,72 @@ def rv2coe(k, r, v, tol=1e-8):
     nu: 28.445804984192122 [deg]
 
     """
-    h = cross(r, v)
-    n = cross([0, 0, 1], h)
-    e = ((v @ v - k / norm_hf(array_to_V_hf(r))) * r - (r @ v) * v) / k
-    ecc = norm_hf(array_to_V_hf(e))
-    p = (h @ h) / k
-    inc = np.arccos(h[2] / norm_hf(array_to_V_hf(h)))
+    h = cross_VV_hf(r, v)
+    n = cross_VV_hf((0, 0, 1), h)
+    e = mul_Vs_hf(
+        sub_VV_hf(
+            mul_Vs_hf(r, (matmul_VV_hf(v, v) - k / norm_hf(r))),
+            mul_Vs_hf(v, matmul_VV_hf(r, v)),
+        ),
+        1 / k,
+    )
+    ecc = norm_hf(e)
+    p = matmul_VV_hf(h, h) / k
+    inc = acos(h[2] / norm_hf(h))
 
     circular = ecc < tol
     equatorial = abs(inc) < tol
 
     if equatorial and not circular:
         raan = 0
-        argp = np.arctan2(e[1], e[0]) % (2 * np.pi)  # Longitude of periapsis
-        nu = np.arctan2((h @ cross(e, r)) / norm_hf(array_to_V_hf(h)), r @ e)
+        argp = atan2(e[1], e[0]) % (2 * pi)  # Longitude of periapsis
+        nu = atan2(matmul_VV_hf(h, cross_VV_hf(e, r)) / norm_hf(h), matmul_VV_hf(r, e))
     elif not equatorial and circular:
-        raan = np.arctan2(n[1], n[0]) % (2 * np.pi)
+        raan = atan2(n[1], n[0]) % (2 * pi)
         argp = 0
         # Argument of latitude
-        nu = np.arctan2((r @ cross(h, n)) / norm_hf(array_to_V_hf(h)), r @ n)
+        nu = atan2(matmul_VV_hf(r, cross_VV_hf(h, n)) / norm_hf(h), matmul_VV_hf(r, n))
     elif equatorial and circular:
         raan = 0
         argp = 0
-        nu = np.arctan2(r[1], r[0]) % (2 * np.pi)  # True longitude
+        nu = atan2(r[1], r[0]) % (2 * pi)  # True longitude
     else:
         a = p / (1 - (ecc**2))
         ka = k * a
         if a > 0:
-            e_se = (r @ v) / sqrt(ka)
-            e_ce = norm_hf(array_to_V_hf(r)) * (v @ v) / k - 1
-            nu = E_to_nu_hf(np.arctan2(e_se, e_ce), ecc)
+            e_se = matmul_VV_hf(r, v) / sqrt(ka)
+            e_ce = norm_hf(r) * matmul_VV_hf(v, v) / k - 1
+            nu = E_to_nu_hf(atan2(e_se, e_ce), ecc)
         else:
-            e_sh = (r @ v) / sqrt(-ka)
-            e_ch = norm_hf(array_to_V_hf(r)) * (norm_hf(array_to_V_hf(v)) ** 2) / k - 1
-            nu = F_to_nu_hf(np.log((e_ch + e_sh) / (e_ch - e_sh)) / 2, ecc)
+            e_sh = matmul_VV_hf(r, v) / sqrt(-ka)
+            e_ch = norm_hf(r) * (norm_hf(v) ** 2) / k - 1
+            nu = F_to_nu_hf(log((e_ch + e_sh) / (e_ch - e_sh)) / 2, ecc)
 
-        raan = np.arctan2(n[1], n[0]) % (2 * np.pi)
-        px = r @ n
-        py = (r @ cross(h, n)) / norm_hf(array_to_V_hf(h))
-        argp = (np.arctan2(py, px) - nu) % (2 * np.pi)
+        raan = atan2(n[1], n[0]) % (2 * pi)
+        px = matmul_VV_hf(r, n)
+        py = matmul_VV_hf(r, cross_VV_hf(h, n)) / norm_hf(h)
+        argp = (atan2(py, px) - nu) % (2 * pi)
 
-    nu = (nu + np.pi) % (2 * np.pi) - np.pi
+    nu = (nu + pi) % (2 * pi) - pi
 
     return p, ecc, inc, raan, argp, nu
+
+
+@gjit(
+    "void(f,f[:],f[:],f,f[:],f[:],f[:],f[:],f[:],f[:])",
+    "(),(n),(n),()->(),(),(),(),(),()",
+)
+def rv2coe_gf(k, r, v, tol, p, ecc, inc, raan, argp, nu):
+    """
+    Vectorized rv2coe
+    """
+
+    p[0], ecc[0], inc[0], raan[0], argp[0], nu[0] = rv2coe_hf(
+        k,
+        array_to_V_hf(r),
+        array_to_V_hf(v),
+        tol,
+    )
 
 
 @jit

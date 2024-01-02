@@ -10,14 +10,14 @@ import pytest
 
 from hapsira.bodies import Earth, Moon, Sun
 from hapsira.constants import H0_earth, Wdivc_sun, rho0_earth
-from hapsira.core.elements import rv2coe
+from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
 from hapsira.core.perturbations import (
     J2_perturbation,
     J3_perturbation,
     atmospheric_drag,
     atmospheric_drag_exponential,
     radiation_pressure,
-    third_body,
+    third_body,  # pylint: disable=E1120,E1136
 )
 from hapsira.core.propagation import func_twobody
 from hapsira.earth.atmosphere import COESA76
@@ -51,8 +51,12 @@ def test_J2_propagation_Earth():
 
     k = Earth.k.to(u.km**3 / u.s**2).value
 
-    _, _, _, raan0, argp0, _ = rv2coe(k, r0, v0)
-    _, _, _, raan, argp, _ = rv2coe(k, rr[0].to(u.km).value, vv[0].to(u.km / u.s).value)
+    _, _, _, raan0, argp0, _ = rv2coe_gf(  # pylint: disable=E1120,E0633
+        k, r0, v0, RV2COE_TOL
+    )
+    _, _, _, raan, argp, _ = rv2coe_gf(  # pylint: disable=E1120,E0633
+        k, rr[0].to(u.km).value, vv[0].to(u.km / u.s).value, RV2COE_TOL
+    )
 
     raan_variation_rate = (raan - raan0) / tofs[0].to(u.s).value  # type: ignore
     argp_variation_rate = (argp - argp0) / tofs[0].to(u.s).value  # type: ignore
@@ -148,13 +152,23 @@ def test_J3_propagation_Earth(test_params):
 
     a_values_J2 = np.array(
         [
-            rv2coe(k, ri, vi)[0] / (1.0 - rv2coe(k, ri, vi)[1] ** 2)
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[0]  # pylint: disable=E1120,E1136
+            / (
+                1.0
+                - rv2coe_gf(k, ri, vi, RV2COE_TOL)[1]  # pylint: disable=E1120,E1136
+                ** 2
+            )
             for ri, vi in zip(r_J2.to(u.km).value, v_J2.to(u.km / u.s).value)
         ]
     )
     a_values_J3 = np.array(
         [
-            rv2coe(k, ri, vi)[0] / (1.0 - rv2coe(k, ri, vi)[1] ** 2)
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[0]  # pylint: disable=E1120,E1136
+            / (
+                1.0
+                - rv2coe_gf(k, ri, vi, RV2COE_TOL)[1]  # pylint: disable=E1120,E1136
+                ** 2
+            )
             for ri, vi in zip(r_J3.to(u.km).value, v_J3.to(u.km / u.s).value)
         ]
     )
@@ -162,13 +176,13 @@ def test_J3_propagation_Earth(test_params):
 
     ecc_values_J2 = np.array(
         [
-            rv2coe(k, ri, vi)[1]
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[1]  # pylint: disable=E1120,E1136
             for ri, vi in zip(r_J2.to(u.km).value, v_J2.to(u.km / u.s).value)
         ]
     )
     ecc_values_J3 = np.array(
         [
-            rv2coe(k, ri, vi)[1]
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[1]  # pylint: disable=E1120,E1136
             for ri, vi in zip(r_J3.to(u.km).value, v_J3.to(u.km / u.s).value)
         ]
     )
@@ -176,13 +190,13 @@ def test_J3_propagation_Earth(test_params):
 
     inc_values_J2 = np.array(
         [
-            rv2coe(k, ri, vi)[2]
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[2]  # pylint: disable=E1120,E1136
             for ri, vi in zip(r_J2.to(u.km).value, v_J2.to(u.km / u.s).value)
         ]
     )
     inc_values_J3 = np.array(
         [
-            rv2coe(k, ri, vi)[2]
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[2]  # pylint: disable=E1120,E1136
             for ri, vi in zip(r_J3.to(u.km).value, v_J3.to(u.km / u.s).value)
         ]
     )
@@ -573,7 +587,10 @@ def test_3rd_body_Curtis(test_params):
     incs, raans, argps = [], [], []
     for ri, vi in zip(rr.to_value(u.km), vv.to_value(u.km / u.s)):
         angles = Angle(
-            rv2coe(Earth.k.to_value(u.km**3 / u.s**2), ri, vi)[2:5] * u.rad
+            rv2coe_gf(  # pylint: disable=E1120,E1136
+                Earth.k.to_value(u.km**3 / u.s**2), ri, vi, RV2COE_TOL
+            )[2:5]
+            * u.rad
         )  # inc, raan, argp
         angles = angles.wrap_at(180 * u.deg)
         incs.append(angles[0].value)
@@ -670,7 +687,9 @@ def test_solar_pressure(t_days, deltas_expected, sun_r):
 
     delta_eccs, delta_incs, delta_raans, delta_argps = [], [], [], []
     for ri, vi in zip(rr.to(u.km).value, vv.to(u.km / u.s).value):
-        orbit_params = rv2coe(Earth.k.to(u.km**3 / u.s**2).value, ri, vi)
+        orbit_params = rv2coe_gf(  # pylint: disable=E1120,E1136
+            Earth.k.to(u.km**3 / u.s**2).value, ri, vi, RV2COE_TOL
+        )
         delta_eccs.append(orbit_params[1] - initial.ecc.value)
         delta_incs.append((orbit_params[2] * u.rad).to(u.deg).value - initial.inc.value)
         delta_raans.append(

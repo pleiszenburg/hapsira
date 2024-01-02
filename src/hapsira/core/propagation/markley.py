@@ -8,7 +8,8 @@ from hapsira.core.angles import (
     kepler_equation_prime_hf,
     nu_to_E_hf,
 )
-from hapsira.core.elements import coe2rv_hf, rv2coe
+from hapsira.core.elements import coe2rv_hf, rv2coe_hf, RV2COE_TOL
+from ..jit import array_to_V_hf
 
 
 @jit
@@ -88,7 +89,9 @@ def markley(k, r0, v0, tof):
 
     """
     # Solve first for eccentricity and mean anomaly
-    p, ecc, inc, raan, argp, nu = rv2coe(k, r0, v0)
+    p, ecc, inc, raan, argp, nu = rv2coe_hf(
+        k, array_to_V_hf(r0), array_to_V_hf(v0), RV2COE_TOL
+    )
     nu = markley_coe(k, p, ecc, inc, raan, argp, nu, tof)
 
     return np.array(coe2rv_hf(k, p, ecc, inc, raan, argp, nu))

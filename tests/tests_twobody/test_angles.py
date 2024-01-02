@@ -5,7 +5,7 @@ from numpy.testing import assert_allclose
 import pytest
 
 from hapsira.bodies import Earth
-from hapsira.core.elements import coe2mee_gf, coe2rv_gf, mee2coe, rv2coe
+from hapsira.core.elements import coe2mee_gf, coe2rv_gf, mee2coe, rv2coe_gf, RV2COE_TOL
 from hapsira.twobody.angles import (
     E_to_M,
     E_to_nu,
@@ -216,7 +216,7 @@ def test_convert_between_coe_and_rv_is_transitive(classical):
     r, v = np.zeros((3,), dtype=float), np.zeros((3,), dtype=float)
     coe2rv_gf(k, *expected_res, np.zeros((3,), dtype="u1"), r, v)
 
-    res = rv2coe(k, r, v)
+    res = rv2coe_gf(k, r, v, RV2COE_TOL)  # pylint: disable=E1120
 
     assert_allclose(res, classical)
 
@@ -232,7 +232,7 @@ def test_convert_coe_and_rv_circular(circular):
     r, v = np.zeros((3,), dtype=float), np.zeros((3,), dtype=float)
     coe2rv_gf(k, *expected_res, np.zeros((3,), dtype="u1"), r, v)
 
-    res = rv2coe(k, r, v)
+    res = rv2coe_gf(k, r, v, RV2COE_TOL)  # pylint: disable=E1120
 
     assert_allclose(res, expected_res, atol=1e-8)
 
@@ -243,7 +243,7 @@ def test_convert_coe_and_rv_hyperbolic(hyperbolic):
     r, v = np.zeros((3,), dtype=float), np.zeros((3,), dtype=float)
     coe2rv_gf(k, *expected_res, np.zeros((3,), dtype="u1"), r, v)
 
-    res = rv2coe(k, r, v)
+    res = rv2coe_gf(k, r, v, RV2COE_TOL)  # pylint: disable=E1120
 
     assert_allclose(res, expected_res, atol=1e-8)
 
@@ -254,7 +254,7 @@ def test_convert_coe_and_rv_equatorial(equatorial):
     r, v = np.zeros((3,), dtype=float), np.zeros((3,), dtype=float)
     coe2rv_gf(k, *expected_res, np.zeros((3,), dtype="u1"), r, v)
 
-    res = rv2coe(k, r, v)
+    res = rv2coe_gf(k, r, v, RV2COE_TOL)  # pylint: disable=E1120
 
     assert_allclose(res, expected_res, atol=1e-8)
 
@@ -265,6 +265,6 @@ def test_convert_coe_and_rv_circular_equatorial(circular_equatorial):
     r, v = np.zeros((3,), dtype=float), np.zeros((3,), dtype=float)
     coe2rv_gf(k, *expected_res, np.zeros((3,), dtype="u1"), r, v)
 
-    res = rv2coe(k, r, v)
+    res = rv2coe_gf(k, r, v, RV2COE_TOL)  # pylint: disable=E1120
 
     assert_allclose(res, expected_res, atol=1e-8)

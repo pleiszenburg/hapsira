@@ -2,7 +2,8 @@ from numba import njit as jit
 import numpy as np
 
 from hapsira.core.angles import E_to_M_hf, E_to_nu_hf, nu_to_E_hf
-from hapsira.core.elements import coe2rv_hf, rv2coe
+from hapsira.core.elements import coe2rv_hf, rv2coe_hf, RV2COE_TOL
+from ..jit import array_to_V_hf
 
 
 @jit
@@ -368,7 +369,9 @@ def pimienta(k, r0, v0, tof):
     # TODO: implement hyperbolic case
 
     # Solve first for eccentricity and mean anomaly
-    p, ecc, inc, raan, argp, nu = rv2coe(k, r0, v0)
+    p, ecc, inc, raan, argp, nu = rv2coe_hf(
+        k, array_to_V_hf(r0), array_to_V_hf(v0), RV2COE_TOL
+    )
     nu = pimienta_coe(k, p, ecc, inc, raan, argp, nu, tof)
 
     return np.array(coe2rv_hf(k, p, ecc, inc, raan, argp, nu))

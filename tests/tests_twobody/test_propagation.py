@@ -9,7 +9,7 @@ from pytest import approx
 
 from hapsira.bodies import Earth, Moon, Sun
 from hapsira.constants import J2000
-from hapsira.core.elements import rv2coe
+from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
 from hapsira.core.propagation import func_twobody
 from hapsira.examples import iss
 from hapsira.frames import Planes
@@ -203,10 +203,11 @@ def test_propagation_parabolic(propagator):
     orbit = Orbit.parabolic(Earth, p, _a, _a, _a, _a)
     orbit = orbit.propagate(0.8897 / 2.0 * u.h, method=propagator())
 
-    _, _, _, _, _, nu0 = rv2coe(
+    _, _, _, _, _, nu0 = rv2coe_gf(  # pylint: disable=E1120,E0633
         Earth.k.to(u.km**3 / u.s**2).value,
         orbit.r.to(u.km).value,
         orbit.v.to(u.km / u.s).value,
+        RV2COE_TOL,
     )
     assert_quantity_allclose(nu0, np.deg2rad(90.0), rtol=1e-4)
 

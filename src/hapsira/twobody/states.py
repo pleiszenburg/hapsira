@@ -3,7 +3,14 @@ from functools import cached_property
 from astropy import units as u
 import numpy as np
 
-from hapsira.core.elements import coe2mee_gf, coe2rv_gf, mee2coe, mee2rv, rv2coe
+from hapsira.core.elements import (
+    coe2mee_gf,
+    coe2rv_gf,
+    mee2coe,
+    mee2rv,
+    rv2coe_gf,
+    RV2COE_TOL,
+)
 from hapsira.twobody.elements import mean_motion, period, t_p
 
 
@@ -243,9 +250,10 @@ class RVState(BaseState):
 
     def to_classical(self):
         """Converts to classical orbital elements representation."""
-        (p, ecc, inc, raan, argp, nu) = rv2coe(
+        (p, ecc, inc, raan, argp, nu) = rv2coe_gf(  # pylint: disable=E1120,E0633
             self.attractor.k.to_value(u.km**3 / u.s**2),
             *self.to_value(),
+            RV2COE_TOL,
         )
 
         return ClassicalState(

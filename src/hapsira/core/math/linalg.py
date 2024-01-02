@@ -3,6 +3,7 @@ from math import sqrt
 from ..jit import hjit, vjit
 
 __all__ = [
+    "cross_VV_hf",
     "div_Vs_hf",
     "matmul_MM_hf",
     "matmul_VM_hf",
@@ -13,6 +14,15 @@ __all__ = [
     "sub_VV_hf",
     "transpose_M_hf",
 ]
+
+
+@hjit("V(V,V)")
+def cross_VV_hf(a, b):
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    )
 
 
 @hjit("V(V,f)")

@@ -24,7 +24,7 @@ from astropy import units as u
 from hapsira.bodies import Earth, Moon
 from hapsira.constants import rho0_earth, H0_earth
 
-from hapsira.core.elements import rv2coe
+from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
 from hapsira.core.perturbations import (
     atmospheric_drag_exponential,
     third_body,
@@ -161,9 +161,9 @@ rr, vv = orbit.to_ephem(
 ).rv()
 
 # This will be easier to compute when this is solved:
-# https://github.com/hapsira/hapsira/issues/380
+# https://github.com/poliastro/poliastro/issues/380
 raans = [
-    rv2coe(k, r, v)[3]
+    rv2coe_gf(k, r, v, RV2COE_TOL)[3]
     for r, v in zip(rr.to_value(u.km), vv.to_value(u.km / u.s))
 ]
 ```

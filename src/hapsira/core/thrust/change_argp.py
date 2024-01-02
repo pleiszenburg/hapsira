@@ -2,7 +2,7 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross
 
-from hapsira.core.elements import circular_velocity_hf, rv2coe
+from hapsira.core.elements import circular_velocity_hf, rv2coe_hf, RV2COE_TOL
 
 from ..jit import array_to_V_hf
 from ..math.linalg import norm_hf
@@ -58,7 +58,7 @@ def change_argp(k, a, ecc, argp_0, argp_f, f):
     def a_d(t0, u_, k):
         r = u_[:3]
         v = u_[3:]
-        nu = rv2coe(k, r, v)[-1]
+        nu = rv2coe_hf(k, array_to_V_hf(r), array_to_V_hf(v), RV2COE_TOL)[-1]
 
         alpha_ = nu - np.pi / 2
 

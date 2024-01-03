@@ -7,7 +7,7 @@ from hapsira.core.elements import (
     coe2mee_gf,
     coe2rv_gf,
     mee2coe_gf,
-    mee2rv,
+    mee2rv_gf,
     rv2coe_gf,
     RV2COE_TOL,
 )
@@ -351,5 +351,7 @@ class ModifiedEquinoctialState(BaseState):
 
     def to_vectors(self):
         """Converts to position and velocity vector representation."""
-        r, v = mee2rv(*self.to_value())
+        r, v = mee2rv_gf(  # pylint: disable=E1120,E0633
+            *self.to_value(), np.zeros((3,), dtype="u1")
+        )
         return RVState(self.attractor, (r << u.km, v << u.km / u.s), self.plane)

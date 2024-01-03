@@ -4,12 +4,7 @@ convert between different elements that define the orbit of a body.
 
 from math import acos, atan, atan2, cos, log, pi, sin, sqrt, tan
 
-from numba import njit as jit
-import numpy as np
-
-from hapsira.core.angles import E_to_nu_hf, F_to_nu_hf
-from hapsira.core.util import rotation_matrix_hf
-
+from .angles import E_to_nu_hf, F_to_nu_hf
 from .jit import array_to_V_hf, hjit, gjit, vjit
 from .math.linalg import (
     cross_VV_hf,
@@ -22,6 +17,7 @@ from .math.linalg import (
     sub_VV_hf,
     transpose_M_hf,
 )
+from .util import rotation_matrix_hf
 
 
 __all__ = [
@@ -40,8 +36,8 @@ __all__ = [
     "rv2coe_gf",
     "mee2coe_hf",
     "mee2coe_gf",
-    # TODO
-    "mee2rv",
+    "mee2rv_hf",
+    "mee2rv_gf",
 ]
 
 
@@ -126,9 +122,9 @@ def rv_pqw_hf(k, p, ecc, nu):
 
     Returns
     -------
-    r: numpy.ndarray
+    r: tuple[float,float,float]
         Position. Dimension 3 vector
-    v: numpy.ndarray
+    v: tuple[float,float,float]
         Velocity. Dimension 3 vector
 
     Notes
@@ -592,8 +588,8 @@ def mee2coe_gf(p, f, g, h, k, L, p_, ecc, inc, raan, argp, nu):
     p_[0], ecc[0], inc[0], raan[0], argp[0], nu[0] = mee2coe_hf(p, f, g, h, k, L)
 
 
-@jit
-def mee2rv(p, f, g, h, k, L):
+@hjit("Tuple([V,V])(f,f,f,f,f,f)")
+def mee2rv_hf(p, f, g, h, k, L):  # TODO untested
     """Calculates position and velocity vector from modified equinoctial elements.
 
     Parameters
@@ -613,9 +609,9 @@ def mee2rv(p, f, g, h, k, L):
 
     Returns
     -------
-    r: numpy.ndarray
+    r: tuple[float,float,float]
         Position vector.
-    v: numpy.ndarray
+    v: tuple[float,float,float]
         Velocity vector.
 
     Note
@@ -625,22 +621,22 @@ def mee2rv(p, f, g, h, k, L):
     Equation 3a and 3b.
 
     """
-    w = 1 + f * np.cos(L) + g * np.sin(L)
+    w = 1 + f * cos(L) + g * sin(L)
     r = p / w
     s2 = 1 + h**2 + k**2
     alpha2 = h**2 - k**2
 
-    rx = (r / s2)(np.cos(L) + alpha2**2 * np.cos(L) + 2 * h * k * np.sin(L))
-    ry = (r / s2)(np.sin(L) - alpha2**2 * np.sin(L) + 2 * h * k * np.cos(L))
-    rz = (2 * r / s2)(h * np.sin(L) - k * np.cos(L))
+    rx = (r / s2) * (cos(L) + alpha2**2 * cos(L) + 2 * h * k * sin(L))
+    ry = (r / s2) * (sin(L) - alpha2**2 * sin(L) + 2 * h * k * cos(L))
+    rz = (2 * r / s2) * (h * sin(L) - k * cos(L))
 
     vx = (
         (-1 / s2)
-        * (np.sqrt(k / p))
+        * (sqrt(k / p))
         * (
-            np.sin(L)
-            + alpha2 * np.sin(L)
-            - 2 * h * k * np.cos(L)
+            sin(L)
+            + alpha2 * sin(L)
+            - 2 * h * k * cos(L)
             + g
             - 2 * f * h * k
             + alpha2 * g
@@ -648,16 +644,26 @@ def mee2rv(p, f, g, h, k, L):
     )
     vy = (
         (-1 / s2)
-        * (np.sqrt(k / p))
+        * (sqrt(k / p))
         * (
-            -np.cos(L)
-            + alpha2 * np.cos(L)
-            + 2 * h * k * np.sin(L)
+            -cos(L)
+            + alpha2 * cos(L)
+            + 2 * h * k * sin(L)
             - f
             + 2 * g * h * k
             + alpha2 * f
         )
     )
-    vz = (2 / s2) * (np.sqrt(k / p)) * (h * np.cos(L) + k * np.sin(L) + f * h + g * k)
+    vz = (2 / s2) * (sqrt(k / p)) * (h * cos(L) + k * sin(L) + f * h + g * k)
 
-    return np.array([rx, ry, rz]), np.array([vx, vy, vz])
+    return (rx, ry, rz), (vx, vy, vz)
+
+
+@gjit("void(f,f,f,f,f,f,u1[:],f[:],f[:])", "(),(),(),(),(),(),(n)->(n),(n)")
+def mee2rv_gf(p, f, g, h, k, L, dummy, r, v):
+    """
+    Vectorized mee2rv
+    """
+    assert dummy.shape == (3,)
+
+    (r[0], r[1], r[2]), (v[0], v[1], v[2]) = mee2rv_hf(p, f, g, h, k, L)

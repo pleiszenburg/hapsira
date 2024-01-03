@@ -2,7 +2,7 @@ import numpy as np
 
 from hapsira.core.propagation.base import func_twobody
 
-from ..math.ivp import DOP853, solve_ivp
+from ..math.ivp import solve_ivp
 
 
 def cowell(k, r, v, tofs, rtol=1e-11, *, events=None, f=func_twobody):
@@ -18,7 +18,6 @@ def cowell(k, r, v, tofs, rtol=1e-11, *, events=None, f=func_twobody):
         args=(k,),
         rtol=rtol,
         atol=1e-12,
-        method=DOP853,
         dense_output=True,
         events=events,
     )

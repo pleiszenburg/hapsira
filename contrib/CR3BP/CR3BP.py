@@ -32,7 +32,7 @@ CR3BP MATLAB Library : https://github.com/JackCrusoe47/CR3BP_MATLAB_Library
 from numba import njit as jit
 import numpy as np
 
-from hapsira.core.math.ivp import DOP853, solve_ivp
+from hapsira.core.math.ivp import solve_ivp
 
 
 @jit
@@ -314,7 +314,6 @@ def propagate(mu, r0, v0, tofs, rtol=1e-11, f=func_CR3BP):
         args=(mu,),
         rtol=rtol,
         atol=1e-12,
-        method=DOP853,
         dense_output=True,
     )
 
@@ -371,7 +370,6 @@ def propagateSTM(mu, r0, v0, STM0, tofs, rtol=1e-11, f=func_CR3BP_STM):
         args=(mu,),
         rtol=rtol,
         atol=1e-12,
-        method=DOP853,
         dense_output=True,
     )
 

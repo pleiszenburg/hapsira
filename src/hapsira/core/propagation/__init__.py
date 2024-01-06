@@ -4,10 +4,10 @@ from hapsira.core.propagation.base import func_twobody
 from hapsira.core.propagation.cowell import cowell
 
 # from hapsira.core.propagation.danby import danby, danby_coe
-from hapsira.core.propagation.farnocchia import (
-    farnocchia_coe,
-    farnocchia_rv as farnocchia,
-)
+# from hapsira.core.propagation.farnocchia import (
+#     farnocchia_coe,
+#     farnocchia_rv as farnocchia,
+# )
 from hapsira.core.propagation.gooding import gooding, gooding_coe
 from hapsira.core.propagation.markley import markley, markley_coe
 from hapsira.core.propagation.mikkola import mikkola, mikkola_coe
@@ -18,8 +18,8 @@ from hapsira.core.propagation.vallado import vallado
 __all__ = [
     "cowell",
     "func_twobody",
-    "farnocchia_coe",
-    "farnocchia",
+    # "farnocchia_coe",
+    # "farnocchia",
     "vallado",
     "mikkola_coe",
     "mikkola",

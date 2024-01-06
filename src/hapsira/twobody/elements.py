@@ -6,9 +6,7 @@ from hapsira.core.elements import (
     coe2rv_gf,
     eccentricity_vector_gf,
 )
-from hapsira.core.propagation.farnocchia import (
-    delta_t_from_nu as delta_t_from_nu_fast,
-)
+from hapsira.core.propagation.farnocchia import delta_t_from_nu_vf, FARNOCCHIA_DELTA
 
 u_kms = u.km / u.s
 u_km3s2 = u.km**3 / u.s**2
@@ -42,9 +40,9 @@ def energy(k, r, v):
 @u.quantity_input(k=u_km3s2, r=u.km, v=u_kms)
 def eccentricity_vector(k, r, v):
     """Eccentricity vector."""
-    e = eccentricity_vector_gf(
+    e = eccentricity_vector_gf(  # pylint: disable=E1120
         k.to_value(u_km3s2), r.to_value(u.km), v.to_value(u_kms)
-    )  # pylint: disable=E1120
+    )
     return e << u.one
 
 
@@ -53,11 +51,12 @@ def t_p(nu, ecc, k, r_p):
     """Elapsed time since latest perifocal passage."""
     # TODO: Make this a propagator method
     t_p = (
-        delta_t_from_nu_fast(
+        delta_t_from_nu_vf(
             nu.to_value(u.rad),
             ecc.value,
             k.to_value(u_km3s2),
             r_p.to_value(u.km),
+            FARNOCCHIA_DELTA,
         )
         * u.s
     )

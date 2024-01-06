@@ -9,7 +9,7 @@ from hapsira.core.propagation import (
     pimienta_coe,
 )
 from hapsira.core.propagation.danby import danby_coe_vf, DANBY_NUMITER, DANBY_RTOL
-from hapsira.core.propagation.farnocchia import farnocchia_coe
+from hapsira.core.propagation.farnocchia import farnocchia_coe_vf
 from hapsira.examples import iss
 
 
@@ -20,7 +20,7 @@ from hapsira.examples import iss
         markley_coe,
         pimienta_coe,
         mikkola_coe,
-        farnocchia_coe,
+        farnocchia_coe_vf,
         gooding_coe,
     ],
 )

@@ -103,6 +103,12 @@ class Settings:
         )
         self._add(
             Setting(
+                "CACHE",
+                not self["DEBUG"].value,
+            )
+        )
+        self._add(
+            Setting(
                 "LOGLEVEL",
                 "NOTSET",
                 options=("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "NOTSET"),

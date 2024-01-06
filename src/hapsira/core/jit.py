@@ -91,12 +91,14 @@ def hjit(*args, **kwargs) -> Callable:
             cfg = dict(
                 device=True,
                 inline=settings["INLINE"].value,
+                cache=settings["CACHE"].value,
             )
         else:
             wjit = nb.jit
             cfg = dict(
                 nopython=settings["NOPYTHON"].value,
                 inline="always" if settings["INLINE"].value else "never",
+                cache=settings["CACHE"].value,
             )
         cfg.update(kwargs)
 
@@ -140,6 +142,7 @@ def vjit(*args, **kwargs) -> Callable:
 
         cfg = dict(
             target=settings["TARGET"].value,
+            cache=settings["CACHE"].value,
         )
         if settings["TARGET"].value != "cuda":
             cfg["nopython"] = settings["NOPYTHON"].value
@@ -185,6 +188,7 @@ def gjit(*args, **kwargs) -> Callable:
 
         cfg = dict(
             target=settings["TARGET"].value,
+            cache=settings["CACHE"].value,
         )
         if settings["TARGET"].value != "cuda":
             cfg["nopython"] = settings["NOPYTHON"].value

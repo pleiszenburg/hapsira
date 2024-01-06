@@ -2,7 +2,7 @@ import sys
 
 from astropy import units as u
 
-from hapsira.core.propagation import danby_coe as danby_fast
+from hapsira.core.propagation.danby import danby_coe_vf, DANBY_NUMITER, DANBY_RTOL
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import ClassicalState
 
@@ -27,10 +27,12 @@ class DanbyPropagator:
         state = state.to_classical()
 
         nu = (
-            danby_fast(
+            danby_coe_vf(
                 state.attractor.k.to_value(u.km**3 / u.s**2),
                 *state.to_value(),
                 tof.to_value(u.s),
+                DANBY_NUMITER,
+                DANBY_RTOL,
             )
             << u.rad
         )

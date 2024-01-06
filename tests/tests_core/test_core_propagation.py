@@ -3,12 +3,12 @@ from astropy.tests.helper import assert_quantity_allclose
 import pytest
 
 from hapsira.core.propagation import (
-    danby_coe,
     gooding_coe,
     markley_coe,
     mikkola_coe,
     pimienta_coe,
 )
+from hapsira.core.propagation.danby import danby_coe_vf, DANBY_NUMITER, DANBY_RTOL
 from hapsira.core.propagation.farnocchia import farnocchia_coe
 from hapsira.examples import iss
 
@@ -16,7 +16,7 @@ from hapsira.examples import iss
 @pytest.mark.parametrize(
     "propagator_coe",
     [
-        danby_coe,
+        lambda *args: danby_coe_vf(*args, DANBY_NUMITER, DANBY_RTOL),
         markley_coe,
         pimienta_coe,
         mikkola_coe,

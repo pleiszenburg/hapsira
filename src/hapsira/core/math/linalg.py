@@ -3,6 +3,7 @@ from math import sqrt
 from ..jit import hjit, vjit
 
 __all__ = [
+    "add_VV_hf",
     "cross_VV_hf",
     "div_Vs_hf",
     "matmul_MM_hf",
@@ -11,6 +12,7 @@ __all__ = [
     "mul_Vs_hf",
     "norm_hf",
     "norm_vf",
+    "sign_hf",
     "sub_VV_hf",
     "transpose_M_hf",
 ]
@@ -84,6 +86,15 @@ def norm_hf(a):
 def norm_vf(a, b, c):
     # TODO add axis setting in some way for util.norm?
     return norm_hf((a, b, c))
+
+
+@hjit("f(f)")
+def sign_hf(x):
+    if x < 0.0:
+        return -1.0
+    if x == 0.0:
+        return 0.0
+    return 1.0  # if x > 0
 
 
 @hjit("V(V,V)")

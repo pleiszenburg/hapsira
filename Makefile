@@ -49,6 +49,6 @@ upload:
 	done
 
 test:
-	DISPLAY= tox -e style,tests-fast,tests-slow,docs
+	DISPLAY= HAPSIRA_CACHE=0 tox -e style,tests-fast,tests-slow,docs
 
 .PHONY: docs docker image release upload

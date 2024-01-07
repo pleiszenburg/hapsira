@@ -8,7 +8,7 @@ from hapsira.core.propagation.cowell import cowell
 #     farnocchia_coe,
 #     farnocchia_rv as farnocchia,
 # )
-from hapsira.core.propagation.gooding import gooding, gooding_coe
+# from hapsira.core.propagation.gooding import gooding, gooding_coe
 from hapsira.core.propagation.markley import markley, markley_coe
 from hapsira.core.propagation.mikkola import mikkola, mikkola_coe
 from hapsira.core.propagation.pimienta import pimienta, pimienta_coe
@@ -27,8 +27,8 @@ __all__ = [
     "markley",
     "pimienta_coe",
     "pimienta",
-    "gooding_coe",
-    "gooding",
+    # "gooding_coe",
+    # "gooding",
     # "danby_coe",
     # "danby",
     "recseries_coe",

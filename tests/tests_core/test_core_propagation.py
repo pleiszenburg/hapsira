@@ -3,13 +3,17 @@ from astropy.tests.helper import assert_quantity_allclose
 import pytest
 
 from hapsira.core.propagation import (
-    gooding_coe,
     markley_coe,
     mikkola_coe,
     pimienta_coe,
 )
 from hapsira.core.propagation.danby import danby_coe_vf, DANBY_NUMITER, DANBY_RTOL
 from hapsira.core.propagation.farnocchia import farnocchia_coe_vf
+from hapsira.core.propagation.gooding import (
+    gooding_coe_vf,
+    GOODING_NUMITER,
+    GOODING_RTOL,
+)
 from hapsira.examples import iss
 
 
@@ -21,7 +25,7 @@ from hapsira.examples import iss
         pimienta_coe,
         mikkola_coe,
         farnocchia_coe_vf,
-        gooding_coe,
+        lambda *args: gooding_coe_vf(*args, GOODING_NUMITER, GOODING_RTOL),
     ],
 )
 def test_propagate_with_coe(propagator_coe):

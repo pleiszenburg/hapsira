@@ -1,30 +1,14 @@
 import sys
 
 from astropy import units as u
-import numpy as np
 
-from hapsira.core.propagation import vallado as vallado_fast
+from hapsira.core.propagation.vallado import vallado_rv_gf, VALLADO_NUMITER
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import RVState
 
 from ._compat import OldPropagatorModule
 
 sys.modules[__name__].__class__ = OldPropagatorModule
-
-
-def vallado(k, r0, v0, tof, *, numiter):
-    # Compute Lagrange coefficients
-    f, g, fdot, gdot = vallado_fast(k, r0, v0, tof, numiter)
-
-    assert (
-        np.abs(f * gdot - fdot * g - 1) < 1e-5
-    ), "Internal error, solution is not consistent"  # Fixed tolerance
-
-    # Return position and velocity vectors
-    r = f * r0 + g * v0
-    v = fdot * r0 + gdot * v0
-
-    return r, v
 
 
 class ValladoPropagator:
@@ -43,17 +27,17 @@ class ValladoPropagator:
         PropagatorKind.ELLIPTIC | PropagatorKind.PARABOLIC | PropagatorKind.HYPERBOLIC
     )
 
-    def __init__(self, numiter=350):
+    def __init__(self, numiter=VALLADO_NUMITER):
         self._numiter = numiter
 
     def propagate(self, state, tof):
         state = state.to_vectors()
 
-        r_raw, v_raw = vallado(
+        r_raw, v_raw = vallado_rv_gf(
             state.attractor.k.to_value(u.km**3 / u.s**2),
             *state.to_value(),
             tof.to_value(u.s),
-            numiter=self._numiter,
+            self._numiter,
         )
         r = r_raw << u.km
         v = v_raw << (u.km / u.s)

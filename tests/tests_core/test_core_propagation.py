@@ -19,6 +19,7 @@ from hapsira.core.propagation.recseries import (
     RECSERIES_NUMITER,
     RECSERIES_RTOL,
 )
+from hapsira.core.propagation.vallado import vallado_coe_vf, VALLADO_NUMITER
 from hapsira.examples import iss
 
 
@@ -38,6 +39,7 @@ from hapsira.examples import iss
             RECSERIES_NUMITER,
             RECSERIES_RTOL,
         ),
+        lambda *args: vallado_coe_vf(*args, VALLADO_NUMITER),
     ],
 )
 def test_propagate_with_coe(propagator_coe):

@@ -1,13 +1,25 @@
-from numba import njit as jit
-import numpy as np
+from math import log, sqrt
 
-from ..jit import array_to_V_hf
-from ..math.linalg import norm_hf
+from ..elements import coe2rv_hf, rv2coe_hf, RV2COE_TOL
+from ..math.linalg import add_VV_hf, matmul_VV_hf, mul_Vs_hf, norm_hf, sign_hf
 from ..math.special import stumpff_c2_hf, stumpff_c3_hf
+from ..jit import array_to_V_hf, hjit, vjit, gjit
 
 
-@jit
-def vallado(k, r0, v0, tof, numiter):
+__all__ = [
+    "vallado_coe_hf",
+    "vallado_coe_vf",
+    "vallado_rv_hf",
+    "vallado_rv_gf",
+    "VALLADO_NUMITER",
+]
+
+
+VALLADO_NUMITER = 350
+
+
+@hjit("Tuple([f,f,f,f])(f,V,V,f,i8)")
+def _vallado_hf(k, r0, v0, tof, numiter):
     r"""Solves Kepler's Equation by applying a Newton-Raphson method.
 
     If the position of a body along its orbit wants to be computed
@@ -46,9 +58,9 @@ def vallado(k, r0, v0, tof, numiter):
     ----------
     k : float
         Standard gravitational parameter.
-    r0 : numpy.ndarray
+    r0 : tuple[float,float,float]
         Initial position vector.
-    v0 : numpy.ndarray
+    v0 : tuple[float,float,float]
         Initial velocity vector.
     tof : float
         Time of flight.
@@ -73,10 +85,10 @@ def vallado(k, r0, v0, tof, numiter):
 
     """
     # Cache some results
-    dot_r0v0 = r0 @ v0
-    norm_r0 = norm_hf(array_to_V_hf(r0))
+    dot_r0v0 = matmul_VV_hf(r0, v0)
+    norm_r0 = norm_hf(r0)
     sqrt_mu = k**0.5
-    alpha = -(v0 @ v0) / k + 2 / norm_r0
+    alpha = -matmul_VV_hf(v0, v0) / k + 2 / norm_r0
 
     # First guess
     if alpha > 0:
@@ -85,14 +97,11 @@ def vallado(k, r0, v0, tof, numiter):
     elif alpha < 0:
         # Hyperbolic orbit
         xi_new = (
-            np.sign(tof)
+            sign_hf(tof)
             * (-1 / alpha) ** 0.5
-            * np.log(
+            * log(
                 (-2 * k * alpha * tof)
-                / (
-                    dot_r0v0
-                    + np.sign(tof) * np.sqrt(-k / alpha) * (1 - norm_r0 * alpha)
-                )
+                / (dot_r0v0 + sign_hf(tof) * sqrt(-k / alpha) * (1 - norm_r0 * alpha))
             )
         )
     else:
@@ -137,3 +146,56 @@ def vallado(k, r0, v0, tof, numiter):
     fdot = sqrt_mu / (norm_r * norm_r0) * xi * (psi * c3_psi - 1)
 
     return f, g, fdot, gdot
+
+
+@hjit("Tuple([V,V])(f,V,V,f,i8)")
+def vallado_rv_hf(k, r0, v0, tof, numiter):
+    """
+    Scalar vallado_rv
+    """
+
+    # Compute Lagrange coefficients
+    f, g, fdot, gdot = _vallado_hf(k, r0, v0, tof, numiter)
+
+    assert (
+        abs(f * gdot - fdot * g - 1) < 1e-5
+    ), "Internal error, solution is not consistent"  # Fixed tolerance
+
+    # Return position and velocity vectors
+    r = add_VV_hf(mul_Vs_hf(r0, f), mul_Vs_hf(v0, g))
+    v = add_VV_hf(mul_Vs_hf(r0, fdot), mul_Vs_hf(v0, gdot))
+
+    return r, v
+
+
+@gjit("void(f,f[:],f[:],f,i8,f[:],f[:])", "(),(n),(n),(),()->(n),(n)")
+def vallado_rv_gf(k, r0, v0, tof, numiter, rr, vv):
+    """
+    Vectorized vallado_rv
+    """
+
+    (rr[0], rr[1], rr[2]), (vv[0], vv[1], vv[2]) = vallado_rv_hf(
+        k, array_to_V_hf(r0), array_to_V_hf(v0), tof, numiter
+    )
+
+
+@hjit("f(f,f,f,f,f,f,f,f,i8)")
+def vallado_coe_hf(k, p, ecc, inc, raan, argp, nu, tof, numiter):
+    """
+    Scalar vallado_coe
+    """
+
+    r0, v0 = coe2rv_hf(k, p, ecc, inc, raan, argp, nu)
+    rr, vv = vallado_rv_hf(k, r0, v0, tof, numiter)
+    _, _, _, _, _, nu_ = rv2coe_hf(k, rr, vv, RV2COE_TOL)
+
+    return nu_
+
+
+@vjit("f(f,f,f,f,f,f,f,f,i8)")
+def vallado_coe_vf(k, p, ecc, inc, raan, argp, nu, tof, numiter):
+    """
+    Vectorized vallado_coe
+    """
+
+    return vallado_coe_hf(k, p, ecc, inc, raan, argp, nu, tof, numiter)

@@ -13,14 +13,14 @@ from hapsira.core.propagation.cowell import cowell
 # from hapsira.core.propagation.mikkola import mikkola, mikkola_coe
 # from hapsira.core.propagation.pimienta import pimienta, pimienta_coe
 # from hapsira.core.propagation.recseries import recseries, recseries_coe
-from hapsira.core.propagation.vallado import vallado
+# from hapsira.core.propagation.vallado import vallado
 
 __all__ = [
     "cowell",
     "func_twobody",
     # "farnocchia_coe",
     # "farnocchia",
-    "vallado",
+    # "vallado",
     # "mikkola_coe",
     # "mikkola",
     # "markley_coe",

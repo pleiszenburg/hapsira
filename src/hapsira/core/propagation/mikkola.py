@@ -116,7 +116,7 @@ def mikkola_coe_vf(k, p, ecc, inc, raan, argp, nu, tof):
 
 
 @hjit("Tuple([V,V])(f,V,V,f)")
-def mikkola_rv_hf(k, r0, v0, tof):  # rtol=None
+def mikkola_rv_hf(k, r0, v0, tof):
     """Raw algorithm for Mikkola's Kepler solver.
 
     Parameters
@@ -129,8 +129,6 @@ def mikkola_rv_hf(k, r0, v0, tof):  # rtol=None
         Velocity vector.
     tof : float
         Time of flight.
-    rtol : float
-        This method does not require tolerance since it is non-iterative.
 
     Returns
     -------
@@ -150,7 +148,7 @@ def mikkola_rv_hf(k, r0, v0, tof):  # rtol=None
 
 
 @gjit("void(f,f[:],f[:],f,f[:],f[:])", "(),(n),(n),()->(n),(n)")
-def mikkola_rv_gf(k, r0, v0, tof, rr, vv):  # rtol=None
+def mikkola_rv_gf(k, r0, v0, tof, rr, vv):
     """
     Vectorized mikkola_rv
     """

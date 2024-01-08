@@ -12,7 +12,7 @@ from hapsira.core.propagation.cowell import cowell
 # from hapsira.core.propagation.markley import markley, markley_coe
 # from hapsira.core.propagation.mikkola import mikkola, mikkola_coe
 # from hapsira.core.propagation.pimienta import pimienta, pimienta_coe
-from hapsira.core.propagation.recseries import recseries, recseries_coe
+# from hapsira.core.propagation.recseries import recseries, recseries_coe
 from hapsira.core.propagation.vallado import vallado
 
 __all__ = [
@@ -31,6 +31,6 @@ __all__ = [
     # "gooding",
     # "danby_coe",
     # "danby",
-    "recseries_coe",
-    "recseries",
+    # "recseries_coe",
+    # "recseries",
 ]

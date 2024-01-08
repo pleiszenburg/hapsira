@@ -12,6 +12,13 @@ from hapsira.core.propagation.gooding import (
 from hapsira.core.propagation.markley import markley_coe_vf
 from hapsira.core.propagation.mikkola import mikkola_coe_vf
 from hapsira.core.propagation.pimienta import pimienta_coe_vf
+from hapsira.core.propagation.recseries import (
+    recseries_coe_vf,
+    RECSERIES_METHOD_RTOL,
+    RECSERIES_ORDER,
+    RECSERIES_NUMITER,
+    RECSERIES_RTOL,
+)
 from hapsira.examples import iss
 
 
@@ -24,6 +31,13 @@ from hapsira.examples import iss
         mikkola_coe_vf,
         farnocchia_coe_vf,
         lambda *args: gooding_coe_vf(*args, GOODING_NUMITER, GOODING_RTOL),
+        lambda *args: recseries_coe_vf(
+            *args,
+            RECSERIES_METHOD_RTOL,
+            RECSERIES_ORDER,
+            RECSERIES_NUMITER,
+            RECSERIES_RTOL,
+        ),
     ],
 )
 def test_propagate_with_coe(propagator_coe):

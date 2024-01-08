@@ -1,4 +1,4 @@
-from math import sqrt
+from math import inf, sqrt
 
 from ..jit import hjit, vjit
 
@@ -30,6 +30,16 @@ def cross_VV_hf(a, b):
         a[2] * b[0] - a[0] * b[2],
         a[0] * b[1] - a[1] * b[0],
     )
+
+
+@hjit("f(f,f)")
+def div_ss_hf(a, b):
+    """
+    Similar to np.divide
+    """
+    if b == 0:
+        return inf if a >= 0 else -inf
+    return a / b
 
 
 @hjit("V(V,f)")

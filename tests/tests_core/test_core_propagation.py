@@ -2,9 +2,6 @@ from astropy import units as u
 from astropy.tests.helper import assert_quantity_allclose
 import pytest
 
-from hapsira.core.propagation import (
-    pimienta_coe,
-)
 from hapsira.core.propagation.danby import danby_coe_vf, DANBY_NUMITER, DANBY_RTOL
 from hapsira.core.propagation.farnocchia import farnocchia_coe_vf
 from hapsira.core.propagation.gooding import (
@@ -14,6 +11,7 @@ from hapsira.core.propagation.gooding import (
 )
 from hapsira.core.propagation.markley import markley_coe_vf
 from hapsira.core.propagation.mikkola import mikkola_coe_vf
+from hapsira.core.propagation.pimienta import pimienta_coe_vf
 from hapsira.examples import iss
 
 
@@ -22,7 +20,7 @@ from hapsira.examples import iss
     [
         lambda *args: danby_coe_vf(*args, DANBY_NUMITER, DANBY_RTOL),
         markley_coe_vf,
-        pimienta_coe,
+        pimienta_coe_vf,
         mikkola_coe_vf,
         farnocchia_coe_vf,
         lambda *args: gooding_coe_vf(*args, GOODING_NUMITER, GOODING_RTOL),

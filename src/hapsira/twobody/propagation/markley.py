@@ -2,7 +2,7 @@ import sys
 
 from astropy import units as u
 
-from hapsira.core.propagation import markley_coe as markley_fast
+from hapsira.core.propagation.markley import markley_coe_vf
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import ClassicalState
 
@@ -28,7 +28,7 @@ class MarkleyPropagator:
         state = state.to_classical()
 
         nu = (
-            markley_fast(
+            markley_coe_vf(
                 state.attractor.k.to_value(u.km**3 / u.s**2),
                 *state.to_value(),
                 tof.to_value(u.s),

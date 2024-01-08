@@ -3,7 +3,6 @@ from astropy.tests.helper import assert_quantity_allclose
 import pytest
 
 from hapsira.core.propagation import (
-    markley_coe,
     mikkola_coe,
     pimienta_coe,
 )
@@ -14,6 +13,7 @@ from hapsira.core.propagation.gooding import (
     GOODING_NUMITER,
     GOODING_RTOL,
 )
+from hapsira.core.propagation.markley import markley_coe_vf
 from hapsira.examples import iss
 
 
@@ -21,7 +21,7 @@ from hapsira.examples import iss
     "propagator_coe",
     [
         lambda *args: danby_coe_vf(*args, DANBY_NUMITER, DANBY_RTOL),
-        markley_coe,
+        markley_coe_vf,
         pimienta_coe,
         mikkola_coe,
         farnocchia_coe_vf,

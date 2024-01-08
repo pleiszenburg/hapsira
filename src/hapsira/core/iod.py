@@ -4,6 +4,7 @@ from .jit import array_to_V_hf, hjit, gjit, vjit
 from .math.linalg import (
     add_VV_hf,
     cross_VV_hf,
+    div_ss_hf,
     div_Vs_hf,
     matmul_VV_hf,
     mul_Vs_hf,
@@ -24,6 +25,8 @@ __all__ = [
     "compute_y_vf",
     "tof_equation_y_hf",
     "tof_equation_y_vf",
+    "find_xy_hf",
+    "find_xy_gf",
 ]
 
 
@@ -136,8 +139,10 @@ def tof_equation_y_hf(x, y, T0, ll, M):
         T_ = (eta**3 * Q + 4 * ll * eta) * 0.5
     else:
         psi = _compute_psi_hf(x, y, ll)
-        T_ = (((psi + M * pi) / sqrt(abs(1 - x**2))) - x + ll * y) / (1 - x**2)
-
+        T_ = div_ss_hf(
+            (div_ss_hf((psi + M * pi), sqrt(abs(1 - x**2))) - x + ll * y),
+            (1 - x**2),
+        )
     return T_ - T0
 
 
@@ -245,7 +250,7 @@ def _householder_hf(p0, T0, ll, M, tol, maxiter):
 
 
 @hjit("Tuple([f,f])(f,f,i8,i8,b1,f)")
-def _find_xy_hf(ll, T, M, numiter, lowpath, rtol):
+def find_xy_hf(ll, T, M, numiter, lowpath, rtol):
     """Computes all x, y for given number of revolutions."""
     # For abs(ll) == 1 the derivative is not continuous
     assert abs(ll) < 1
@@ -273,6 +278,18 @@ def _find_xy_hf(ll, T, M, numiter, lowpath, rtol):
     y = compute_y_hf(x, ll)
 
     return x, y
+
+
+@gjit(
+    "void(f,f,i8,i8,b1,f,f[:],f[:])",
+    "(),(),(),(),(),()->(),()",
+)
+def find_xy_gf(ll, T, M, numiter, lowpath, rtol, x, y):
+    """
+    Vectorized find_xy
+    """
+
+    x[0], y[0] = find_xy_hf(ll, T, M, numiter, lowpath, rtol)
 
 
 @hjit("Tuple([V,V])(f,V,V,f,i8,b1,b1,i8,f)")
@@ -538,7 +555,7 @@ def izzo_hf(k, r1, r2, tof, M, prograde, lowpath, numiter, rtol):
     T = sqrt(2 * k / s**3) * tof
 
     # Find solutions
-    x, y = _find_xy_hf(ll, T, M, numiter, lowpath, rtol)
+    x, y = find_xy_hf(ll, T, M, numiter, lowpath, rtol)
 
     # Reconstruct
     gamma = sqrt(k * s / 2)

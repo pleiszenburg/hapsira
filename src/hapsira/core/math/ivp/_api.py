@@ -1,6 +1,14 @@
-from scipy.integrate import DOP853
 
 import numpy as np
+
+from ._brentq import brentq
+from ._common import OdeSolution
+
+from ._rk import EPS, DOP853
+
+
+MESSAGES = {0: "The solver successfully reached the end of the integration interval.",
+            1: "A termination event occurred."}
 
 
 class OdeResult(dict):
@@ -108,7 +116,6 @@ def solve_event_equation(event, sol, t_old, t):
     root : float
         Found solution.
     """
-    from scipy.optimize import brentq
 
     return brentq(lambda t: event(t, sol(t)), t_old, t, xtol=4 * EPS, rtol=4 * EPS)
     # https://github.com/scipy/scipy/blob/ea4d1f1330950bee74396e427fe6330424907621/scipy/optimize/_zeros_py.py#L682
@@ -229,25 +236,6 @@ def solve_ivp(
 ):
     """Solve an initial value problem for a system of ODEs.
 
-    This function numerically integrates a system of ordinary differential
-    equations given an initial value::
-
-        dy / dt = f(t, y)
-        y(t0) = y0
-
-    Here t is a 1-D independent variable (time), y(t) is an
-    N-D vector-valued function (state), and an N-D
-    vector-valued function f(t, y) determines the differential equations.
-    The goal is to find y(t) approximately satisfying the differential
-    equations, given an initial value y(t0)=y0.
-
-    Some of the solvers support integration in the complex domain, but note
-    that for stiff ODE solvers, the right-hand side must be
-    complex-differentiable (satisfy Cauchy-Riemann equations [11]_).
-    To solve a problem in the complex domain, pass y0 with a complex data type.
-    Another option always available is to rewrite your problem for real and
-    imaginary parts separately.
-
     Parameters
     ----------
     fun : callable
@@ -265,48 +253,11 @@ def solve_ivp(
         complex data type (even if the initial value is purely real).
     method : string or `OdeSolver`, optional
         Integration method to use:
-
-            * 'RK45' (default): Explicit Runge-Kutta method of order 5(4) [1]_.
-              The error is controlled assuming accuracy of the fourth-order
-              method, but steps are taken using the fifth-order accurate
-              formula (local extrapolation is done). A quartic interpolation
-              polynomial is used for the dense output [2]_. Can be applied in
-              the complex domain.
-            * 'RK23': Explicit Runge-Kutta method of order 3(2) [3]_. The error
-              is controlled assuming accuracy of the second-order method, but
-              steps are taken using the third-order accurate formula (local
-              extrapolation is done). A cubic Hermite polynomial is used for the
-              dense output. Can be applied in the complex domain.
             * 'DOP853': Explicit Runge-Kutta method of order 8 [13]_.
               Python implementation of the "DOP853" algorithm originally
               written in Fortran [14]_. A 7-th order interpolation polynomial
               accurate to 7-th order is used for the dense output.
               Can be applied in the complex domain.
-            * 'Radau': Implicit Runge-Kutta method of the Radau IIA family of
-              order 5 [4]_. The error is controlled with a third-order accurate
-              embedded formula. A cubic polynomial which satisfies the
-              collocation conditions is used for the dense output.
-            * 'BDF': Implicit multi-step variable-order (1 to 5) method based
-              on a backward differentiation formula for the derivative
-              approximation [5]_. The implementation follows the one described
-              in [6]_. A quasi-constant step scheme is used and accuracy is
-              enhanced using the NDF modification. Can be applied in the
-              complex domain.
-            * 'LSODA': Adams/BDF method with automatic stiffness detection and
-              switching [7]_, [8]_. This is a wrapper of the Fortran solver
-              from ODEPACK.
-
-        Explicit Runge-Kutta methods ('RK23', 'RK45', 'DOP853') should be used
-        for non-stiff problems and implicit methods ('Radau', 'BDF') for
-        stiff problems [9]_. Among Runge-Kutta methods, 'DOP853' is recommended
-        for solving with high precision (low values of `rtol` and `atol`).
-
-        If not sure, first try to run 'RK45'. If it makes unusually many
-        iterations, diverges, or fails, your problem is likely to be stiff and
-        you should use 'Radau' or 'BDF'. 'LSODA' can also be a good universal
-        choice, but it might be somewhat less convenient to work with as it
-        wraps old Fortran code.
-
         You can also pass an arbitrary class derived from `OdeSolver` which
         implements the solver.
     t_eval : array_like or None, optional
@@ -455,137 +406,6 @@ def solve_ivp(
     success : bool
         True if the solver reached the interval end or a termination event
         occurred (``status >= 0``).
-
-    References
-    ----------
-    .. [1] J. R. Dormand, P. J. Prince, "A family of embedded Runge-Kutta
-           formulae", Journal of Computational and Applied Mathematics, Vol. 6,
-           No. 1, pp. 19-26, 1980.
-    .. [2] L. W. Shampine, "Some Practical Runge-Kutta Formulas", Mathematics
-           of Computation,, Vol. 46, No. 173, pp. 135-150, 1986.
-    .. [3] P. Bogacki, L.F. Shampine, "A 3(2) Pair of Runge-Kutta Formulas",
-           Appl. Math. Lett. Vol. 2, No. 4. pp. 321-325, 1989.
-    .. [4] E. Hairer, G. Wanner, "Solving Ordinary Differential Equations II:
-           Stiff and Differential-Algebraic Problems", Sec. IV.8.
-    .. [5] `Backward Differentiation Formula
-            <https://en.wikipedia.org/wiki/Backward_differentiation_formula>`_
-            on Wikipedia.
-    .. [6] L. F. Shampine, M. W. Reichelt, "THE MATLAB ODE SUITE", SIAM J. SCI.
-           COMPUTE., Vol. 18, No. 1, pp. 1-22, January 1997.
-    .. [7] A. C. Hindmarsh, "ODEPACK, A Systematized Collection of ODE
-           Solvers," IMACS Transactions on Scientific Computation, Vol 1.,
-           pp. 55-64, 1983.
-    .. [8] L. Petzold, "Automatic selection of methods for solving stiff and
-           nonstiff systems of ordinary differential equations", SIAM Journal
-           on Scientific and Statistical Computing, Vol. 4, No. 1, pp. 136-148,
-           1983.
-    .. [9] `Stiff equation <https://en.wikipedia.org/wiki/Stiff_equation>`_ on
-           Wikipedia.
-    .. [10] A. Curtis, M. J. D. Powell, and J. Reid, "On the estimation of
-            sparse Jacobian matrices", Journal of the Institute of Mathematics
-            and its Applications, 13, pp. 117-120, 1974.
-    .. [11] `Cauchy-Riemann equations
-             <https://en.wikipedia.org/wiki/Cauchy-Riemann_equations>`_ on
-             Wikipedia.
-    .. [12] `Lotka-Volterra equations
-            <https://en.wikipedia.org/wiki/Lotka%E2%80%93Volterra_equations>`_
-            on Wikipedia.
-    .. [13] E. Hairer, S. P. Norsett G. Wanner, "Solving Ordinary Differential
-            Equations I: Nonstiff Problems", Sec. II.
-    .. [14] `Page with original Fortran code of DOP853
-            <http://www.unige.ch/~hairer/software.html>`_.
-
-    Examples
-    --------
-    Basic exponential decay showing automatically chosen time points.
-
-    >>> import numpy as np
-    >>> from scipy.integrate import solve_ivp
-    >>> def exponential_decay(t, y): return -0.5 * y
-    >>> sol = solve_ivp(exponential_decay, [0, 10], [2, 4, 8])
-    >>> print(sol.t)
-    [ 0.          0.11487653  1.26364188  3.06061781  4.81611105  6.57445806
-      8.33328988 10.        ]
-    >>> print(sol.y)
-    [[2.         1.88836035 1.06327177 0.43319312 0.18017253 0.07483045
-      0.03107158 0.01350781]
-     [4.         3.7767207  2.12654355 0.86638624 0.36034507 0.14966091
-      0.06214316 0.02701561]
-     [8.         7.5534414  4.25308709 1.73277247 0.72069014 0.29932181
-      0.12428631 0.05403123]]
-
-    Specifying points where the solution is desired.
-
-    >>> sol = solve_ivp(exponential_decay, [0, 10], [2, 4, 8],
-    ...                 t_eval=[0, 1, 2, 4, 10])
-    >>> print(sol.t)
-    [ 0  1  2  4 10]
-    >>> print(sol.y)
-    [[2.         1.21305369 0.73534021 0.27066736 0.01350938]
-     [4.         2.42610739 1.47068043 0.54133472 0.02701876]
-     [8.         4.85221478 2.94136085 1.08266944 0.05403753]]
-
-    Cannon fired upward with terminal event upon impact. The ``terminal`` and
-    ``direction`` fields of an event are applied by monkey patching a function.
-    Here ``y[0]`` is position and ``y[1]`` is velocity. The projectile starts
-    at position 0 with velocity +10. Note that the integration never reaches
-    t=100 because the event is terminal.
-
-    >>> def upward_cannon(t, y): return [y[1], -0.5]
-    >>> def hit_ground(t, y): return y[0]
-    >>> hit_ground.terminal = True
-    >>> hit_ground.direction = -1
-    >>> sol = solve_ivp(upward_cannon, [0, 100], [0, 10], events=hit_ground)
-    >>> print(sol.t_events)
-    [array([40.])]
-    >>> print(sol.t)
-    [0.00000000e+00 9.99900010e-05 1.09989001e-03 1.10988901e-02
-     1.11088891e-01 1.11098890e+00 1.11099890e+01 4.00000000e+01]
-
-    Use `dense_output` and `events` to find position, which is 100, at the apex
-    of the cannonball's trajectory. Apex is not defined as terminal, so both
-    apex and hit_ground are found. There is no information at t=20, so the sol
-    attribute is used to evaluate the solution. The sol attribute is returned
-    by setting ``dense_output=True``. Alternatively, the `y_events` attribute
-    can be used to access the solution at the time of the event.
-
-    >>> def apex(t, y): return y[1]
-    >>> sol = solve_ivp(upward_cannon, [0, 100], [0, 10],
-    ...                 events=(hit_ground, apex), dense_output=True)
-    >>> print(sol.t_events)
-    [array([40.]), array([20.])]
-    >>> print(sol.t)
-    [0.00000000e+00 9.99900010e-05 1.09989001e-03 1.10988901e-02
-     1.11088891e-01 1.11098890e+00 1.11099890e+01 4.00000000e+01]
-    >>> print(sol.sol(sol.t_events[1][0]))
-    [100.   0.]
-    >>> print(sol.y_events)
-    [array([[-5.68434189e-14, -1.00000000e+01]]), array([[1.00000000e+02, 1.77635684e-15]])]
-
-    As an example of a system with additional parameters, we'll implement
-    the Lotka-Volterra equations [12]_.
-
-    >>> def lotkavolterra(t, z, a, b, c, d):
-    ...     x, y = z
-    ...     return [a*x - b*x*y, -c*y + d*x*y]
-    ...
-
-    We pass in the parameter values a=1.5, b=1, c=3 and d=1 with the `args`
-    argument.
-
-    >>> sol = solve_ivp(lotkavolterra, [0, 15], [10, 5], args=(1.5, 1, 3, 1),
-    ...                 dense_output=True)
-
-    Compute a dense solution and plot it.
-
-    >>> t = np.linspace(0, 15, 300)
-    >>> z = sol.sol(t)
-    >>> import matplotlib.pyplot as plt
-    >>> plt.plot(t, z.T)
-    >>> plt.xlabel('t')
-    >>> plt.legend(['x', 'y'], shadow=True)
-    >>> plt.title('Lotka-Volterra System')
-    >>> plt.show()
 
     """
     # if method not in METHODS and not (

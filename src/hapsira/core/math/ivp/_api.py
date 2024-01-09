@@ -1,4 +1,3 @@
-
 import numpy as np
 
 from ._brentq import brentq
@@ -7,8 +6,10 @@ from ._common import OdeSolution
 from ._rk import EPS, DOP853
 
 
-MESSAGES = {0: "The solver successfully reached the end of the integration interval.",
-            1: "A termination event occurred."}
+MESSAGES = {
+    0: "The solver successfully reached the end of the integration interval.",
+    1: "A termination event occurred.",
+}
 
 
 class OdeResult(dict):

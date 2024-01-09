@@ -1,4 +1,3 @@
-
 import operator
 
 import numpy as np
@@ -13,18 +12,23 @@ _ECONVERR = -2
 _EVALUEERR = -3
 _EINPROGRESS = 1
 
-CONVERGED = 'converged'
-SIGNERR = 'sign error'
-CONVERR = 'convergence error'
-VALUEERR = 'value error'
-INPROGRESS = 'No error'
+CONVERGED = "converged"
+SIGNERR = "sign error"
+CONVERR = "convergence error"
+VALUEERR = "value error"
+INPROGRESS = "No error"
 
-flag_map = {_ECONVERGED: CONVERGED, _ESIGNERR: SIGNERR, _ECONVERR: CONVERR,
-            _EVALUEERR: VALUEERR, _EINPROGRESS: INPROGRESS}
+flag_map = {
+    _ECONVERGED: CONVERGED,
+    _ESIGNERR: SIGNERR,
+    _ECONVERR: CONVERR,
+    _EVALUEERR: VALUEERR,
+    _EINPROGRESS: INPROGRESS,
+}
 
 
 class OptimizeResult(dict):
-    """ Represents the optimization result.
+    """Represents the optimization result.
 
     Attributes
     ----------
@@ -134,13 +138,11 @@ class RootResults(OptimizeResult):
 
 
 def _wrap_nan_raise(f):
-
     def f_raise(x, *args):
         fx = f(x, *args)
         f_raise._function_calls += 1
         if np.isnan(fx):
-            msg = (f'The function value at x={x} is NaN; '
-                   'solver cannot continue.')
+            msg = f"The function value at x={x} is NaN; " "solver cannot continue."
             err = ValueError(msg)
             err._x = x
             err._function_calls = f_raise._function_calls
@@ -154,10 +156,9 @@ def _wrap_nan_raise(f):
 def results_c(full_output, r):
     if full_output:
         x, funcalls, iterations, flag = r
-        results = RootResults(root=x,
-                              iterations=iterations,
-                              function_calls=funcalls,
-                              flag=flag)
+        results = RootResults(
+            root=x, iterations=iterations, function_calls=funcalls, flag=flag
+        )
         return x, results
     else:
         return r
@@ -168,9 +169,17 @@ _xtol = 2e-12
 _rtol = 4 * np.finfo(float).eps
 
 
-def brentq(f, a, b, args=(),
-           xtol=_xtol, rtol=_rtol, maxiter=_iter,
-           full_output=False, disp=True):
+def brentq(
+    f,
+    a,
+    b,
+    args=(),
+    xtol=_xtol,
+    rtol=_rtol,
+    maxiter=_iter,
+    full_output=False,
+    disp=True,
+):
     """
     Find a root of a function in a bracketing interval using Brent's method.
 
@@ -297,4 +306,3 @@ def brentq(f, a, b, args=(),
     f = _wrap_nan_raise(f)
     r = _zeros._brentq(f, a, b, xtol, rtol, maxiter, args, full_output, disp)
     return results_c(full_output, r)
-

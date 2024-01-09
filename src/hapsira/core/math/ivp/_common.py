@@ -1,4 +1,3 @@
-
 from itertools import groupby
 
 import numpy as np
@@ -33,18 +32,17 @@ class OdeSolution:
     t_min, t_max : float
         Time range of the interpolation.
     """
+
     def __init__(self, ts, interpolants):
         ts = np.asarray(ts)
         d = np.diff(ts)
         # The first case covers integration on zero segment.
-        if not ((ts.size == 2 and ts[0] == ts[-1])
-                or np.all(d > 0) or np.all(d < 0)):
+        if not ((ts.size == 2 and ts[0] == ts[-1]) or np.all(d > 0) or np.all(d < 0)):
             raise ValueError("`ts` must be strictly increasing or decreasing.")
 
         self.n_segments = len(interpolants)
         if ts.shape != (self.n_segments + 1,):
-            raise ValueError("Numbers of time stamps and interpolants "
-                             "don't match.")
+            raise ValueError("Numbers of time stamps and interpolants " "don't match.")
 
         self.ts = ts
         self.interpolants = interpolants
@@ -63,9 +61,9 @@ class OdeSolution:
         # Here we preserve a certain symmetry that when t is in self.ts,
         # then we prioritize a segment with a lower index.
         if self.ascending:
-            ind = np.searchsorted(self.ts_sorted, t, side='left')
+            ind = np.searchsorted(self.ts_sorted, t, side="left")
         else:
-            ind = np.searchsorted(self.ts_sorted, t, side='right')
+            ind = np.searchsorted(self.ts_sorted, t, side="right")
 
         segment = min(max(ind - 1, 0), self.n_segments - 1)
         if not self.ascending:
@@ -99,9 +97,9 @@ class OdeSolution:
 
         # See comment in self._call_single.
         if self.ascending:
-            segments = np.searchsorted(self.ts_sorted, t_sorted, side='left')
+            segments = np.searchsorted(self.ts_sorted, t_sorted, side="left")
         else:
-            segments = np.searchsorted(self.ts_sorted, t_sorted, side='right')
+            segments = np.searchsorted(self.ts_sorted, t_sorted, side="right")
         segments -= 1
         segments[segments < 0] = 0
         segments[segments > self.n_segments - 1] = self.n_segments - 1

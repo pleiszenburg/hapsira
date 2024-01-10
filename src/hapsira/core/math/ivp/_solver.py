@@ -1,4 +1,3 @@
-
 from numba import njit, jit
 
 from math import fabs
@@ -31,11 +30,10 @@ def _brentq_hf(
     iter_,  # int
     xargs,  # void (*)
 ):
-
     xpre, xcur = xa, xb
-    xblk = 0.
-    fpre, fcur, fblk = 0., 0., 0.
-    spre, scur = 0., 0.
+    xblk = 0.0
+    fpre, fcur, fblk = 0.0, 0.0, 0.0
+    spre, scur = 0.0, 0.0
 
     iterations = 0
 
@@ -47,7 +45,7 @@ def _brentq_hf(
     if fcur == 0:
         return xcur, funcalls, iterations, CONVERGED
     if _signbit_hf(fpre) == _signbit_hf(fcur):
-        return 0., funcalls, iterations, SIGNERR
+        return 0.0, funcalls, iterations, SIGNERR
 
     iterations = 0
     for _ in range(0, iter_):
@@ -77,7 +75,9 @@ def _brentq_hf(
             else:
                 dpre = (fpre - fcur) / (xpre - xcur)
                 dblk = (fblk - fcur) / (xblk - xcur)
-                stry = -fcur * (fblk * dblk - fpre * dpre) / (dblk * dpre * (fblk - fpre))
+                stry = (
+                    -fcur * (fblk * dblk - fpre * dpre) / (dblk * dpre * (fblk - fpre))
+                )
             if 2 * fabs(stry) < _min_hf(fabs(spre), 3 * fabs(sbis) - delta):
                 spre = scur
                 scur = stry
@@ -113,7 +113,6 @@ def brentq_sf(
     fulloutput,  # int
     disp,  # int
 ):
-
     if xtol < 0:
         raise ValueError("xtol must be >= 0")
     if iter_ < 0:
@@ -135,7 +134,9 @@ def brentq_sf(
             raise ValueError("f(a) and f(b) must have different signs")
         if error_num == CONVERR:
             if disp:
-                raise RuntimeError("Failed to converge after %d iterations." % iterations)
+                raise RuntimeError(
+                    "Failed to converge after %d iterations." % iterations
+                )
             flag = CONVERR
     else:
         flag = CONVERGED

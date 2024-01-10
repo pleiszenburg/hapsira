@@ -28,7 +28,6 @@ def _brentq_hf(
     xtol,  # double
     rtol,  # double
     iter_,  # int
-    xargs,  # void (*)
 ):
     xpre, xcur = xa, xb
     xblk = 0.0
@@ -37,8 +36,8 @@ def _brentq_hf(
 
     iterations = 0
 
-    fpre = func(xpre, *xargs)
-    fcur = func(xcur, *xargs)
+    fpre = func(xpre)
+    fcur = func(xcur)
     funcalls = 2
     if fpre == 0:
         return xpre, funcalls, iterations, CONVERGED
@@ -95,7 +94,7 @@ def _brentq_hf(
         else:
             xcur += delta if sbis > 0 else -delta
 
-        fcur = func(xcur, *xargs)
+        fcur = func(xcur)
         funcalls += 1
 
     return xcur, funcalls, iterations, CONVERR
@@ -109,7 +108,6 @@ def brentq_sf(
     xtol,  # double
     rtol,  # double
     iter_,  # int
-    xargs,  # args tuple for func
 ):
     if xtol < 0:
         raise ValueError("xtol must be >= 0")
@@ -123,7 +121,6 @@ def brentq_sf(
         xtol,
         rtol,
         iter_,
-        xargs,
     )
 
     if error_num == SIGNERR:

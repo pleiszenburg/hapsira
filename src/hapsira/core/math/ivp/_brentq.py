@@ -6,30 +6,9 @@ import numpy as np
 from ._solver import brentq_sf
 
 
-_ECONVERGED = 0
-_ESIGNERR = -1
-_ECONVERR = -2
-_EVALUEERR = -3
-_EINPROGRESS = 1
-
-CONVERGED = "converged"
-SIGNERR = "sign error"
-CONVERR = "convergence error"
-VALUEERR = "value error"
-INPROGRESS = "No error"
-
-flag_map = {
-    _ECONVERGED: CONVERGED,
-    _ESIGNERR: SIGNERR,
-    _ECONVERR: CONVERR,
-    _EVALUEERR: VALUEERR,
-    _EINPROGRESS: INPROGRESS,
-}
-
-
 def _wrap_nan_raise(f):
-    def f_raise(x, *args):
-        fx = f(x, *args)
+    def f_raise(x):
+        fx = f(x)
         f_raise._function_calls += 1
         if np.isnan(fx):
             msg = f"The function value at x={x} is NaN; " "solver cannot continue."
@@ -52,7 +31,6 @@ def brentq(
     f,
     a,
     b,
-    args=(),
     xtol=_xtol,
     rtol=_rtol,
     maxiter=_iter,
@@ -102,9 +80,6 @@ def brentq(
     maxiter : int, optional
         If convergence is not achieved in `maxiter` iterations, an error is
         raised. Must be >= 0.
-    args : tuple, optional
-        Containing extra arguments for the function `f`.
-        `f` is called by ``apply(f, (x)+args)``.
     full_output : bool, optional
         If `full_output` is False, the root is returned. If `full_output` is
         True, the return value is ``(x, r)``, where `x` is the root, and `r` is
@@ -173,13 +148,11 @@ def brentq(
     >>> root
     1.0
     """
-    if not isinstance(args, tuple):
-        args = (args,)
     maxiter = operator.index(maxiter)
     if xtol <= 0:
         raise ValueError("xtol too small (%g <= 0)" % xtol)
     if rtol < _rtol:
         raise ValueError(f"rtol too small ({rtol:g} < {_rtol:g})")
     f = _wrap_nan_raise(f)
-    r = brentq_sf(f, a, b, xtol, rtol, maxiter, args)
+    r = brentq_sf(f, a, b, xtol, rtol, maxiter)
     return r

@@ -1,5 +1,4 @@
 from ._api import solve_ivp
+from ._brentq import brentq
 
-__all__ = [
-    "solve_ivp",
-]
+__all__ = ["solve_ivp", "brentq"]

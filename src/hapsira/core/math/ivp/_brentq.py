@@ -3,7 +3,7 @@ import operator
 import numpy as np
 
 
-# _zeros, OptimizeResult
+from ._solver import brentq_sf
 
 
 _ECONVERGED = 0
@@ -304,5 +304,5 @@ def brentq(
     if rtol < _rtol:
         raise ValueError(f"rtol too small ({rtol:g} < {_rtol:g})")
     f = _wrap_nan_raise(f)
-    r = _zeros._brentq(f, a, b, xtol, rtol, maxiter, args, full_output, disp)
+    r = brentq_sf(f, a, b, xtol, rtol, maxiter, args, full_output, disp)
     return results_c(full_output, r)

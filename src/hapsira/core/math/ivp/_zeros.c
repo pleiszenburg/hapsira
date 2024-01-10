@@ -1,3 +1,52 @@
+
+typedef struct {
+    PyObject *function;
+    PyObject *xargs;
+    jmp_buf env;
+} scipy_zeros_parameters;
+
+
+
+static double
+scipy_zeros_functions_func(double x, void *params)
+{
+    scipy_zeros_parameters *myparams = params;
+    PyObject *args, *xargs, *item, *f, *retval=NULL;
+    Py_ssize_t i, len;
+    double val;
+
+    xargs = myparams->xargs;
+    /* Need to create a new 'args' tuple on each call in case 'f' is
+       stateful and keeps references to it (e.g. functools.lru_cache) */
+    len = PyTuple_Size(xargs);
+    /* Make room for the double as first argument */
+    args = PyArgs(New)(len + 1);
+    if (args == NULL) {
+        PyErr_SetString(PyExc_RuntimeError, "Failed to allocate arguments");
+        longjmp(myparams->env, 1);
+    }
+    PyArgs(SET_ITEM)(args, 0, Py_BuildValue("d", x));
+    for (i = 0; i < len; i++) {
+        item = PyTuple_GetItem(xargs, i);
+        if (item == NULL) {
+            Py_DECREF(args);
+            longjmp(myparams->env, 1);
+        }
+        Py_INCREF(item);
+        PyArgs(SET_ITEM)(args, i+1, item);
+    }
+
+    f = myparams->function;
+    retval = PyObject_CallObject(f,args);
+    Py_DECREF(args);
+    if (retval == NULL) {
+        longjmp(myparams->env, 1);
+    }
+    val = PyFloat_AsDouble(retval);
+    Py_XDECREF(retval);
+    return val;
+}
+
 /*
  * Helper function that calls a Python function with extended arguments
  */

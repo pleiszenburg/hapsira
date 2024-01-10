@@ -27,116 +27,6 @@ flag_map = {
 }
 
 
-class OptimizeResult(dict):
-    """Represents the optimization result.
-
-    Attributes
-    ----------
-    x : ndarray
-        The solution of the optimization.
-    success : bool
-        Whether or not the optimizer exited successfully.
-    status : int
-        Termination status of the optimizer. Its value depends on the
-        underlying solver. Refer to `message` for details.
-    message : str
-        Description of the cause of the termination.
-    fun, jac, hess: ndarray
-        Values of objective function, its Jacobian and its Hessian (if
-        available). The Hessians may be approximations, see the documentation
-        of the function in question.
-    hess_inv : object
-        Inverse of the objective function's Hessian; may be an approximation.
-        Not available for all solvers. The type of this attribute may be
-        either np.ndarray or scipy.sparse.linalg.LinearOperator.
-    nfev, njev, nhev : int
-        Number of evaluations of the objective functions and of its
-        Jacobian and Hessian.
-    nit : int
-        Number of iterations performed by the optimizer.
-    maxcv : float
-        The maximum constraint violation.
-
-    Notes
-    -----
-    Depending on the specific solver being used, `OptimizeResult` may
-    not have all attributes listed here, and they may have additional
-    attributes not listed here. Since this class is essentially a
-    subclass of dict with attribute accessors, one can see which
-    attributes are available using the `OptimizeResult.keys` method.
-    """
-
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError as e:
-            raise AttributeError(name) from e
-
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-    # def __repr__(self):
-    #     order_keys = ['message', 'success', 'status', 'fun', 'funl', 'x', 'xl',
-    #                   'col_ind', 'nit', 'lower', 'upper', 'eqlin', 'ineqlin',
-    #                   'converged', 'flag', 'function_calls', 'iterations',
-    #                   'root']
-    #     # 'slack', 'con' are redundant with residuals
-    #     # 'crossover_nit' is probably not interesting to most users
-    #     omit_keys = {'slack', 'con', 'crossover_nit'}
-
-    #     def key(item):
-    #         try:
-    #             return order_keys.index(item[0].lower())
-    #         except ValueError:  # item not in list
-    #             return np.inf
-
-    #     def omit_redundant(items):
-    #         for item in items:
-    #             if item[0] in omit_keys:
-    #                 continue
-    #             yield item
-
-    #     def item_sorter(d):
-    #         return sorted(omit_redundant(d.items()), key=key)
-
-    #     if self.keys():
-    #         return _dict_formatter(self, sorter=item_sorter)
-    #     else:
-    #         return self.__class__.__name__ + "()"
-
-    def __dir__(self):
-        return list(self.keys())
-
-
-class RootResults(OptimizeResult):
-    """Represents the root finding result.
-
-    Attributes
-    ----------
-    root : float
-        Estimated root location.
-    iterations : int
-        Number of iterations needed to find the root.
-    function_calls : int
-        Number of times the function was called.
-    converged : bool
-        True if the routine converged.
-    flag : str
-        Description of the cause of termination.
-
-    """
-
-    def __init__(self, root, iterations, function_calls, flag):
-        self.root = root
-        self.iterations = iterations
-        self.function_calls = function_calls
-        self.converged = flag == _ECONVERGED
-        if flag in flag_map:
-            self.flag = flag_map[flag]
-        else:
-            self.flag = flag
-
-
 def _wrap_nan_raise(f):
     def f_raise(x, *args):
         fx = f(x, *args)
@@ -153,17 +43,6 @@ def _wrap_nan_raise(f):
     return f_raise
 
 
-def results_c(full_output, r):
-    if full_output:
-        x, funcalls, iterations, flag = r
-        results = RootResults(
-            root=x, iterations=iterations, function_calls=funcalls, flag=flag
-        )
-        return x, results
-    else:
-        return r
-
-
 _iter = 100
 _xtol = 2e-12
 _rtol = 4 * np.finfo(float).eps
@@ -177,8 +56,6 @@ def brentq(
     xtol=_xtol,
     rtol=_rtol,
     maxiter=_iter,
-    full_output=False,
-    disp=True,
 ):
     """
     Find a root of a function in a bracketing interval using Brent's method.
@@ -304,5 +181,5 @@ def brentq(
     if rtol < _rtol:
         raise ValueError(f"rtol too small ({rtol:g} < {_rtol:g})")
     f = _wrap_nan_raise(f)
-    r = brentq_sf(f, a, b, xtol, rtol, maxiter, args, full_output, disp)
-    return results_c(full_output, r)
+    r = brentq_sf(f, a, b, xtol, rtol, maxiter, args)
+    return r

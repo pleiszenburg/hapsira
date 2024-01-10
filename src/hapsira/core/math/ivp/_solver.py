@@ -110,8 +110,6 @@ def brentq_sf(
     rtol,  # double
     iter_,  # int
     xargs,  # args tuple for func
-    fulloutput,  # int
-    disp,  # int
 ):
     if xtol < 0:
         raise ValueError("xtol must be >= 0")
@@ -128,25 +126,9 @@ def brentq_sf(
         xargs,
     )
 
-    flag = 0
-    if error_num != CONVERGED:
-        if error_num == SIGNERR:
-            raise ValueError("f(a) and f(b) must have different signs")
-        if error_num == CONVERR:
-            if disp:
-                raise RuntimeError(
-                    "Failed to converge after %d iterations." % iterations
-                )
-            flag = CONVERR
-    else:
-        flag = CONVERGED
+    if error_num == SIGNERR:
+        raise ValueError("f(a) and f(b) must have different signs")
+    if error_num == CONVERR:
+        raise RuntimeError("Failed to converge after %d iterations." % iterations)
 
-    if fulloutput:
-        return (
-            zero,  # double
-            funcalls,  # int
-            iterations,  # int
-            flag,  # int
-        )
-    else:
-        return zero  # double
+    return zero  # double

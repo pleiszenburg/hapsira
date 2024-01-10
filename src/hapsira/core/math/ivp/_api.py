@@ -119,8 +119,6 @@ def solve_event_equation(event, sol, t_old, t):
     """
 
     return brentq(lambda t: event(t, sol(t)), t_old, t, xtol=4 * EPS, rtol=4 * EPS)
-    # https://github.com/scipy/scipy/blob/ea4d1f1330950bee74396e427fe6330424907621/scipy/optimize/_zeros_py.py#L682
-    # https://github.com/scipy/scipy/blob/ea4d1f1330950bee74396e427fe6330424907621/scipy/optimize/Zeros/brentq.c#L37
 
 
 def handle_events(sol, events, active_events, is_terminal, t_old, t):

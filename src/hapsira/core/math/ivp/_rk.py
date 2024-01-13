@@ -193,12 +193,8 @@ def validate_tol(rtol, atol, n):
     return rtol, atol
 
 
-class DenseOutput:
-    """Base class for local interpolant over step made by an ODE solver.
-
-    It interpolates between `t_min` and `t_max` (see Attributes below).
-    Evaluation outside this interval is not forbidden, but the accuracy is not
-    guaranteed.
+class Dop853DenseOutput:
+    """local interpolant over step made by an ODE solver.
 
     Attributes
     ----------
@@ -206,11 +202,14 @@ class DenseOutput:
         Time range of the interpolation.
     """
 
-    def __init__(self, t_old, t):
+    def __init__(self, t_old, t, y_old, F):
         self.t_old = t_old
         self.t = t
         self.t_min = min(t, t_old)
         self.t_max = max(t, t_old)
+        self.h = t - t_old
+        self.F = F
+        self.y_old = y_old
 
     def __call__(self, t):
         """Evaluate the interpolant.
@@ -231,7 +230,23 @@ class DenseOutput:
         return self._call_impl(t)
 
     def _call_impl(self, t):
-        raise NotImplementedError
+        x = (t - self.t_old) / self.h
+
+        if t.ndim == 0:
+            y = np.zeros_like(self.y_old)
+        else:
+            x = x[:, None]
+            y = np.zeros((len(x), len(self.y_old)), dtype=self.y_old.dtype)
+
+        for i, f in enumerate(reversed(self.F)):
+            y += f
+            if i % 2 == 0:
+                y *= x
+            else:
+                y *= 1 - x
+        y += self.y_old
+
+        return y.T
 
 
 def check_arguments(fun, y0):
@@ -571,10 +586,6 @@ class RungeKutta(OdeSolver):
 
         return True, None
 
-    def _dense_output_impl(self):
-        Q = self.K.T.dot(self.P)
-        return RkDenseOutput(self.t_old, self.t, self.y_old, Q)
-
 
 class DOP853(RungeKutta):
     """Explicit Runge-Kutta method of order 8.
@@ -743,55 +754,3 @@ class DOP853(RungeKutta):
         F[3:] = h * np.dot(self.D, K)
 
         return Dop853DenseOutput(self.t_old, self.t, self.y_old, F)
-
-
-class Dop853DenseOutput(DenseOutput):
-    def __init__(self, t_old, t, y_old, F):
-        super().__init__(t_old, t)
-        self.h = t - t_old
-        self.F = F
-        self.y_old = y_old
-
-    def _call_impl(self, t):
-        x = (t - self.t_old) / self.h
-
-        if t.ndim == 0:
-            y = np.zeros_like(self.y_old)
-        else:
-            x = x[:, None]
-            y = np.zeros((len(x), len(self.y_old)), dtype=self.y_old.dtype)
-
-        for i, f in enumerate(reversed(self.F)):
-            y += f
-            if i % 2 == 0:
-                y *= x
-            else:
-                y *= 1 - x
-        y += self.y_old
-
-        return y.T
-
-
-class RkDenseOutput(DenseOutput):
-    def __init__(self, t_old, t, y_old, Q):
-        super().__init__(t_old, t)
-        self.h = t - t_old
-        self.Q = Q
-        self.order = Q.shape[1] - 1
-        self.y_old = y_old
-
-    def _call_impl(self, t):
-        x = (t - self.t_old) / self.h
-        if t.ndim == 0:
-            p = np.tile(x, self.order + 1)
-            p = np.cumprod(p)
-        else:
-            p = np.tile(x, (self.order + 1, 1))
-            p = np.cumprod(p, axis=0)
-        y = self.h * np.dot(self.Q, p)
-        if y.ndim == 2:
-            y += self.y_old[:, None]
-        else:
-            y += self.y_old
-
-        return y

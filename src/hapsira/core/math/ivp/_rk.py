@@ -269,76 +269,51 @@ def check_arguments(fun, y0):
 
 
 class DOP853:
-    """Base class for ODE solvers.
+    """Explicit Runge-Kutta method of order 8.
 
-    In order to implement a new solver you need to follow the guidelines:
-
-        1. A constructor must accept parameters presented in the base class
-           (listed below) along with any other parameters specific to a solver.
-        2. A constructor must accept arbitrary extraneous arguments
-           ``**extraneous``, but warn that these arguments are irrelevant
-           using `common.warn_extraneous` function. Do not pass these
-           arguments to the base class.
-        3. A solver must implement a private method `_step_impl(self)` which
-           propagates a solver one step further. It must return tuple
-           ``(success, message)``, where ``success`` is a boolean indicating
-           whether a step was successful, and ``message`` is a string
-           containing description of a failure if a step failed or None
-           otherwise.
-        4. A solver must implement a private method `_dense_output_impl(self)`,
-           which returns a `DenseOutput` object covering the last successful
-           step.
-        5. A solver must have attributes listed below in Attributes section.
-           Note that ``t_old`` and ``step_size`` are updated automatically.
-        6. Use `fun(self, t, y)` method for the system rhs evaluation, this
-           way the number of function evaluations (`nfev`) will be tracked
-           automatically.
-        7. For convenience, a base class provides `fun_single(self, t, y)` and
-           `fun_vectorized(self, t, y)` for evaluating the rhs in
-           non-vectorized and vectorized fashions respectively (regardless of
-           how `fun` from the constructor is implemented). These calls don't
-           increment `nfev`.
-        8. If a solver uses a Jacobian matrix and LU decompositions, it should
-           track the number of Jacobian evaluations (`njev`) and the number of
-           LU decompositions (`nlu`).
-        9. By convention, the function evaluations used to compute a finite
-           difference approximation of the Jacobian should not be counted in
-           `nfev`, thus use `fun_single(self, t, y)` or
-           `fun_vectorized(self, t, y)` when computing a finite difference
-           approximation of the Jacobian.
+    This is a Python implementation of "DOP853" algorithm originally written
+    in Fortran [1]_, [2]_. Note that this is not a literate translation, but
+    the algorithmic core and coefficients are the same.
 
     Parameters
     ----------
     fun : callable
-        Right-hand side of the system: the time derivative of the state ``y``
-        at time ``t``. The calling signature is ``fun(t, y)``, where ``t`` is a
-        scalar and ``y`` is an ndarray with ``len(y) = len(y0)``. ``fun`` must
-        return an array of the same shape as ``y``. See `vectorized` for more
-        information.
+        Right-hand side of the system. The calling signature is ``fun(t, y)``.
+        Here, ``t`` is a scalar, and there are two options for the ndarray ``y``:
+        It can either have shape (n,); then ``fun`` must return array_like with
+        shape (n,). Alternatively it can have shape (n, k); then ``fun``
+        must return an array_like with shape (n, k), i.e. each column
+        corresponds to a single column in ``y``. The choice between the two
+        options is determined by `vectorized` argument (see below).
     t0 : float
         Initial time.
     y0 : array_like, shape (n,)
         Initial state.
     t_bound : float
-        Boundary time --- the integration won't continue beyond it. It also
+        Boundary time - the integration won't continue beyond it. It also
         determines the direction of the integration.
-    vectorized : bool
-        Whether `fun` can be called in a vectorized fashion. Default is False.
-
-        If ``vectorized`` is False, `fun` will always be called with ``y`` of
-        shape ``(n,)``, where ``n = len(y0)``.
-
-        If ``vectorized`` is True, `fun` may be called with ``y`` of shape
-        ``(n, k)``, where ``k`` is an integer. In this case, `fun` must behave
-        such that ``fun(t, y)[:, i] == fun(t, y[:, i])`` (i.e. each column of
-        the returned array is the time derivative of the state corresponding
-        with a column of ``y``).
-
-        Setting ``vectorized=True`` allows for faster finite difference
-        approximation of the Jacobian by methods 'Radau' and 'BDF', but
-        will result in slower execution for other methods. It can also
-        result in slower overall execution for 'Radau' and 'BDF' in some
-        circumstances (e.g. small ``len(y0)``).
+    first_step : float or None, optional
+        Initial step size. Default is ``None`` which means that the algorithm
+        should choose.
+    max_step : float, optional
+        Maximum allowed step size. Default is np.inf, i.e. the step size is not
+        bounded and determined solely by the solver.
+    rtol, atol : float and array_like, optional
+        Relative and absolute tolerances. The solver keeps the local error
+        estimates less than ``atol + rtol * abs(y)``. Here `rtol` controls a
+        relative accuracy (number of correct digits), while `atol` controls
+        absolute accuracy (number of correct decimal places). To achieve the
+        desired `rtol`, set `atol` to be smaller than the smallest value that
+        can be expected from ``rtol * abs(y)`` so that `rtol` dominates the
+        allowable error. If `atol` is larger than ``rtol * abs(y)`` the
+        number of correct digits is not guaranteed. Conversely, to achieve the
+        desired `atol` set `rtol` such that ``rtol * abs(y)`` is always smaller
+        than `atol`. If components of y have different scales, it might be
+        beneficial to set different `atol` values for different components by
+        passing array_like with shape (n,) for `atol`. Default values are
+        1e-3 for `rtol` and 1e-6 for `atol`.
+    vectorized : bool, optional
+        Whether `fun` is implemented in a vectorized fashion. Default is False.
 
     Attributes
     ----------
@@ -359,11 +334,12 @@ class DOP853:
     step_size : float
         Size of the last successful step. None if no steps were made yet.
     nfev : int
-        Number of the system's rhs evaluations.
+        Number evaluations of the system's right-hand side.
     njev : int
-        Number of the Jacobian evaluations.
+        Number of evaluations of the Jacobian. Is always 0 for this solver
+        as it does not use the Jacobian.
     nlu : int
-        Number of LU decompositions.
+        Number of LU decompositions. Is always 0 for this solver.
     """
 
     TOO_SMALL_STEP = "Required step size is less than spacing between numbers."
@@ -611,86 +587,3 @@ class DOP853:
         F[3:] = h * np.dot(self.D, K)
 
         return Dop853DenseOutput(self.t_old, self.t, self.y_old, F)
-
-
-_ = """Explicit Runge-Kutta method of order 8.
-
-This is a Python implementation of "DOP853" algorithm originally written
-in Fortran [1]_, [2]_. Note that this is not a literate translation, but
-the algorithmic core and coefficients are the same.
-
-Can be applied in the complex domain.
-
-Parameters
-----------
-fun : callable
-    Right-hand side of the system. The calling signature is ``fun(t, y)``.
-    Here, ``t`` is a scalar, and there are two options for the ndarray ``y``:
-    It can either have shape (n,); then ``fun`` must return array_like with
-    shape (n,). Alternatively it can have shape (n, k); then ``fun``
-    must return an array_like with shape (n, k), i.e. each column
-    corresponds to a single column in ``y``. The choice between the two
-    options is determined by `vectorized` argument (see below).
-t0 : float
-    Initial time.
-y0 : array_like, shape (n,)
-    Initial state.
-t_bound : float
-    Boundary time - the integration won't continue beyond it. It also
-    determines the direction of the integration.
-first_step : float or None, optional
-    Initial step size. Default is ``None`` which means that the algorithm
-    should choose.
-max_step : float, optional
-    Maximum allowed step size. Default is np.inf, i.e. the step size is not
-    bounded and determined solely by the solver.
-rtol, atol : float and array_like, optional
-    Relative and absolute tolerances. The solver keeps the local error
-    estimates less than ``atol + rtol * abs(y)``. Here `rtol` controls a
-    relative accuracy (number of correct digits), while `atol` controls
-    absolute accuracy (number of correct decimal places). To achieve the
-    desired `rtol`, set `atol` to be smaller than the smallest value that
-    can be expected from ``rtol * abs(y)`` so that `rtol` dominates the
-    allowable error. If `atol` is larger than ``rtol * abs(y)`` the
-    number of correct digits is not guaranteed. Conversely, to achieve the
-    desired `atol` set `rtol` such that ``rtol * abs(y)`` is always smaller
-    than `atol`. If components of y have different scales, it might be
-    beneficial to set different `atol` values for different components by
-    passing array_like with shape (n,) for `atol`. Default values are
-    1e-3 for `rtol` and 1e-6 for `atol`.
-vectorized : bool, optional
-    Whether `fun` is implemented in a vectorized fashion. Default is False.
-
-Attributes
-----------
-n : int
-    Number of equations.
-status : string
-    Current status of the solver: 'running', 'finished' or 'failed'.
-t_bound : float
-    Boundary time.
-direction : float
-    Integration direction: +1 or -1.
-t : float
-    Current time.
-y : ndarray
-    Current state.
-t_old : float
-    Previous time. None if no steps were made yet.
-step_size : float
-    Size of the last successful step. None if no steps were made yet.
-nfev : int
-    Number evaluations of the system's right-hand side.
-njev : int
-    Number of evaluations of the Jacobian. Is always 0 for this solver
-    as it does not use the Jacobian.
-nlu : int
-    Number of LU decompositions. Is always 0 for this solver.
-
-References
-----------
-.. [1] E. Hairer, S. P. Norsett G. Wanner, "Solving Ordinary Differential
-        Equations I: Nonstiff Problems", Sec. II.
-.. [2] `Page with original Fortran code of DOP853
-        <http://www.unige.ch/~hairer/software.html>`_.
-"""

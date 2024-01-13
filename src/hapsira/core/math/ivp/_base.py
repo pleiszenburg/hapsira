@@ -1,25 +1,18 @@
 import numpy as np
 
 
-def check_arguments(fun, y0, support_complex):
+def check_arguments(fun, y0):
     """Helper function for checking arguments common to all solvers."""
+
     y0 = np.asarray(y0)
-    if np.issubdtype(y0.dtype, np.complexfloating):
-        if not support_complex:
-            raise ValueError(
-                "`y0` is complex, but the chosen solver does "
-                "not support integration in a complex domain."
-            )
-        dtype = complex
-    else:
-        dtype = float
+
+    assert not np.issubdtype(y0.dtype, np.complexfloating)
+
+    dtype = float
     y0 = y0.astype(dtype, copy=False)
 
-    if y0.ndim != 1:
-        raise ValueError("`y0` must be 1-dimensional.")
-
-    if not np.isfinite(y0).all():
-        raise ValueError("All components of the initial state `y0` must be finite.")
+    assert not y0.ndim != 1
+    assert np.isfinite(y0).all()
 
     def fun_wrapped(t, y):
         return np.asarray(fun(t, y), dtype=dtype)
@@ -98,10 +91,6 @@ class OdeSolver:
         will result in slower execution for other methods. It can also
         result in slower overall execution for 'Radau' and 'BDF' in some
         circumstances (e.g. small ``len(y0)``).
-    support_complex : bool, optional
-        Whether integration in a complex domain should be supported.
-        Generally determined by a derived solver class capabilities.
-        Default is False.
 
     Attributes
     ----------
@@ -131,10 +120,10 @@ class OdeSolver:
 
     TOO_SMALL_STEP = "Required step size is less than spacing between numbers."
 
-    def __init__(self, fun, t0, y0, t_bound, vectorized, support_complex=False):
+    def __init__(self, fun, t0, y0, t_bound, vectorized):
         self.t_old = None
         self.t = t0
-        self._fun, self.y = check_arguments(fun, y0, support_complex)
+        self._fun, self.y = check_arguments(fun, y0)
         self.t_bound = t_bound
         self.vectorized = vectorized
 
@@ -216,16 +205,11 @@ class OdeSolver:
         sol : `DenseOutput`
             Local interpolant over the last successful step.
         """
-        if self.t_old is None:
-            raise RuntimeError(
-                "Dense output is available after a successful " "step was made."
-            )
+        assert self.t_old is not None
 
-        if self.n == 0 or self.t == self.t_old:
-            # Handle corner cases of empty solver and no integration.
-            return ConstantDenseOutput(self.t_old, self.t, self.y)
-        else:
-            return self._dense_output_impl()
+        assert not (self.n == 0 or self.t == self.t_old)
+
+        return self._dense_output_impl()
 
     def _step_impl(self):
         raise NotImplementedError
@@ -268,29 +252,8 @@ class DenseOutput:
             1-D array.
         """
         t = np.asarray(t)
-        if t.ndim > 1:
-            raise ValueError("`t` must be a float or a 1-D array.")
+        assert not t.ndim > 1
         return self._call_impl(t)
 
     def _call_impl(self, t):
         raise NotImplementedError
-
-
-class ConstantDenseOutput(DenseOutput):
-    """Constant value interpolator.
-
-    This class used for degenerate integration cases: equal integration limits
-    or a system with 0 equations.
-    """
-
-    def __init__(self, t_old, t, value):
-        super().__init__(t_old, t)
-        self.value = value
-
-    def _call_impl(self, t):
-        if t.ndim == 0:
-            return self.value
-        else:
-            ret = np.empty((self.value.shape[0], t.shape[0]))
-            ret[:] = self.value[:, None]
-            return ret

@@ -1,5 +1,3 @@
-from itertools import groupby
-
 import numpy as np
 
 
@@ -46,30 +44,12 @@ class OdeSolution:
 
         self.ts = ts
         self.interpolants = interpolants
-        if ts[-1] >= ts[0]:
-            self.t_min = ts[0]
-            self.t_max = ts[-1]
-            self.ascending = True
-            self.ts_sorted = ts
-        else:
-            self.t_min = ts[-1]
-            self.t_max = ts[0]
-            self.ascending = False
-            self.ts_sorted = ts[::-1]
 
-    def _call_single(self, t):
-        # Here we preserve a certain symmetry that when t is in self.ts,
-        # then we prioritize a segment with a lower index.
-        if self.ascending:
-            ind = np.searchsorted(self.ts_sorted, t, side="left")
-        else:
-            ind = np.searchsorted(self.ts_sorted, t, side="right")
+        assert ts[-1] >= ts[0]
 
-        segment = min(max(ind - 1, 0), self.n_segments - 1)
-        if not self.ascending:
-            segment = self.n_segments - 1 - segment
-
-        return self.interpolants[segment](t)
+        self.t_min = ts[0]
+        self.t_max = ts[-1]
+        self.ts_sorted = ts
 
     def __call__(self, t):
         """Evaluate the solution.
@@ -87,34 +67,8 @@ class OdeSolution:
         """
         t = np.asarray(t)
 
-        if t.ndim == 0:
-            return self._call_single(t)
+        assert t.ndim == 0
 
-        order = np.argsort(t)
-        reverse = np.empty_like(order)
-        reverse[order] = np.arange(order.shape[0])
-        t_sorted = t[order]
-
-        # See comment in self._call_single.
-        if self.ascending:
-            segments = np.searchsorted(self.ts_sorted, t_sorted, side="left")
-        else:
-            segments = np.searchsorted(self.ts_sorted, t_sorted, side="right")
-        segments -= 1
-        segments[segments < 0] = 0
-        segments[segments > self.n_segments - 1] = self.n_segments - 1
-        if not self.ascending:
-            segments = self.n_segments - 1 - segments
-
-        ys = []
-        group_start = 0
-        for segment, group in groupby(segments):
-            group_end = group_start + len(list(group))
-            y = self.interpolants[segment](t_sorted[group_start:group_end])
-            ys.append(y)
-            group_start = group_end
-
-        ys = np.hstack(ys)
-        ys = ys[:, reverse]
-
-        return ys
+        ind = np.searchsorted(self.ts_sorted, t, side="left")
+        segment = min(max(ind - 1, 0), self.n_segments - 1)
+        return self.interpolants[segment](t)

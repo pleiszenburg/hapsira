@@ -314,7 +314,7 @@ Phobos = Body(
     mean_a=constants.mean_a_phobos,
 )
 
-Deimoms = Body(
+Deimos = Body(
     parent=Mars,
     k=constants.GM_deimos,
     name="Deimos",

@@ -268,7 +268,7 @@ def check_arguments(fun, y0):
     return fun_wrapped, y0
 
 
-class OdeSolver:
+class DOP853:
     """Base class for ODE solvers.
 
     In order to implement a new solver you need to follow the guidelines:
@@ -368,7 +368,35 @@ class OdeSolver:
 
     TOO_SMALL_STEP = "Required step size is less than spacing between numbers."
 
-    def __init__(self, fun, t0, y0, t_bound, vectorized):
+    n_stages: int = dop853_coefficients.N_STAGES
+    order: int = 8
+    error_estimator_order: int = 7
+    A = dop853_coefficients.A[:n_stages, :n_stages]
+    B = dop853_coefficients.B
+    C = dop853_coefficients.C[:n_stages]
+    E: np.ndarray = NotImplemented
+    E3 = dop853_coefficients.E3
+    E5 = dop853_coefficients.E5
+    D = dop853_coefficients.D
+    P: np.ndarray = NotImplemented
+
+    A_EXTRA = dop853_coefficients.A[n_stages + 1 :]
+    C_EXTRA = dop853_coefficients.C[n_stages + 1 :]
+
+    def __init__(
+        self,
+        fun,
+        t0,
+        y0,
+        t_bound,
+        max_step=np.inf,
+        rtol=1e-3,
+        atol=1e-6,
+        vectorized=False,
+        first_step=None,
+        **extraneous,
+    ):
+        warn_extraneous(extraneous)
         self.t_old = None
         self.t = t0
         self._fun, self.y = check_arguments(fun, y0)
@@ -405,6 +433,32 @@ class OdeSolver:
         self.nfev = 0
         self.njev = 0
         self.nlu = 0
+
+        self.y_old = None
+        self.max_step = validate_max_step(max_step)
+        self.rtol, self.atol = validate_tol(rtol, atol, self.n)
+        self.f = self.fun(self.t, self.y)
+        if first_step is None:
+            self.h_abs = select_initial_step(
+                self.fun,
+                self.t,
+                self.y,
+                self.f,
+                self.direction,
+                self.error_estimator_order,
+                self.rtol,
+                self.atol,
+            )
+        else:
+            self.h_abs = validate_first_step(first_step, t0, t_bound)
+        self.K = np.empty((self.n_stages + 1, self.n), dtype=self.y.dtype)
+        self.error_exponent = -1 / (self.error_estimator_order + 1)
+        self.h_previous = None
+
+        self.K_extended = np.empty(
+            (dop853_coefficients.N_STAGES_EXTENDED, self.n), dtype=self.y.dtype
+        )
+        self.K = self.K_extended[: self.n_stages + 1]
 
     @property
     def step_size(self):
@@ -458,72 +512,6 @@ class OdeSolver:
         assert not (self.n == 0 or self.t == self.t_old)
 
         return self._dense_output_impl()
-
-    def _step_impl(self):
-        raise NotImplementedError
-
-    def _dense_output_impl(self):
-        raise NotImplementedError
-
-
-class DOP853(OdeSolver):
-    """Base class for explicit Runge-Kutta methods."""
-
-    n_stages: int = dop853_coefficients.N_STAGES
-    order: int = 8
-    error_estimator_order: int = 7
-    A = dop853_coefficients.A[:n_stages, :n_stages]
-    B = dop853_coefficients.B
-    C = dop853_coefficients.C[:n_stages]
-    E: np.ndarray = NotImplemented
-    E3 = dop853_coefficients.E3
-    E5 = dop853_coefficients.E5
-    D = dop853_coefficients.D
-    P: np.ndarray = NotImplemented
-
-    A_EXTRA = dop853_coefficients.A[n_stages + 1 :]
-    C_EXTRA = dop853_coefficients.C[n_stages + 1 :]
-
-    def __init__(
-        self,
-        fun,
-        t0,
-        y0,
-        t_bound,
-        max_step=np.inf,
-        rtol=1e-3,
-        atol=1e-6,
-        vectorized=False,
-        first_step=None,
-        **extraneous,
-    ):
-        warn_extraneous(extraneous)
-        super().__init__(fun, t0, y0, t_bound, vectorized)
-        self.y_old = None
-        self.max_step = validate_max_step(max_step)
-        self.rtol, self.atol = validate_tol(rtol, atol, self.n)
-        self.f = self.fun(self.t, self.y)
-        if first_step is None:
-            self.h_abs = select_initial_step(
-                self.fun,
-                self.t,
-                self.y,
-                self.f,
-                self.direction,
-                self.error_estimator_order,
-                self.rtol,
-                self.atol,
-            )
-        else:
-            self.h_abs = validate_first_step(first_step, t0, t_bound)
-        self.K = np.empty((self.n_stages + 1, self.n), dtype=self.y.dtype)
-        self.error_exponent = -1 / (self.error_estimator_order + 1)
-        self.h_previous = None
-
-        self.K_extended = np.empty(
-            (dop853_coefficients.N_STAGES_EXTENDED, self.n), dtype=self.y.dtype
-        )
-        self.K = self.K_extended[: self.n_stages + 1]
 
     def _estimate_error_norm(self, K, h, scale):
         err5 = np.dot(K.T, self.E5) / scale

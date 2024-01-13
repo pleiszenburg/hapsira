@@ -5,6 +5,12 @@ import numpy as np
 from . import _dop853_coefficients as dop853_coefficients
 
 
+__all__ = [
+    "EPS",
+    "DOP853",
+]
+
+
 EPS = np.finfo(float).eps
 
 # Multiply steps computed from asymptotic behaviour of errors by this.

@@ -17,8 +17,6 @@ class OdeResult(dict):
 
     Attributes
     ----------
-    x : ndarray
-        The solution of the optimization.
     success : bool
         Whether or not the optimizer exited successfully.
     status : int
@@ -26,29 +24,10 @@ class OdeResult(dict):
         underlying solver. Refer to `message` for details.
     message : str
         Description of the cause of the termination.
-    fun, jac, hess: ndarray
-        Values of objective function, its Jacobian and its Hessian (if
-        available). The Hessians may be approximations, see the documentation
-        of the function in question.
-    hess_inv : object
-        Inverse of the objective function's Hessian; may be an approximation.
-        Not available for all solvers. The type of this attribute may be
-        either np.ndarray or scipy.sparse.linalg.LinearOperator.
-    nfev, njev, nhev : int
+    nfev, njev : int
         Number of evaluations of the objective functions and of its
         Jacobian and Hessian.
-    nit : int
-        Number of iterations performed by the optimizer.
-    maxcv : float
-        The maximum constraint violation.
-
-    Notes
-    -----
-    Depending on the specific solver being used, `OptimizeResult` may
-    not have all attributes listed here, and they may have additional
-    attributes not listed here. Since this class is essentially a
-    subclass of dict with attribute accessors, one can see which
-    attributes are available using the `OptimizeResult.keys` method.
+    t, y, sol, t_events, y_events, nlu : ?
     """
 
     def __getattr__(self, name):
@@ -59,36 +38,6 @@ class OdeResult(dict):
 
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
-
-    # def __repr__(self):
-    #     order_keys = ['message', 'success', 'status', 'fun', 'funl', 'x', 'xl',
-    #                   'col_ind', 'nit', 'lower', 'upper', 'eqlin', 'ineqlin',
-    #                   'converged', 'flag', 'function_calls', 'iterations',
-    #                   'root']
-    #     order_keys = getattr(self, '_order_keys', order_keys)
-    #     # 'slack', 'con' are redundant with residuals
-    #     # 'crossover_nit' is probably not interesting to most users
-    #     omit_keys = {'slack', 'con', 'crossover_nit', '_order_keys'}
-
-    #     def key(item):
-    #         try:
-    #             return order_keys.index(item[0].lower())
-    #         except ValueError:  # item not in list
-    #             return np.inf
-
-    #     def omit_redundant(items):
-    #         for item in items:
-    #             if item[0] in omit_keys:
-    #                 continue
-    #             yield item
-
-    #     def item_sorter(d):
-    #         return sorted(omit_redundant(d.items()), key=key)
-
-    #     if self.keys():
-    #         return _dict_formatter(self, sorter=item_sorter)
-    #     else:
-    #         return self.__class__.__name__ + "()"
 
     def __dir__(self):
         return list(self.keys())

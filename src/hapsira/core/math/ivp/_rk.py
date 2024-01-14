@@ -168,16 +168,6 @@ def select_initial_step(
 
 
 @jit(nopython=False)
-def validate_first_step(first_step: float, t0: float, t_bound: float) -> float:
-    """Assert that first_step is valid and return it."""
-    if first_step <= 0:
-        raise ValueError("`first_step` must be positive.")
-    if first_step > np.abs(t_bound - t0):
-        raise ValueError("`first_step` exceeds bounds.")
-    return first_step
-
-
-@jit(nopython=False)
 def validate_max_step(max_step: float) -> float:
     """Assert that max_Step is valid and return it."""
     if max_step <= 0:
@@ -305,9 +295,6 @@ class DOP853:
     t_bound : float
         Boundary time - the integration won't continue beyond it. It also
         determines the direction of the integration.
-    first_step : float or None, optional
-        Initial step size. Default is ``None`` which means that the algorithm
-        should choose.
     max_step : float, optional
         Maximum allowed step size. Default is np.inf, i.e. the step size is not
         bounded and determined solely by the solver.
@@ -379,7 +366,6 @@ class DOP853:
         max_step: float = np.inf,
         rtol: float = 1e-3,
         atol: float = 1e-6,
-        first_step=None,
     ):
         self.t_old = None
         self.t = t0
@@ -407,19 +393,16 @@ class DOP853:
         self.max_step = validate_max_step(max_step)
         self.rtol, self.atol = validate_tol(rtol, atol, self.n)
         self.f = self.fun(self.t, self.y)
-        if first_step is None:
-            self.h_abs = select_initial_step(
-                self.fun,
-                self.t,
-                self.y,
-                self.f,
-                self.direction,
-                self.error_estimator_order,
-                self.rtol,
-                self.atol,
-            )
-        else:
-            self.h_abs = validate_first_step(first_step, t0, t_bound)
+        self.h_abs = select_initial_step(
+            self.fun,
+            self.t,
+            self.y,
+            self.f,
+            self.direction,
+            self.error_estimator_order,
+            self.rtol,
+            self.atol,
+        )
         self.K = np.empty((self.n_stages + 1, self.n), dtype=self.y.dtype)
         self.error_exponent = -1 / (self.error_estimator_order + 1)
         self.h_previous = None

@@ -403,7 +403,6 @@ class DOP853:
             self.rtol,
             self.atol,
         )
-        self.K = np.empty((self.n_stages + 1, self.n), dtype=self.y.dtype)
         self.error_exponent = -1 / (self.error_estimator_order + 1)
         self.h_previous = None
 

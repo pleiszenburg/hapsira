@@ -1,6 +1,8 @@
+from typing import Callable, Tuple
 from warnings import warn
 
 import numpy as np
+from numba import jit
 
 from . import _dop853_coefficients as dop853_coefficients
 
@@ -20,12 +22,24 @@ MIN_FACTOR = 0.2  # Minimum allowed decrease in a step size.
 MAX_FACTOR = 10  # Maximum allowed increase in a step size.
 
 
-def norm(x):
+@jit(nopython=False)
+def norm(x: np.ndarray) -> float:
     """Compute RMS norm."""
     return np.linalg.norm(x) / x.size**0.5
 
 
-def rk_step(fun, t, y, f, h, A, B, C, K):
+@jit(nopython=False)
+def rk_step(
+    fun: Callable,
+    t: float,
+    y: np.ndarray,
+    f: np.ndarray,
+    h: float,
+    A: np.ndarray,
+    B: np.ndarray,
+    C: np.ndarray,
+    K: np.ndarray,
+) -> Tuple[np.ndarray, np.ndarray]:
     """Perform a single Runge-Kutta step.
 
     This function computes a prediction of an explicit Runge-Kutta method and
@@ -85,7 +99,17 @@ def rk_step(fun, t, y, f, h, A, B, C, K):
     return y_new, f_new
 
 
-def select_initial_step(fun, t0, y0, f0, direction, order, rtol, atol):
+@jit(nopython=False)
+def select_initial_step(
+    fun: Callable,
+    t0: float,
+    y0: np.ndarray,
+    f0: np.ndarray,
+    direction: float,
+    order: float,
+    rtol: float,
+    atol: float,
+) -> float:
     """Empirically select a good initial step.
 
     The algorithm is described in [1]_.
@@ -143,7 +167,8 @@ def select_initial_step(fun, t0, y0, f0, direction, order, rtol, atol):
     return min(100 * h0, h1)
 
 
-def validate_first_step(first_step, t0, t_bound):
+@jit(nopython=False)
+def validate_first_step(first_step: float, t0: float, t_bound: float) -> float:
     """Assert that first_step is valid and return it."""
     if first_step <= 0:
         raise ValueError("`first_step` must be positive.")
@@ -152,34 +177,16 @@ def validate_first_step(first_step, t0, t_bound):
     return first_step
 
 
-def validate_max_step(max_step):
+@jit(nopython=False)
+def validate_max_step(max_step: float) -> float:
     """Assert that max_Step is valid and return it."""
     if max_step <= 0:
         raise ValueError("`max_step` must be positive.")
     return max_step
 
 
-def warn_extraneous(extraneous):
-    """Display a warning for extraneous keyword arguments.
-
-    The initializer of each solver class is expected to collect keyword
-    arguments that it doesn't understand and warn about them. This function
-    prints a warning for each key in the supplied dictionary.
-
-    Parameters
-    ----------
-    extraneous : dict
-        Extraneous keyword arguments
-    """
-    if extraneous:
-        warn(
-            "The following arguments have no effect for a chosen solver: {}.".format(
-                ", ".join(f"`{x}`" for x in extraneous)
-            )
-        )
-
-
-def validate_tol(rtol, atol, n):
+@jit(nopython=False)
+def validate_tol(rtol: float, atol: float, n: int) -> Tuple[float, float]:
     """Validate tolerance values."""
 
     if np.any(rtol < 100 * EPS):
@@ -350,7 +357,7 @@ class DOP853:
 
     TOO_SMALL_STEP = "Required step size is less than spacing between numbers."
 
-    n_stages: int = dop853_coefficients.N_STAGES
+    n_stages: int = 12  # N_STAGES == 12
     order: int = 8
     error_estimator_order: int = 7
     A = dop853_coefficients.A[:n_stages, :n_stages]
@@ -368,7 +375,7 @@ class DOP853:
     def __init__(
         self,
         fun,
-        t0,
+        t0: float,
         y0,
         t_bound,
         max_step=np.inf,
@@ -376,9 +383,7 @@ class DOP853:
         atol=1e-6,
         vectorized=False,
         first_step=None,
-        **extraneous,
     ):
-        warn_extraneous(extraneous)
         self.t_old = None
         self.t = t0
         self._fun, self.y = check_arguments(fun, y0)
@@ -438,8 +443,8 @@ class DOP853:
         self.h_previous = None
 
         self.K_extended = np.empty(
-            (dop853_coefficients.N_STAGES_EXTENDED, self.n), dtype=self.y.dtype
-        )
+            (16, self.n), dtype=self.y.dtype
+        )  # N_STAGES_EXTENDED == 16
         self.K = self.K_extended[: self.n_stages + 1]
 
     @property
@@ -580,9 +585,7 @@ class DOP853:
             dy = np.dot(K[:s].T, a[:s]) * h
             K[s] = self.fun(self.t_old + c * h, self.y_old + dy)
 
-        F = np.empty(
-            (dop853_coefficients.INTERPOLATOR_POWER, self.n), dtype=self.y_old.dtype
-        )
+        F = np.empty((7, self.n), dtype=self.y_old.dtype)  # INTERPOLATOR_POWER==7
 
         f_old = K[0]
         delta_y = self.y - self.y_old

@@ -325,8 +325,6 @@ class DOP853:
         beneficial to set different `atol` values for different components by
         passing array_like with shape (n,) for `atol`. Default values are
         1e-3 for `rtol` and 1e-6 for `atol`.
-    vectorized : bool, optional
-        Whether `fun` is implemented in a vectorized fashion. Default is False.
 
     Attributes
     ----------
@@ -374,36 +372,21 @@ class DOP853:
 
     def __init__(
         self,
-        fun,
+        fun: Callable,
         t0: float,
-        y0,
-        t_bound,
-        max_step=np.inf,
-        rtol=1e-3,
-        atol=1e-6,
-        vectorized=False,
+        y0: np.array,
+        t_bound: float,
+        max_step: float = np.inf,
+        rtol: float = 1e-3,
+        atol: float = 1e-6,
         first_step=None,
     ):
         self.t_old = None
         self.t = t0
         self._fun, self.y = check_arguments(fun, y0)
         self.t_bound = t_bound
-        self.vectorized = vectorized
 
-        if vectorized:
-
-            def fun_single(t, y):
-                return self._fun(t, y[:, None]).ravel()
-
-            fun_vectorized = self._fun
-        else:
-            fun_single = self._fun
-
-            def fun_vectorized(t, y):
-                f = np.empty_like(y)
-                for i, yi in enumerate(y.T):
-                    f[:, i] = self._fun(t, yi)
-                return f
+        fun_single = self._fun
 
         def fun(t, y):
             self.nfev += 1
@@ -411,7 +394,6 @@ class DOP853:
 
         self.fun = fun
         self.fun_single = fun_single
-        self.fun_vectorized = fun_vectorized
 
         self.direction = np.sign(t_bound - t0) if t_bound != t0 else 1
         self.n = self.y.size

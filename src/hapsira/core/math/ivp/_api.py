@@ -178,7 +178,6 @@ def solve_ivp(
     # t_eval=None,
     # dense_output=False,
     events=None,
-    vectorized=False,
     args=None,
     **options,
 ):
@@ -230,22 +229,6 @@ def solve_ivp(
 
         You can assign attributes like ``event.terminal = True`` to any
         function in Python.
-    vectorized : bool, optional
-        Whether `fun` can be called in a vectorized fashion. Default is False.
-
-        If ``vectorized`` is False, `fun` will always be called with ``y`` of
-        shape ``(n,)``, where ``n = len(y0)``.
-
-        If ``vectorized`` is True, `fun` may be called with ``y`` of shape
-        ``(n, k)``, where ``k`` is an integer. In this case, `fun` must behave
-        such that ``fun(t, y)[:, i] == fun(t, y[:, i])`` (i.e. each column of
-        the returned array is the time derivative of the state corresponding
-        with a column of ``y``).
-
-        Setting ``vectorized=True`` allows for faster finite difference
-        approximation of the Jacobian by methods 'Radau' and 'BDF', but
-        will result in slower execution for other methods and for 'Radau' and
-        'BDF' in some circumstances (e.g. small ``len(y0)``).
     args : tuple, optional
         Additional arguments to pass to the user-defined functions.  If given,
         the additional arguments are passed to all user-defined functions.
@@ -359,7 +342,7 @@ def solve_ivp(
     def fun(t, x, fun=fun):
         return fun(t, x, *args)
 
-    solver = method(fun, t0, y0, tf, vectorized=vectorized, **options)
+    solver = method(fun, t0, y0, tf, **options)
 
     ts = [t0]
     ys = [y0]

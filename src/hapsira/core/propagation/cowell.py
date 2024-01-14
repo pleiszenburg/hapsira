@@ -18,7 +18,7 @@ def cowell(k, r, v, tofs, rtol=1e-11, *, events=None, f=func_twobody):
         args=(k,),
         rtol=rtol,
         atol=1e-12,
-        dense_output=True,
+        # dense_output=True,
         events=events,
     )
     if not result.success:

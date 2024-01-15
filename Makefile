@@ -5,6 +5,8 @@ _clean_coverage:
 	coverage erase
 
 _clean_py:
+	find src/ tests/ contrib/ -name '*.nbi' -exec rm -f {} +
+	find src/ tests/ contrib/ -name '*.nbc' -exec rm -f {} +
 	find src/ tests/ contrib/ -name '*.pyc' -exec rm -f {} +
 	find src/ tests/ contrib/ -name '*.pyo' -exec rm -f {} +
 	find src/ tests/ contrib/ -name '*~' -exec rm -f {} +

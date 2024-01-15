@@ -1,11 +1,32 @@
 import numpy as np
 
-from hapsira.core.propagation.base import func_twobody
-
+from ..jit import hjit
 from ..math.ivp import solve_ivp
+from ..propagation.base import func_twobody
 
 
-def cowell(k, r, v, tofs, rtol=1e-11, *, events=None, f=func_twobody):
+def cowell_jit(func):
+    """
+    Wrapper for hjit to track funcs for cowell
+    """
+    compiled = hjit("S(f,S,f)")(func)
+    compiled.cowell = None  # for debugging
+    return compiled
+
+
+def cowell(k, r, v, tofs, rtol=1e-11, events=None, f=func_twobody):
+    """
+    Scalar cowell
+
+    f : float
+    r : ndarray (3,)
+    v : ndarray (3,)
+    tofs : ???
+    rtol : float ... or also ndarray?
+    """
+    assert hasattr(f, "cowell")
+    assert isinstance(rtol, float)
+
     x, y, z = r
     vx, vy, vz = v
 

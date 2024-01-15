@@ -5,7 +5,7 @@ import numpy as np
 from numba import jit
 
 from . import _dop853_coefficients as dop853_coefficients
-
+from ._dop853_coefficients import A, B, C
 
 __all__ = [
     "EPS",
@@ -26,6 +26,10 @@ N_RV = 6
 N_STAGES = 12
 N_STAGES_EXTENDED = 16
 
+A = A[:N_STAGES, :N_STAGES]
+B = B
+C = C[:N_STAGES]
+
 
 @jit(nopython=False)
 def norm(x: np.ndarray) -> float:
@@ -40,9 +44,6 @@ def rk_step(
     y: np.ndarray,
     f: np.ndarray,
     h: float,
-    A: np.ndarray,
-    B: np.ndarray,
-    C: np.ndarray,
     K: np.ndarray,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Perform a single Runge-Kutta step.
@@ -64,16 +65,6 @@ def rk_step(
         Current value of the derivative, i.e., ``fun(x, y)``.
     h : float
         Step to use.
-    A : ndarray, shape (n_stages, n_stages)
-        Coefficients for combining previous RK stages to compute the next
-        stage. For explicit methods the coefficients at and above the main
-        diagonal are zeros.
-    B : ndarray, shape (n_stages,)
-        Coefficients for combining RK stages for computing the final
-        prediction.
-    C : ndarray, shape (n_stages,)
-        Coefficients for incrementing time for consecutive RK stages.
-        The value for the first stage is always zero.
     K : ndarray, shape (n_stages + 1, n)
         Storage array for putting RK stages here. Stages are stored in rows.
         The last row is a linear combination of the previous rows with
@@ -86,6 +77,19 @@ def rk_step(
     f_new : ndarray, shape (n,)
         Derivative ``fun(t + h, y_new)``.
 
+    Const
+    -----
+    A : ndarray, shape (n_stages, n_stages)
+        Coefficients for combining previous RK stages to compute the next
+        stage. For explicit methods the coefficients at and above the main
+        diagonal are zeros.
+    B : ndarray, shape (n_stages,)
+        Coefficients for combining RK stages for computing the final
+        prediction.
+    C : ndarray, shape (n_stages,)
+        Coefficients for incrementing time for consecutive RK stages.
+        The value for the first stage is always zero.
+
     References
     ----------
     .. [1] E. Hairer, S. P. Norsett G. Wanner, "Solving Ordinary Differential
@@ -94,10 +98,11 @@ def rk_step(
 
     assert y.shape == (N_RV,)
     assert f.shape == (N_RV,)
+    assert K.shape == (N_STAGES + 1, N_RV)
+
     assert A.shape == (N_STAGES, N_STAGES)
     assert B.shape == (N_STAGES,)
     assert C.shape == (N_STAGES,)
-    assert K.shape == (N_STAGES + 1, N_RV)
 
     K[0] = f
 
@@ -394,9 +399,6 @@ class DOP853:
 
     order: int = 8
     error_estimator_order: int = 7
-    A = dop853_coefficients.A[:N_STAGES, :N_STAGES]
-    B = dop853_coefficients.B
-    C = dop853_coefficients.C[:N_STAGES]
     E: np.ndarray = NotImplemented
     E3 = dop853_coefficients.E3
     E5 = dop853_coefficients.E5
@@ -555,9 +557,7 @@ class DOP853:
             h = t_new - t
             h_abs = np.abs(h)
 
-            y_new, f_new = rk_step(
-                self.fun, t, y, self.f, h, self.A, self.B, self.C, self.K
-            )
+            y_new, f_new = rk_step(self.fun, t, y, self.f, h, self.K)
             scale = atol + np.maximum(np.abs(y), np.abs(y_new)) * rtol
             error_norm = self._estimate_error_norm(self.K, h, scale)
 

@@ -91,15 +91,60 @@ def rk_step(
     .. [1] E. Hairer, S. P. Norsett G. Wanner, "Solving Ordinary Differential
            Equations I: Nonstiff Problems", Sec. II.4.
     """
+
+    assert y.shape == (N_RV,)
+    assert f.shape == (N_RV,)
+    assert A.shape == (N_STAGES, N_STAGES)
+    assert B.shape == (N_STAGES,)
+    assert C.shape == (N_STAGES,)
+    assert K.shape == (N_STAGES + 1, N_RV)
+
     K[0] = f
-    for s, (a, c) in enumerate(zip(A[1:], C[1:]), start=1):
-        dy = np.dot(K[:s].T, a[:s]) * h
-        K[s] = fun(t + c * h, y + dy)
+
+    # for s, (a, c) in enumerate(zip(A[1:], C[1:]), start=1):
+    #     dy = np.dot(K[:s].T, a[:s]) * h
+    #     K[s] = fun(t + c * h, y + dy)
+
+    dy = np.dot(K[:1].T, A[1, :1]) * h
+    K[1] = fun(t + C[1] * h, y + dy)
+
+    dy = np.dot(K[:2].T, A[2, :2]) * h
+    K[2] = fun(t + C[2] * h, y + dy)
+
+    dy = np.dot(K[:3].T, A[3, :3]) * h
+    K[3] = fun(t + C[3] * h, y + dy)
+
+    dy = np.dot(K[:4].T, A[4, :4]) * h
+    K[4] = fun(t + C[4] * h, y + dy)
+
+    dy = np.dot(K[:5].T, A[5, :5]) * h
+    K[5] = fun(t + C[5] * h, y + dy)
+
+    dy = np.dot(K[:6].T, A[6, :6]) * h
+    K[6] = fun(t + C[6] * h, y + dy)
+
+    dy = np.dot(K[:7].T, A[7, :7]) * h
+    K[7] = fun(t + C[7] * h, y + dy)
+
+    dy = np.dot(K[:8].T, A[8, :8]) * h
+    K[8] = fun(t + C[8] * h, y + dy)
+
+    dy = np.dot(K[:9].T, A[9, :9]) * h
+    K[9] = fun(t + C[9] * h, y + dy)
+
+    dy = np.dot(K[:10].T, A[10, :10]) * h
+    K[10] = fun(t + C[10] * h, y + dy)
+
+    dy = np.dot(K[:11].T, A[11, :11]) * h
+    K[11] = fun(t + C[11] * h, y + dy)
 
     y_new = y + h * np.dot(K[:-1].T, B)
     f_new = fun(t + h, y_new)
 
     K[-1] = f_new
+
+    assert y_new.shape == (N_RV,)
+    assert f_new.shape == (N_RV,)
 
     return y_new, f_new
 

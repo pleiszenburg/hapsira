@@ -171,11 +171,11 @@ def solve_ivp(
     fun,
     t_span,
     y0,
+    argk: float,
     method=DOP853,
     # t_eval=None,
     # dense_output=False,
     events=None,
-    args=None,
     **options,
 ):
     """Solve an initial value problem for a system of ODEs.
@@ -226,12 +226,6 @@ def solve_ivp(
 
         You can assign attributes like ``event.terminal = True`` to any
         function in Python.
-    args : tuple, optional
-        Additional arguments to pass to the user-defined functions.  If given,
-        the additional arguments are passed to all user-defined functions.
-        So if, for example, `fun` has the signature ``fun(t, y, a, b, c)``,
-        then `jac` (if given) and any event functions must have the same
-        signature, and `args` must be a tuple of length 3.
     **options
         Options passed to a chosen solver. All options available for already
         implemented solvers are listed below.
@@ -330,12 +324,7 @@ def solve_ivp(
 
     t0, tf = map(float, t_span)
 
-    assert isinstance(args, tuple)
-
-    def fun(t, x, fun=fun):
-        return fun(t, x, *args)
-
-    solver = method(fun, t0, y0, tf, **options)
+    solver = method(fun, t0, y0, tf, argk, **options)
 
     ts = [t0]
     ys = [y0]
@@ -345,12 +334,7 @@ def solve_ivp(
     events, is_terminal, event_dir = prepare_events(events)
 
     if events is not None:
-        if args is not None:
-            # Wrap user functions in lambdas to hide the additional parameters.
-            # The original event function is passed as a keyword argument to the
-            # lambda to keep the original function in scope (i.e., avoid the
-            # late binding closure "gotcha").
-            events = [lambda t, x, event=event: event(t, x, *args) for event in events]
+        events = [lambda t, x, event=event: event(t, x, argk) for event in events]
         g = [event(t0, y0) for event in events]
         t_events = [[] for _ in range(len(events))]
         y_events = [[] for _ in range(len(events))]

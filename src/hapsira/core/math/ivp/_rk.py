@@ -45,6 +45,7 @@ def rk_step(
     f: np.ndarray,
     h: float,
     K: np.ndarray,
+    argk: float,
 ) -> Tuple[np.ndarray, np.ndarray]:
     """Perform a single Runge-Kutta step.
 
@@ -111,40 +112,40 @@ def rk_step(
     #     K[s] = fun(t + c * h, y + dy)
 
     dy = np.dot(K[:1].T, A[1, :1]) * h
-    K[1] = fun(t + C[1] * h, y + dy)
+    K[1] = fun(t + C[1] * h, y + dy, argk)
 
     dy = np.dot(K[:2].T, A[2, :2]) * h
-    K[2] = fun(t + C[2] * h, y + dy)
+    K[2] = fun(t + C[2] * h, y + dy, argk)
 
     dy = np.dot(K[:3].T, A[3, :3]) * h
-    K[3] = fun(t + C[3] * h, y + dy)
+    K[3] = fun(t + C[3] * h, y + dy, argk)
 
     dy = np.dot(K[:4].T, A[4, :4]) * h
-    K[4] = fun(t + C[4] * h, y + dy)
+    K[4] = fun(t + C[4] * h, y + dy, argk)
 
     dy = np.dot(K[:5].T, A[5, :5]) * h
-    K[5] = fun(t + C[5] * h, y + dy)
+    K[5] = fun(t + C[5] * h, y + dy, argk)
 
     dy = np.dot(K[:6].T, A[6, :6]) * h
-    K[6] = fun(t + C[6] * h, y + dy)
+    K[6] = fun(t + C[6] * h, y + dy, argk)
 
     dy = np.dot(K[:7].T, A[7, :7]) * h
-    K[7] = fun(t + C[7] * h, y + dy)
+    K[7] = fun(t + C[7] * h, y + dy, argk)
 
     dy = np.dot(K[:8].T, A[8, :8]) * h
-    K[8] = fun(t + C[8] * h, y + dy)
+    K[8] = fun(t + C[8] * h, y + dy, argk)
 
     dy = np.dot(K[:9].T, A[9, :9]) * h
-    K[9] = fun(t + C[9] * h, y + dy)
+    K[9] = fun(t + C[9] * h, y + dy, argk)
 
     dy = np.dot(K[:10].T, A[10, :10]) * h
-    K[10] = fun(t + C[10] * h, y + dy)
+    K[10] = fun(t + C[10] * h, y + dy, argk)
 
     dy = np.dot(K[:11].T, A[11, :11]) * h
-    K[11] = fun(t + C[11] * h, y + dy)
+    K[11] = fun(t + C[11] * h, y + dy, argk)
 
     y_new = y + h * np.dot(K[:-1].T, B)
-    f_new = fun(t + h, y_new)
+    f_new = fun(t + h, y_new, argk)
 
     K[-1] = f_new
 
@@ -159,6 +160,7 @@ def select_initial_step(
     fun: Callable,
     t0: float,
     y0: np.ndarray,
+    argk: float,
     f0: np.ndarray,
     direction: float,
     order: float,
@@ -211,7 +213,7 @@ def select_initial_step(
         h0 = 0.01 * d0 / d1
 
     y1 = y0 + h0 * direction * f0
-    f1 = fun(t0 + h0 * direction, y1)
+    f1 = fun(t0 + h0 * direction, y1, argk)
     d2 = norm((f1 - f0) / scale) / h0
 
     if d1 <= 1e-15 and d2 <= 1e-15:
@@ -406,6 +408,7 @@ class DOP853:
         t0: float,
         y0: np.array,
         t_bound: float,
+        argk: float,
         max_step: float = np.inf,
         rtol: float = 1e-3,
         atol: float = 1e-6,
@@ -418,6 +421,7 @@ class DOP853:
         self.t_bound = t_bound
 
         self.fun = fun
+        self.argk = argk
 
         self.direction = np.sign(t_bound - t0) if t_bound != t0 else 1
         self.status = "running"
@@ -429,11 +433,12 @@ class DOP853:
         self.y_old = None
         self.max_step = validate_max_step(max_step)
         self.rtol, self.atol = validate_tol(rtol, atol)
-        self.f = self.fun(self.t, self.y)
+        self.f = self.fun(self.t, self.y, self.argk)
         self.h_abs = select_initial_step(
             self.fun,
             self.t,
             self.y,
+            self.argk,
             self.f,
             self.direction,
             self.error_estimator_order,
@@ -542,7 +547,7 @@ class DOP853:
             h = t_new - t
             h_abs = np.abs(h)
 
-            y_new, f_new = rk_step(self.fun, t, y, self.f, h, self.K)
+            y_new, f_new = rk_step(self.fun, t, y, self.f, h, self.K, self.argk)
             scale = atol + np.maximum(np.abs(y), np.abs(y_new)) * rtol
             error_norm = self._estimate_error_norm(self.K, h, scale)
 
@@ -578,7 +583,7 @@ class DOP853:
         h = self.h_previous
         for s, (a, c) in enumerate(zip(self.A_EXTRA, self.C_EXTRA), start=N_STAGES + 1):
             dy = np.dot(K[:s].T, a[:s]) * h
-            K[s] = self.fun(self.t_old + c * h, self.y_old + dy)
+            K[s] = self.fun(self.t_old + c * h, self.y_old + dy, self.argk)
 
         F = np.empty((INTERPOLATOR_POWER, N_RV), dtype=self.y_old.dtype)
 

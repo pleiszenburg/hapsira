@@ -15,7 +15,7 @@ def cowell(k, r, v, tofs, rtol=1e-11, *, events=None, f=func_twobody):
         f,
         (0, max(tofs)),
         u0,
-        args=(k,),
+        argk=k,
         rtol=rtol,
         atol=1e-12,
         # dense_output=True,

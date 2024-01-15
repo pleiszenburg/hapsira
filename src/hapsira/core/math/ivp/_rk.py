@@ -25,6 +25,7 @@ INTERPOLATOR_POWER = 7
 N_RV = 6
 N_STAGES = 12
 N_STAGES_EXTENDED = 16
+ERROR_ESTIMATOR_ORDER = 7
 
 A = A[:N_STAGES, :N_STAGES]
 B = B
@@ -391,13 +392,9 @@ class DOP853:
 
     TOO_SMALL_STEP = "Required step size is less than spacing between numbers."
 
-    order: int = 8
-    error_estimator_order: int = 7
-    E: np.ndarray = NotImplemented
     E3 = dop853_coefficients.E3
     E5 = dop853_coefficients.E5
     D = dop853_coefficients.D
-    P: np.ndarray = NotImplemented
 
     A_EXTRA = dop853_coefficients.A[N_STAGES + 1 :]
     C_EXTRA = dop853_coefficients.C[N_STAGES + 1 :]
@@ -441,11 +438,11 @@ class DOP853:
             self.argk,
             self.f,
             self.direction,
-            self.error_estimator_order,
+            ERROR_ESTIMATOR_ORDER,
             self.rtol,
             self.atol,
         )
-        self.error_exponent = -1 / (self.error_estimator_order + 1)
+        self.error_exponent = -1 / (ERROR_ESTIMATOR_ORDER + 1)
         self.h_previous = None
 
         self.K_extended = np.empty((N_STAGES_EXTENDED, N_RV), dtype=self.y.dtype)

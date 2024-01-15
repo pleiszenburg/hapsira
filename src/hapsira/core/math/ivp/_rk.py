@@ -307,7 +307,7 @@ class Dop853DenseOutput:
         return y.T
 
 
-def check_arguments(fun, y0):
+def check_arguments(y0):
     """Helper function for checking arguments common to all solvers."""
 
     y0 = np.asarray(y0)
@@ -320,10 +320,7 @@ def check_arguments(fun, y0):
     assert not y0.ndim != 1
     assert np.isfinite(y0).all()
 
-    def fun_wrapped(t, y):
-        return np.asarray(fun(t, y), dtype=dtype)
-
-    return fun_wrapped, y0
+    return y0
 
 
 class DOP853:
@@ -386,11 +383,6 @@ class DOP853:
         Previous time. None if no steps were made yet.
     step_size : float
         Size of the last successful step. None if no steps were made yet.
-    nfev : int
-        Number evaluations of the system's right-hand side.
-    njev : int
-        Number of evaluations of the Jacobian. Is always 0 for this solver
-        as it does not use the Jacobian.
     nlu : int
         Number of LU decompositions. Is always 0 for this solver.
     """
@@ -422,17 +414,10 @@ class DOP853:
 
         self.t_old = None
         self.t = t0
-        self._fun, self.y = check_arguments(fun, y0)
+        self.y = check_arguments(y0)
         self.t_bound = t_bound
 
-        fun_single = self._fun
-
-        def fun(t, y):
-            self.nfev += 1
-            return self.fun_single(t, y)
-
         self.fun = fun
-        self.fun_single = fun_single
 
         self.direction = np.sign(t_bound - t0) if t_bound != t0 else 1
         self.status = "running"

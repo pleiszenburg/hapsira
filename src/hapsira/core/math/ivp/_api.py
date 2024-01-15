@@ -24,9 +24,6 @@ class OdeResult(dict):
         underlying solver. Refer to `message` for details.
     message : str
         Description of the cause of the termination.
-    nfev, njev : int
-        Number of evaluations of the objective functions and of its
-        Jacobian and Hessian.
     t, y, sol, t_events, y_events, nlu : ?
     """
 
@@ -314,10 +311,6 @@ def solve_ivp(
     y_events : list of ndarray or None
         For each value of `t_events`, the corresponding value of the solution.
         None if `events` was None.
-    nfev : int
-        Number of evaluations of the right-hand side.
-    njev : int
-        Number of evaluations of the Jacobian.
     nlu : int
         Number of LU decompositions.
     status : int
@@ -422,8 +415,6 @@ def solve_ivp(
         sol=sol,
         t_events=t_events,
         y_events=y_events,
-        nfev=solver.nfev,
-        njev=solver.njev,
         nlu=solver.nlu,
         status=status,
         message=MESSAGES.get(status, message),

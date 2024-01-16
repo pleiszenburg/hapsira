@@ -1,5 +1,4 @@
-from numba import njit as jit
-import numpy as np
+from math import exp
 
 from .events import line_of_sight_hf
 from .jit import array_to_V_hf, hjit
@@ -9,8 +8,8 @@ from .math.linalg import norm_hf, mul_Vs_hf, mul_VV_hf
 __all__ = [
     "J2_perturbation_hf",
     "J3_perturbation_hf",
-    "atmospheric_drag_exponential",
-    "atmospheric_drag",
+    "atmospheric_drag_exponential_hf",
+    "atmospheric_drag_hf",
     "third_body",
     "radiation_pressure",
 ]
@@ -93,8 +92,8 @@ def J3_perturbation_hf(t0, rr, vv, k, J3, R):
     return a_x * factor, a_y * factor, a_z * factor
 
 
-@jit
-def atmospheric_drag_exponential(t0, state, k, R, C_D, A_over_m, H0, rho0):
+@hjit("V(f,V,V,f,f,f,f,f,f)")
+def atmospheric_drag_exponential_hf(t0, rr, vv, k, R, C_D, A_over_m, H0, rho0):
     r"""Calculates atmospheric drag acceleration (km/s2).
 
     .. math::
@@ -107,8 +106,10 @@ def atmospheric_drag_exponential(t0, state, k, R, C_D, A_over_m, H0, rho0):
     ----------
     t0 : float
         Current time (s)
-    state : numpy.ndarray
-        Six component state vector [x, y, z, vx, vy, vz] (km, km/s).
+    rr : tuple[float,float,float]
+        Vector [x, y, z] (km)
+    vv : tuple[float,float,float]
+        Vector [vx, vy, vz] (km/s)
     k : float
         Standard Gravitational parameter (km^3/s^2).
     R : float
@@ -130,18 +131,17 @@ def atmospheric_drag_exponential(t0, state, k, R, C_D, A_over_m, H0, rho0):
     the atmospheric density model is rho(H) = rho0 x exp(-H / H0)
 
     """
-    H = norm_hf(array_to_V_hf(state[:3]))
+    H = norm_hf(rr)
 
-    v_vec = state[3:]
-    v = norm_hf(array_to_V_hf(v_vec))
+    v = norm_hf(vv)
     B = C_D * A_over_m
-    rho = rho0 * np.exp(-(H - R) / H0)
+    rho = rho0 * exp(-(H - R) / H0)
 
-    return -(1.0 / 2.0) * rho * B * v * v_vec
+    return mul_Vs_hf(vv, -(1.0 / 2.0) * rho * B * v)
 
 
-@jit
-def atmospheric_drag(t0, state, k, C_D, A_over_m, rho):
+@hjit("V(f,V,V,f,f,f,f)")
+def atmospheric_drag_hf(t0, rr, vv, k, C_D, A_over_m, rho):
     r"""Calculates atmospheric drag acceleration (km/s2).
 
     .. math::
@@ -154,8 +154,10 @@ def atmospheric_drag(t0, state, k, C_D, A_over_m, rho):
     ----------
     t0 : float
         Current time (s).
-    state : numpy.ndarray
-        Six component state vector [x, y, z, vx, vy, vz] (km, km/s).
+    rr : tuple[float,float,float]
+        Vector [x, y, z] (km)
+    vv : tuple[float,float,float]
+        Vector [vx, vy, vz] (km/s)
     k : float
         Standard Gravitational parameter (km^3/s^2)
     C_D : float
@@ -171,11 +173,10 @@ def atmospheric_drag(t0, state, k, C_D, A_over_m, rho):
     computed by a model from hapsira.earth.atmosphere
 
     """
-    v_vec = state[3:]
-    v = norm_hf(array_to_V_hf(v_vec))
+    v = norm_hf(vv)
     B = C_D * A_over_m
 
-    return -(1.0 / 2.0) * rho * B * v * v_vec
+    return mul_Vs_hf(vv, -(1.0 / 2.0) * rho * B * v)
 
 
 def third_body(t0, state, k, k_third, perturbation_body):

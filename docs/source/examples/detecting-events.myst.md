@@ -65,7 +65,8 @@ Let's define some natural perturbation conditions for our orbit so that its alti
 
 ```{code-cell}
 from hapsira.constants import H0_earth, rho0_earth
-from hapsira.core.perturbations import atmospheric_drag_exponential
+from hapsira.core.jit import array_to_V_hf
+from hapsira.core.perturbations import atmospheric_drag_exponential_hf
 from hapsira.core.propagation import func_twobody
 
 R = Earth.R.to_value(u.km)
@@ -83,8 +84,8 @@ H0 = H0_earth.to_value(u.km)  # km
 
 def f(t0, u_, k):
     du_kep = func_twobody(t0, u_, k)
-    ax, ay, az = atmospheric_drag_exponential(
-        t0, u_, k, R=R, C_D=C_D, A_over_m=A_over_m, H0=H0, rho0=rho0
+    ax, ay, az = atmospheric_drag_exponential_hf(
+        t0, array_to_V_hf(u_[:3]), array_to_V_hf(u_[3:]), k, R=R, C_D=C_D, A_over_m=A_over_m, H0=H0, rho0=rho0
     )
     du_ad = np.array([0, 0, 0, ax, ay, az])
     return du_kep + du_ad

@@ -15,8 +15,8 @@ from hapsira.core.jit import array_to_V_hf
 from hapsira.core.perturbations import (
     J2_perturbation_hf,
     J3_perturbation_hf,
-    atmospheric_drag,
-    atmospheric_drag_exponential,
+    atmospheric_drag_hf,
+    atmospheric_drag_exponential_hf,
     radiation_pressure,
     third_body,  # pylint: disable=E1120,E1136
 )
@@ -269,8 +269,16 @@ def test_atmospheric_drag_exponential():
 
     def f(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = atmospheric_drag_exponential(
-            t0, u_, k, R=R, C_D=C_D, A_over_m=A_over_m, H0=H0, rho0=rho0
+        ax, ay, az = atmospheric_drag_exponential_hf(
+            t0,
+            array_to_V_hf(u_[:3]),
+            array_to_V_hf(u_[3:]),
+            k,
+            R=R,
+            C_D=C_D,
+            A_over_m=A_over_m,
+            H0=H0,
+            rho0=rho0,
         )
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad
@@ -311,8 +319,16 @@ def test_atmospheric_demise():
 
     def f(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = atmospheric_drag_exponential(
-            t0, u_, k, R=R, C_D=C_D, A_over_m=A_over_m, H0=H0, rho0=rho0
+        ax, ay, az = atmospheric_drag_exponential_hf(
+            t0,
+            array_to_V_hf(u_[:3]),
+            array_to_V_hf(u_[3:]),
+            k,
+            R=R,
+            C_D=C_D,
+            A_over_m=A_over_m,
+            H0=H0,
+            rho0=rho0,
         )
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad
@@ -369,9 +385,10 @@ def test_atmospheric_demise_coesa76():
         H = max(norm(u_[:3]), R)
         rho = coesa76.density((H - R) * u.km).to_value(u.kg / u.km**3)
 
-        ax, ay, az = atmospheric_drag(
+        ax, ay, az = atmospheric_drag_hf(
             t0,
-            u_,
+            array_to_V_hf(u_[:3]),
+            array_to_V_hf(u_[3:]),
             k,
             C_D=C_D,
             A_over_m=A_over_m,

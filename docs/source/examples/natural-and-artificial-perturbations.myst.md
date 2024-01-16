@@ -27,7 +27,7 @@ from hapsira.constants import rho0_earth, H0_earth
 from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
 from hapsira.core.jit import array_to_V_hf
 from hapsira.core.perturbations import (
-    atmospheric_drag_exponential,
+    atmospheric_drag_exponential_hf,
     third_body,
     J2_perturbation_hf,
 )
@@ -68,9 +68,9 @@ tofs = TimeDelta(np.linspace(0 * u.h, 100000 * u.s, num=2000))
 
 def f(t0, state, k):
     du_kep = func_twobody(t0, state, k)
-    ax, ay, az = atmospheric_drag_exponential(
+    ax, ay, az = atmospheric_drag_exponential_hf(
         t0,
-        state,
+        array_to_V_hf(state[:3]), array_to_V_hf(state[3:]),
         k,
         R=R,
         C_D=C_D,
@@ -300,9 +300,9 @@ from numba import njit as jit
 # Add @jit for speed!
 @jit
 def a_d(t0, state, k, J2, R, C_D, A_over_m, H0, rho0):
-    return np.array(J2_perturbation_hf(t0, array_to_V_hf(state[:3]), array_to_V_hf(state[3:]), k, J2, R)) + atmospheric_drag_exponential(
-        t0, state, k, R, C_D, A_over_m, H0, rho0
-    )
+    return np.array(J2_perturbation_hf(t0, array_to_V_hf(state[:3]), array_to_V_hf(state[3:]), k, J2, R)) + np.array(atmospheric_drag_exponential_hf(
+        t0, array_to_V_hf(state[:3]), array_to_V_hf(state[3:]), k, R, C_D, A_over_m, H0, rho0
+    ))
 ```
 
 ```{code-cell} ipython3
@@ -337,9 +337,9 @@ rr3, _ = orbit.to_ephem(
 
 def f(t0, state, k):
     du_kep = func_twobody(t0, state, k)
-    ax, ay, az = atmospheric_drag_exponential(
+    ax, ay, az = atmospheric_drag_exponential_hf(
         t0,
-        state,
+        array_to_V_hf(state[:3]), array_to_V_hf(state[3:]),
         k,
         R=R,
         C_D=C_D,

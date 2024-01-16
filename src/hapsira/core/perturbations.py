@@ -8,7 +8,7 @@ from .math.linalg import norm_hf, mul_Vs_hf, mul_VV_hf
 
 __all__ = [
     "J2_perturbation_hf",
-    "J3_perturbation",
+    "J3_perturbation_hf",
     "atmospheric_drag_exponential",
     "atmospheric_drag",
     "third_body",
@@ -56,16 +56,18 @@ def J2_perturbation_hf(t0, rr, vv, k, J2, R):
     return mul_Vs_hf(mul_VV_hf(a, rr), factor)
 
 
-@jit
-def J3_perturbation(t0, state, k, J3, R):
+@hjit("V(f,V,V,f,f,f)")
+def J3_perturbation_hf(t0, rr, vv, k, J3, R):
     r"""Calculates J3_perturbation acceleration (km/s2).
 
     Parameters
     ----------
     t0 : float
         Current time (s)
-    state : numpy.ndarray
-        Six component state vector [x, y, z, vx, vy, vz] (km, km/s).
+    rr : tuple[float,float,float]
+        Vector [x, y, z] (km)
+    vv : tuple[float,float,float]
+        Vector [vx, vy, vz] (km/s)
     k : float
         Standard Gravitational parameter. (km^3/s^2)
     J3 : float
@@ -77,19 +79,18 @@ def J3_perturbation(t0, state, k, J3, R):
     -----
     The J3 accounts for the oblateness of the attractor. The formula is given in
     Howard Curtis, problem 12.8
-    This perturbation has not been fully validated, see https://github.com/hapsira/hapsira/pull/398
+    This perturbation has not been fully validated, see https://github.com/poliastro/poliastro/pull/398
 
     """
-    r_vec = state[:3]
-    r = norm_hf(array_to_V_hf(r_vec))
+    r = norm_hf(rr)
 
     factor = (1.0 / 2.0) * k * J3 * (R**3) / (r**5)
-    cos_phi = r_vec[2] / r
+    cos_phi = rr[2] / r
 
-    a_x = 5.0 * r_vec[0] / r * (7.0 * cos_phi**3 - 3.0 * cos_phi)
-    a_y = 5.0 * r_vec[1] / r * (7.0 * cos_phi**3 - 3.0 * cos_phi)
+    a_x = 5.0 * rr[0] / r * (7.0 * cos_phi**3 - 3.0 * cos_phi)
+    a_y = 5.0 * rr[1] / r * (7.0 * cos_phi**3 - 3.0 * cos_phi)
     a_z = 3.0 * (35.0 / 3.0 * cos_phi**4 - 10.0 * cos_phi**2 + 1)
-    return np.array([a_x, a_y, a_z]) * factor
+    return a_x * factor, a_y * factor, a_z * factor
 
 
 @jit

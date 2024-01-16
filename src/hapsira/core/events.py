@@ -1,11 +1,20 @@
+from math import acos
+
 from numba import njit as jit
 import numpy as np
 
-from hapsira.core.elements import coe_rotation_matrix_hf, rv2coe_hf, RV2COE_TOL
-from hapsira.core.util import planetocentric_to_AltAz_hf
+from .elements import coe_rotation_matrix_hf, rv2coe_hf, RV2COE_TOL
+from .jit import array_to_V_hf, hjit, gjit
+from .math.linalg import norm_hf, matmul_VV_hf
+from .util import planetocentric_to_AltAz_hf
 
-from .jit import array_to_V_hf
-from .math.linalg import norm_hf
+
+__all__ = [
+    "eclipse_function",
+    "line_of_sight_hf",
+    "line_of_sight_gf",
+    "elevation_function",
+]
 
 
 @jit
@@ -61,8 +70,8 @@ def eclipse_function(k, u_, r_sec, R_sec, R_primary, umbra=True):
     return shadow_function
 
 
-@jit
-def line_of_sight(r1, r2, R):
+@hjit("f(V,V,f)")
+def line_of_sight_hf(r1, r2, R):
     """Calculates the line of sight condition between two position vectors, r1 and r2.
 
     Parameters
@@ -81,14 +90,23 @@ def line_of_sight(r1, r2, R):
         located by r1 and r2, else negative.
 
     """
-    r1_norm = norm_hf(array_to_V_hf(r1))
-    r2_norm = norm_hf(array_to_V_hf(r2))
+    r1_norm = norm_hf(r1)
+    r2_norm = norm_hf(r2)
 
-    theta = np.arccos((r1 @ r2) / r1_norm / r2_norm)
-    theta_1 = np.arccos(R / r1_norm)
-    theta_2 = np.arccos(R / r2_norm)
+    theta = acos(matmul_VV_hf(r1, r2) / r1_norm / r2_norm)
+    theta_1 = acos(R / r1_norm)
+    theta_2 = acos(R / r2_norm)
 
     return (theta_1 + theta_2) - theta
+
+
+@gjit("void(f[:],f[:],f,f[:])", "(n),(n),()->()")
+def line_of_sight_gf(r1, r2, R, delta_theta):
+    """
+    Vectorized line_of_sight
+    """
+
+    delta_theta[0] = line_of_sight_hf(array_to_V_hf(r1), array_to_V_hf(r2), R)
 
 
 @jit

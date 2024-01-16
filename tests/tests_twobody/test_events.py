@@ -7,7 +7,7 @@ import pytest
 
 from hapsira.bodies import Earth
 from hapsira.constants import H0_earth, rho0_earth
-from hapsira.core.events import line_of_sight
+from hapsira.core.events import line_of_sight_gf
 from hapsira.core.perturbations import atmospheric_drag_exponential
 from hapsira.core.propagation import func_twobody
 from hapsira.twobody import Orbit
@@ -330,8 +330,8 @@ def test_line_of_sight():
     r_sun = np.array([122233179, -76150708, 33016374]) << u.km
     R = Earth.R.to(u.km).value
 
-    los = line_of_sight(r1.value, r2.value, R)
-    los_with_sun = line_of_sight(r1.value, r_sun.value, R)
+    los = line_of_sight_gf(r1.value, r2.value, R)
+    los_with_sun = line_of_sight_gf(r1.value, r_sun.value, R)
 
     assert los < 0  # No LOS condition.
     assert los_with_sun >= 0  # LOS condition.

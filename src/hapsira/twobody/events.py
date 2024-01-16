@@ -7,7 +7,7 @@ import numpy as np
 from hapsira.core.math.linalg import norm_vf
 from hapsira.core.events import (
     eclipse_function as eclipse_function_fast,
-    line_of_sight as line_of_sight_fast,
+    line_of_sight_gf,
 )
 from hapsira.core.spheroid_location import (
     cartesian_to_ellipsoidal as cartesian_to_ellipsoidal_fast,
@@ -281,5 +281,5 @@ class LosEvent(Event):
         pos_coord = self._pos_coords.pop(0) if self._pos_coords else self._last_coord
 
         # Need to cast `pos_coord` to array since `norm` inside numba only works for arrays, not lists.
-        delta_angle = line_of_sight_fast(u_[:3], np.array(pos_coord), self._R)
+        delta_angle = line_of_sight_gf(u_[:3], np.array(pos_coord), self._R)
         return delta_angle

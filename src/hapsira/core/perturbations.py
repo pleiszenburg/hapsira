@@ -1,7 +1,7 @@
 from numba import njit as jit
 import numpy as np
 
-from hapsira.core.events import line_of_sight as line_of_sight_fast
+from hapsira.core.events import line_of_sight_hf
 
 from .jit import array_to_V_hf
 from .math.linalg import norm_hf
@@ -240,5 +240,5 @@ def radiation_pressure(t0, state, k, R, C_R, A_over_m, Wdivc_s, star):
     r_sat = state[:3]
     P_s = Wdivc_s / (norm_hf(array_to_V_hf(r_star)) ** 2)
 
-    nu = float(line_of_sight_fast(r_sat, r_star, R) > 0)
+    nu = float(line_of_sight_hf(array_to_V_hf(r_sat), array_to_V_hf(r_star), R) > 0)
     return -nu * P_s * (C_R * A_over_m) * r_star / norm_hf(array_to_V_hf(r_star))

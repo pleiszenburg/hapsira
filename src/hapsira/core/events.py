@@ -2,7 +2,7 @@ from numba import njit as jit
 import numpy as np
 
 from hapsira.core.elements import coe_rotation_matrix_hf, rv2coe_hf, RV2COE_TOL
-from hapsira.core.util import planetocentric_to_AltAz
+from hapsira.core.util import planetocentric_to_AltAz_hf
 
 from .jit import array_to_V_hf
 from .math.linalg import norm_hf
@@ -129,7 +129,7 @@ def elevation_function(k, u_, phi, theta, R, R_p, H):
     # Position of satellite with respect to a point on attractor.
     rho = np.subtract(u_[:3], coords)
 
-    rot_matrix = planetocentric_to_AltAz(theta, phi)
+    rot_matrix = np.array(planetocentric_to_AltAz_hf(theta, phi))
 
     new_rho = rot_matrix @ rho
     new_rho = new_rho / np.linalg.norm(new_rho)

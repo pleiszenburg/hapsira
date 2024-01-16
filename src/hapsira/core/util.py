@@ -11,7 +11,7 @@ __all__ = [
     "rotation_matrix_gf",
     "alinspace",
     "spherical_to_cartesian",
-    "planetocentric_to_AltAz",
+    "planetocentric_to_AltAz_hf",
 ]
 
 
@@ -106,8 +106,8 @@ def spherical_to_cartesian(v):
     return norm_vecs * np.stack((x, y, z), axis=-1)
 
 
-@jit
-def planetocentric_to_AltAz(theta, phi):
+@hjit("M(f,f)")
+def planetocentric_to_AltAz_hf(theta, phi):
     r"""Defines transformation matrix to convert from Planetocentric coordinate system
     to the Altitude-Azimuth system.
 
@@ -127,23 +127,25 @@ def planetocentric_to_AltAz(theta, phi):
 
     Returns
     -------
-    t_matrix: numpy.ndarray
+    t_matrix: tuple[tuple[float,float,float],...]
         Transformation matrix
     """
     # Transformation matrix for converting planetocentric equatorial coordinates to topocentric horizon system.
-    t_matrix = np.array(
-        [
-            [-np.sin(theta), np.cos(theta), 0],
-            [
-                -np.sin(phi) * np.cos(theta),
-                -np.sin(phi) * np.sin(theta),
-                np.cos(phi),
-            ],
-            [
-                np.cos(phi) * np.cos(theta),
-                np.cos(phi) * np.sin(theta),
-                np.sin(phi),
-            ],
-        ]
+    st = sin(theta)
+    ct = cos(theta)
+    sp = sin(phi)
+    cp = cos(phi)
+
+    return (
+        (-st, ct, 0.0),
+        (
+            -sp * ct,
+            -sp * st,
+            cp,
+        ),
+        (
+            cp * ct,
+            cp * st,
+            sp,
+        ),
     )
-    return t_matrix

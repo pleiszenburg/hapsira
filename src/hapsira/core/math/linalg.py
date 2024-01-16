@@ -10,6 +10,7 @@ __all__ = [
     "matmul_VM_hf",
     "matmul_VV_hf",
     "mul_Vs_hf",
+    "mul_VV_hf",
     "norm_hf",
     "norm_vf",
     "sign_hf",
@@ -85,6 +86,11 @@ def matmul_VV_hf(a, b):
 @hjit("V(V,f)")
 def mul_Vs_hf(v, s):
     return v[0] * s, v[1] * s, v[2] * s
+
+
+@hjit("V(V,V)")
+def mul_VV_hf(a, b):
+    return a[0] * b[0], a[1] * b[1], a[2] * b[2]
 
 
 @hjit("f(V)")

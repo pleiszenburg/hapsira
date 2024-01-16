@@ -6,7 +6,8 @@ from astropy import units as u
 import numpy as np
 
 from hapsira.bodies import Earth
-from hapsira.core.perturbations import J2_perturbation
+from hapsira.core.jit import array_to_V_hf
+from hapsira.core.perturbations import J2_perturbation_hf
 from hapsira.core.propagation import func_twobody
 from hapsira.earth.enums import EarthGravity
 from hapsira.twobody.propagation import CowellPropagator
@@ -76,17 +77,21 @@ class EarthSatellite:
         ad_kwargs: Dict[object, dict] = {}
         perturbations: Dict[object, dict] = {}
 
-        def ad(t0, state, k, perturbations):
+        def ad(t0, state, k, perturbations):  # TODO compile
+            rr, vv = array_to_V_hf(state[:3]), array_to_V_hf(state[3:])
             if perturbations:
                 return np.sum(
-                    [f(t0=t0, state=state, k=k, **p) for f, p in perturbations.items()],
+                    [
+                        f(t0=t0, rr=rr, vv=vv, k=k, **p)
+                        for f, p in perturbations.items()
+                    ],
                     axis=0,
                 )
             else:
                 return np.array([0, 0, 0])
 
-        if gravity is EarthGravity.J2:
-            perturbations[J2_perturbation] = {
+        if gravity is EarthGravity.J2:  # TODO move into compiled `ad` function
+            perturbations[J2_perturbation_hf] = {
                 "J2": Earth.J2.value,
                 "R": Earth.R.to_value(u.km),
             }
@@ -96,7 +101,7 @@ class EarthSatellite:
             # TODO: This whole function probably needs a refactoring
             raise NotImplementedError
 
-        def f(t0, state, k):
+        def f(t0, state, k):  # TODO compile
             du_kep = func_twobody(t0, state, k)
             ax, ay, az = ad(t0, state, k, perturbations)
             du_ad = np.array([0, 0, 0, ax, ay, az])

@@ -11,8 +11,9 @@ import pytest
 from hapsira.bodies import Earth, Moon, Sun
 from hapsira.constants import H0_earth, Wdivc_sun, rho0_earth
 from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
+from hapsira.core.jit import array_to_V_hf
 from hapsira.core.perturbations import (
-    J2_perturbation,
+    J2_perturbation_hf,
     J3_perturbation,
     atmospheric_drag,
     atmospheric_drag_exponential,
@@ -40,8 +41,13 @@ def test_J2_propagation_Earth():
 
     def f(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = J2_perturbation(
-            t0, u_, k, J2=Earth.J2.value, R=Earth.R.to(u.km).value
+        ax, ay, az = J2_perturbation_hf(
+            t0,
+            array_to_V_hf(u_[:3]),
+            array_to_V_hf(u_[3:]),
+            k,
+            J2=Earth.J2.value,
+            R=Earth.R.to(u.km).value,
         )
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad
@@ -123,8 +129,13 @@ def test_J3_propagation_Earth(test_params):
 
     def f(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = J2_perturbation(
-            t0, u_, k, J2=Earth.J2.value, R=Earth.R.to(u.km).value
+        ax, ay, az = J2_perturbation_hf(
+            t0,
+            array_to_V_hf(u_[:3]),
+            array_to_V_hf(u_[3:]),
+            k,
+            J2=Earth.J2.value,
+            R=Earth.R.to(u.km).value,
         )
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad
@@ -138,8 +149,13 @@ def test_J3_propagation_Earth(test_params):
 
     def f_combined(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = J2_perturbation(
-            t0, u_, k, J2=Earth.J2.value, R=Earth.R.to_value(u.km)
+        ax, ay, az = J2_perturbation_hf(
+            t0,
+            array_to_V_hf(u_[:3]),
+            array_to_V_hf(u_[3:]),
+            k,
+            J2=Earth.J2.value,
+            R=Earth.R.to_value(u.km),
         ) + J3_perturbation(t0, u_, k, J3=Earth.J3.value, R=Earth.R.to_value(u.km))
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad

@@ -2,12 +2,12 @@ from numba import njit as jit
 import numpy as np
 
 from .events import line_of_sight_hf
-from .jit import array_to_V_hf
-from .math.linalg import norm_hf
+from .jit import array_to_V_hf, hjit
+from .math.linalg import norm_hf, mul_Vs_hf, mul_VV_hf
 
 
 __all__ = [
-    "J2_perturbation",
+    "J2_perturbation_hf",
     "J3_perturbation",
     "atmospheric_drag_exponential",
     "atmospheric_drag",
@@ -16,8 +16,8 @@ __all__ = [
 ]
 
 
-@jit
-def J2_perturbation(t0, state, k, J2, R):
+@hjit("V(f,V,V,f,f,f)")
+def J2_perturbation_hf(t0, rr, vv, k, J2, R):
     r"""Calculates J2_perturbation acceleration (km/s2).
 
     .. math::
@@ -30,8 +30,10 @@ def J2_perturbation(t0, state, k, J2, R):
     ----------
     t0 : float
         Current time (s)
-    state : numpy.ndarray
-        Six component state vector [x, y, z, vx, vy, vz] (km, km/s).
+    rr : tuple[float,float,float]
+        Vector [x, y, z] (km)
+    vv : tuple[float,float,float]
+        Vector [vx, vy, vz] (km/s)
     k : float
         Standard Gravitational parameter. (km^3/s^2)
     J2 : float
@@ -45,15 +47,13 @@ def J2_perturbation(t0, state, k, J2, R):
     Howard Curtis, (12.30)
 
     """
-    r_vec = state[:3]
-    r = norm_hf(array_to_V_hf(r_vec))
+    r = norm_hf(rr)
 
     factor = (3.0 / 2.0) * k * J2 * (R**2) / (r**5)
 
-    a_x = 5.0 * r_vec[2] ** 2 / r**2 - 1
-    a_y = 5.0 * r_vec[2] ** 2 / r**2 - 1
-    a_z = 5.0 * r_vec[2] ** 2 / r**2 - 3
-    return np.array([a_x, a_y, a_z]) * r_vec * factor
+    a_base = 5.0 * rr[2] ** 2 / r**2
+    a = a_base - 1, a_base - 1, a_base - 3
+    return mul_Vs_hf(mul_VV_hf(a, rr), factor)
 
 
 @jit

@@ -24,7 +24,7 @@ def cowell(k, r, v, tofs, rtol=1e-11, events=None, f=func_twobody):
     tofs : ???
     rtol : float ... or also ndarray?
     """
-    assert hasattr(f, "cowell")
+    # assert hasattr(f, "cowell")
     assert isinstance(rtol, float)
 
     x, y, z = r

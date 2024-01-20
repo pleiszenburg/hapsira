@@ -31,62 +31,47 @@ def _check_broadcast_up_to(arr_from, shape_to, name):
 
 
 class interp1d:
-    # __slots__ = ("_y_axis", "_y_extra_shape", "dtype")
-
     def __init__(
         self,
         x,
         y,
-        axis=-1,
-        copy=True,
-        bounds_error=None,
-        fill_value=np.nan,
-        assume_sorted=False,
     ):
-        self._y_axis = axis
+        self._y_axis = -1
         self._y_extra_shape = None
-        self.dtype = None
-        if y is not None:
-            self._set_yi(y, xi=x, axis=axis)
+        self._set_yi(y, xi=x, axis=-1)
 
-        self.bounds_error = bounds_error  # used by fill_value setter
-        self.copy = copy
+        x = array(x, copy=True)
+        y = array(y, copy=True)
 
-        x = array(x, copy=self.copy)
-        y = array(y, copy=self.copy)
-
-        if not assume_sorted:  # TODO check with assert?
-            ind = np.argsort(x, kind="mergesort")
-            x = x[ind]
-            y = np.take(y, ind, axis=axis)
+        ind = np.argsort(x, kind="mergesort")
+        x = x[ind]
+        y = np.take(y, ind, axis=-1)
 
         assert x.ndim == 1
         assert y.ndim != 0
 
         # Backward compatibility
-        self.axis = axis % y.ndim
+        self.axis = -1 % y.ndim
 
         # Interpolation goes internally along the first axis
         self.y = y
         self._y = self._reshape_yi(self.y)
         self.x = x
-        del y, x  # clean up namespace to prevent misuse; use attributes
 
-        minval = 1
+        assert len(self.x) >= 1
 
-        # Check if we can delegate to numpy.interp (2x-10x faster). TODO
-        np_dtypes = (np.dtype(np.float64), np.dtype(int))
-        cond = self.x.dtype in np_dtypes and self.y.dtype in np_dtypes
-        cond = cond and self.y.ndim == 1
-
-        if cond:
-            self._call = self.__class__._call_linear_np
-        else:
-            self._call = self.__class__._call_linear
-
-        assert len(self.x) >= minval
-
-        self.fill_value = fill_value  # calls the setter, can modify bounds_err
+        broadcast_shape = self.y.shape[: self.axis] + self.y.shape[self.axis + 1 :]
+        if len(broadcast_shape) == 0:
+            broadcast_shape = (1,)
+        # it's either a pair (_below_range, _above_range) or a single value
+        # for both above and below range
+        fill_value = np.asarray(np.nan)
+        below_above = [
+            _check_broadcast_up_to(fill_value, broadcast_shape, "fill_value")
+        ] * 2
+        self._fill_value_below, self._fill_value_above = below_above
+        # backwards compat: fill_value was a public attr; make it writeable
+        self._fill_value_orig = fill_value
 
     def __call__(self, x):
         x, x_shape = self._prepare_x(x)
@@ -123,15 +108,6 @@ class interp1d:
             y = y.transpose(s)
         return y
 
-    def _set_dtype(self, dtype, union=False):
-        if np.issubdtype(dtype, np.complexfloating) or np.issubdtype(
-            self.dtype, np.complexfloating
-        ):
-            self.dtype = np.complex128
-        else:
-            if not union or self.dtype != np.complex128:
-                self.dtype = np.float64
-
     def _set_yi(self, yi, xi=None, axis=None):
         if axis is None:
             axis = self._y_axis
@@ -150,45 +126,10 @@ class interp1d:
 
         self._y_axis = axis % yi.ndim
         self._y_extra_shape = yi.shape[: self._y_axis] + yi.shape[self._y_axis + 1 :]
-        self.dtype = None
-        self._set_dtype(yi.dtype)
 
-    @property
-    def fill_value(self):
-        """The fill value."""
-        # backwards compat: mimic a public attribute
-        return self._fill_value_orig
+    def _evaluate(self, x_new):
+        x_new = asarray(x_new)
 
-    @fill_value.setter
-    def fill_value(self, fill_value):
-        broadcast_shape = self.y.shape[: self.axis] + self.y.shape[self.axis + 1 :]
-        if len(broadcast_shape) == 0:
-            broadcast_shape = (1,)
-        # it's either a pair (_below_range, _above_range) or a single value
-        # for both above and below range
-        if isinstance(fill_value, tuple) and len(fill_value) == 2:
-            below_above = [np.asarray(fill_value[0]), np.asarray(fill_value[1])]
-            names = ("fill_value (below)", "fill_value (above)")
-            for ii in range(2):
-                below_above[ii] = _check_broadcast_up_to(
-                    below_above[ii], broadcast_shape, names[ii]
-                )
-        else:
-            fill_value = np.asarray(fill_value)
-            below_above = [
-                _check_broadcast_up_to(fill_value, broadcast_shape, "fill_value")
-            ] * 2
-        self._fill_value_below, self._fill_value_above = below_above
-        if self.bounds_error is None:
-            self.bounds_error = True
-        # backwards compat: fill_value was a public attr; make it writeable
-        self._fill_value_orig = fill_value
-
-    def _call_linear_np(self, x_new):
-        # Note that out-of-bounds values are taken care of in self._evaluate
-        return np.interp(x_new, self.x, self.y)
-
-    def _call_linear(self, x_new):
         # 2. Find where in the original data, the values to interpolate
         #    would be inserted.
         #    Note: If x_new[n] == x[m], then m is returned by searchsorted.
@@ -215,20 +156,13 @@ class interp1d:
         # 5. Calculate the actual value for each entry in x_new.
         y_new = slope * (x_new - x_lo)[:, None] + y_lo
 
-        return y_new
-
-    def _evaluate(self, x_new):
-        # 1. Handle values in x_new that are outside of x. Throw error,
-        #    or return a list of mask array indicating the outofbounds values.
-        #    The behavior is set by the bounds_error variable.
-        x_new = asarray(x_new)
-        y_new = self._call(self, x_new)
         below_bounds, above_bounds = self._check_bounds(x_new)
         if len(y_new) > 0:
             # Note fill_value must be broadcast up to the proper size
             # and flattened to work here
             y_new[below_bounds] = self._fill_value_below
             y_new[above_bounds] = self._fill_value_above
+
         return y_new
 
     def _check_bounds(self, x_new):
@@ -250,13 +184,13 @@ class interp1d:
         below_bounds = x_new < self.x[0]
         above_bounds = x_new > self.x[-1]
 
-        if self.bounds_error and below_bounds.any():
+        if below_bounds.any():
             below_bounds_value = x_new[np.argmax(below_bounds)]
             raise ValueError(
                 f"A value ({below_bounds_value}) in x_new is below "
                 f"the interpolation range's minimum value ({self.x[0]})."
             )
-        if self.bounds_error and above_bounds.any():
+        if above_bounds.any():
             above_bounds_value = x_new[np.argmax(above_bounds)]
             raise ValueError(
                 f"A value ({above_bounds_value}) in x_new is above "

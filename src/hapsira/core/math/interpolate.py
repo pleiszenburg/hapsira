@@ -36,6 +36,11 @@ class interp1d:
         x,
         y,
     ):
+        assert x.ndim == 1
+        assert y.ndim == 2
+        assert y.shape[0] == 3
+        assert y.shape[1] == x.shape[0]
+
         self._y_axis = -1
         self._y_extra_shape = None
         self._set_yi(y, xi=x, axis=-1)
@@ -43,11 +48,11 @@ class interp1d:
         x = array(x, copy=True)
         y = array(y, copy=True)
 
-        ind = np.argsort(x, kind="mergesort")
-        x = x[ind]
-        y = np.take(y, ind, axis=-1)
+        # ind = np.argsort(x, kind="mergesort")
+        # x = x[ind]
+        # y = np.take(y, ind, axis=-1)
 
-        assert x.ndim == 1
+        # assert x.ndim == 1
         assert y.ndim != 0
 
         # Backward compatibility
@@ -81,6 +86,7 @@ class interp1d:
     def _prepare_x(self, x):
         """Reshape input x array to 1-D"""
         x = array(x)
+        assert x.shape == tuple()
         x_shape = x.shape
         return x.ravel(), x_shape
 
@@ -106,6 +112,7 @@ class interp1d:
                 + list(range(nx + self._y_axis, nx + ny))
             )
             y = y.transpose(s)
+        assert y.shape == (3,)
         return y
 
     def _set_yi(self, yi, xi=None, axis=None):

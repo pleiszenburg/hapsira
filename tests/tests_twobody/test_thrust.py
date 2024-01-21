@@ -127,12 +127,12 @@ def test_sso_disposal_numerical(ecc_0, ecc_f):
         argp=0 * u.deg,
         nu=0 * u.deg,
     )
-    a_d, _, t_f = change_ecc_quasioptimal(s0, ecc_f, f)
+    a_d_hf, _, t_f = change_ecc_quasioptimal(s0, ecc_f, f)
 
     # Propagate orbit
     def f_ss0_disposal(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
+        ax, ay, az = a_d_hf(t0, array_to_V_hf(u_[:3]), array_to_V_hf(u_[3:]), k)
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad
 

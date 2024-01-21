@@ -11,7 +11,7 @@ from astropy.coordinates import (
 from astroquery.jplhorizons import Horizons
 
 from hapsira.bodies import Earth
-from hapsira.core.math.interpolate import interp1d, sinc_interp, spline_interp
+from hapsira.core.math.interpolate import interp_hb, sinc_interp, spline_interp
 from hapsira.frames import Planes
 from hapsira.frames.util import get_frame
 from hapsira.twobody.sampling import EpochsArray
@@ -43,7 +43,7 @@ def build_ephem_interpolant(body, epochs, attractor=Earth):
     """
     ephem = Ephem.from_body(body, epochs, attractor=attractor)
 
-    interpolant = interp1d(
+    interpolant = interp_hb(
         (epochs - epochs[0]).to_value(u.s),
         ephem._coordinates.xyz.to_value(u.km),
     )

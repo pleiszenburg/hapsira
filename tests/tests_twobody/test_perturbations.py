@@ -1,5 +1,3 @@
-import functools
-
 from astropy import units as u
 from astropy.coordinates import Angle
 from astropy.tests.helper import assert_quantity_allclose
@@ -11,7 +9,8 @@ import pytest
 from hapsira.bodies import Earth, Moon, Sun
 from hapsira.constants import H0_earth, Wdivc_sun, rho0_earth
 from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
-from hapsira.core.jit import array_to_V_hf
+from hapsira.core.jit import array_to_V_hf, hjit
+from hapsira.core.math.linalg import mul_Vs_hf, norm_hf
 from hapsira.core.perturbations import (
     J2_perturbation_hf,
     J3_perturbation_hf,
@@ -665,12 +664,7 @@ def sun_r():
     tof = 600 * u.day
     epoch = Time(j_date, format="jd", scale="tdb")
     ephem_epochs = time_range(epoch, num_values=164, end=epoch + tof)
-    return build_ephem_interpolant(Sun, ephem_epochs)
-
-
-def normalize_to_Curtis(t0, sun_r):
-    r = sun_r(t0)
-    return 149600000 * r / norm(r)
+    return build_ephem_interpolant(Sun, ephem_epochs)  # returns hf
 
 
 @pytest.mark.slow
@@ -702,8 +696,12 @@ def test_solar_pressure(t_days, deltas_expected, sun_r):
             nu=343.4268 * u.deg,
             epoch=epoch,
         )
+
     # In Curtis, the mean distance to Sun is used. In order to validate against it, we have to do the same thing
-    sun_normalized = functools.partial(normalize_to_Curtis, sun_r=sun_r)
+    @hjit("V(f)")
+    def sun_normalized_hf(t0):
+        r = sun_r(t0)  # sun_r is hf, returns V
+        return mul_Vs_hf(r, 149600000 / norm_hf(r))
 
     def f(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
@@ -715,7 +713,7 @@ def test_solar_pressure(t_days, deltas_expected, sun_r):
             C_R=2.0,
             A_over_m=2e-4 / 100,
             Wdivc_s=Wdivc_sun.value,
-            star=sun_normalized,
+            star=sun_normalized_hf,
         )
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad

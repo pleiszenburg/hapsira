@@ -1,5 +1,7 @@
 from math import exp
 
+import numpy as np
+
 from .events import line_of_sight_hf
 from .jit import array_to_V_hf, hjit
 from .math.linalg import norm_hf, mul_Vs_hf, mul_VV_hf
@@ -206,7 +208,7 @@ def third_body(t0, state, k, k_third, perturbation_body):
     the gravity from the Moon acting on a small satellite.
 
     """
-    body_r = perturbation_body(t0)
+    body_r = np.array(perturbation_body(t0))
     delta_r = body_r - state[:3]
     return (
         k_third * delta_r / norm_hf(array_to_V_hf(delta_r)) ** 3
@@ -247,7 +249,7 @@ def radiation_pressure(t0, state, k, R, C_R, A_over_m, Wdivc_s, star):
     Howard Curtis, section 12.9
 
     """
-    r_star = star(t0)
+    r_star = np.array(star(t0))
     r_sat = state[:3]
     P_s = Wdivc_s / (norm_hf(array_to_V_hf(r_star)) ** 2)
 

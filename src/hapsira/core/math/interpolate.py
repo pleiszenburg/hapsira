@@ -41,35 +41,18 @@ class interp1d:
         assert y.shape[0] == 3
         assert y.shape[1] == x.shape[0]
 
-        self._y_axis = -1
-        self._y_extra_shape = None
-        self._set_yi(y, xi=x, axis=-1)
+        self._y_axis = 1
+        self._y_extra_shape = (3,)
 
-        x = array(x, copy=True)
-        y = array(y, copy=True)
+        self.y = array(y, copy=True)
+        self.x = array(x, copy=True)
 
-        # ind = np.argsort(x, kind="mergesort")
-        # x = x[ind]
-        # y = np.take(y, ind, axis=-1)
-
-        # assert x.ndim == 1
-        assert y.ndim != 0
-
-        # Backward compatibility
-        self.axis = -1 % y.ndim
-
-        # Interpolation goes internally along the first axis
-        self.y = y
-        self._y = self._reshape_yi(self.y)
-        self.x = x
+        y = np.moveaxis(np.asarray(y), 1, 0)
+        self._y = y.reshape((y.shape[0], -1))
 
         assert len(self.x) >= 1
 
-        broadcast_shape = self.y.shape[: self.axis] + self.y.shape[self.axis + 1 :]
-        if len(broadcast_shape) == 0:
-            broadcast_shape = (1,)
-        # it's either a pair (_below_range, _above_range) or a single value
-        # for both above and below range
+        broadcast_shape = (3,)
         fill_value = np.asarray(np.nan)
         below_above = [
             _check_broadcast_up_to(fill_value, broadcast_shape, "fill_value")
@@ -90,16 +73,6 @@ class interp1d:
         x_shape = x.shape
         return x.ravel(), x_shape
 
-    def _reshape_yi(self, yi, check=False):
-        yi = np.moveaxis(np.asarray(yi), self._y_axis, 0)
-        if check and yi.shape[1:] != self._y_extra_shape:
-            ok_shape = "{!r} + (N,) + {!r}".format(
-                self._y_extra_shape[-self._y_axis :],
-                self._y_extra_shape[: -self._y_axis],
-            )
-            raise ValueError("Data must be of shape %s" % ok_shape)
-        return yi.reshape((yi.shape[0], -1))
-
     def _finish_y(self, y, x_shape):
         """Reshape interpolated y back to an N-D array similar to initial y"""
         y = y.reshape(x_shape + self._y_extra_shape)
@@ -114,25 +87,6 @@ class interp1d:
             y = y.transpose(s)
         assert y.shape == (3,)
         return y
-
-    def _set_yi(self, yi, xi=None, axis=None):
-        if axis is None:
-            axis = self._y_axis
-        if axis is None:
-            raise ValueError("no interpolation axis specified")
-
-        yi = np.asarray(yi)
-
-        shape = yi.shape
-        if shape == ():
-            shape = (1,)
-        if xi is not None and shape[axis] != len(xi):
-            raise ValueError(
-                "x and y arrays must be equal in length along " "interpolation axis."
-            )
-
-        self._y_axis = axis % yi.ndim
-        self._y_extra_shape = yi.shape[: self._y_axis] + yi.shape[self._y_axis + 1 :]
 
     def _evaluate(self, x_new):
         x_new = asarray(x_new)

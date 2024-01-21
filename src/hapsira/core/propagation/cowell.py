@@ -5,11 +5,11 @@ from ..math.ivp import solve_ivp
 from ..propagation.base import func_twobody
 
 
-def cowell_jit(func):
+def cowelljit(func):
     """
     Wrapper for hjit to track funcs for cowell
     """
-    compiled = hjit("S(f,S,f)")(func)
+    compiled = hjit("Tuple([V,V])(f,V,V,f)")(func)
     compiled.cowell = None  # for debugging
     return compiled
 

@@ -1,6 +1,6 @@
 from math import atan2, cos, pi, sin, tan
 
-from ..jit import hjit
+from ..jit import hjit, gjit
 from ..elements import circular_velocity_hf
 from ..math.linalg import add_VV_hf, cross_VV_hf, div_Vs_hf, mul_Vs_hf, norm_hf, sign_hf
 
@@ -30,6 +30,15 @@ def _compute_parameters_hf(k, a_0, a_f, inc_0, inc_f):
     return V_0, V_f, beta_0_
 
 
+@gjit("void(f,f,f,f,f,f[:],f[:],f[:])", "(),(),(),(),()->(),(),()")
+def _compute_parameters_gf(k, a_0, a_f, inc_0, inc_f, V_0, V_f, beta_0_):
+    """
+    Vectorized compute_parameters
+    """
+
+    V_0[0], V_f[0], beta_0_[0] = _compute_parameters_hf(k, a_0, a_f, inc_0, inc_f)
+
+
 @hjit("f(f,f,f,f,f)")
 def _delta_V_hf(V_0, V_f, beta_0, inc_0, inc_f):
     """Compute required increment of velocity."""
@@ -47,6 +56,15 @@ def _extra_quantities_hf(k, a_0, a_f, inc_0, inc_f, f):
     t_f_ = delta_V / f
 
     return delta_V, t_f_
+
+
+@gjit("void(f,f,f,f,f,f,f[:],f[:])", "(),(),(),(),(),()->(),()")
+def _extra_quantities_gf(k, a_0, a_f, inc_0, inc_f, f, delta_V, t_f_):
+    """
+    Vectorized extra_quantities
+    """
+
+    delta_V[0], t_f_[0] = _extra_quantities_hf(k, a_0, a_f, inc_0, inc_f, f)
 
 
 @hjit("f(f,f,f,f)")
@@ -78,7 +96,7 @@ def change_a_inc_hb(k, a_0, a_f, inc_0, inc_f, f):
     Returns
     -------
     a_d : function
-    delta_V : numpy.ndarray
+    delta_V : float
     t_f : float
 
     Notes
@@ -87,12 +105,14 @@ def change_a_inc_hb(k, a_0, a_f, inc_0, inc_f, f):
 
     References
     ----------
-    * Edelbaum, T. N. "Propulsion Requirements delta_Vfor Controllable
+    * Edelbaum, T. N. "Propulsion Requirements delta_V for Controllable
       Satellites", 1961.
     * Kéchichian, J. A. "Reformulation of Edelbaum's Low-Thrust
       Transfer Problem Using Optimal Control Theory", 1997.
     """
-    V_0, _, beta_0_ = _compute_parameters_hf(k, a_0, a_f, inc_0, inc_f)
+    V_0, _, beta_0_ = _compute_parameters_gf(  # pylint: disable=E1120,E0633
+        k, a_0, a_f, inc_0, inc_f
+    )
 
     @hjit("V(f,V,V,f)")
     def a_d_hf(t0, rr, vv, k):
@@ -107,5 +127,7 @@ def change_a_inc_hb(k, a_0, a_f, inc_0, inc_f, f):
         )
         return accel_v
 
-    delta_V, t_f = _extra_quantities_hf(k, a_0, a_f, inc_0, inc_f, f)
+    delta_V, t_f = _extra_quantities_gf(  # pylint: disable=E1120,E0633
+        k, a_0, a_f, inc_0, inc_f, f
+    )
     return a_d_hf, delta_V, t_f

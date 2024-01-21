@@ -1,8 +1,6 @@
 from astropy import units as u
 
-from hapsira.core.thrust.change_a_inc import (
-    change_a_inc as change_a_inc_fast,
-)
+from hapsira.core.thrust.change_a_inc import change_a_inc_hb
 
 
 def change_a_inc(k, a_0, a_f, inc_0, inc_f, f):
@@ -40,7 +38,7 @@ def change_a_inc(k, a_0, a_f, inc_0, inc_f, f):
     * Kéchichian, J. A. "Reformulation of Edelbaum's Low-Thrust
       Transfer Problem Using Optimal Control Theory", 1997.
     """
-    a_d, delta_V, t_f = change_a_inc_fast(
+    a_d_hf, delta_V, t_f = change_a_inc_hb(
         k=k.to_value(u.km**3 / u.s**2),
         a_0=a_0.to_value(u.km),
         a_f=a_f.to_value(u.km),
@@ -48,4 +46,8 @@ def change_a_inc(k, a_0, a_f, inc_0, inc_f, f):
         inc_f=inc_f.to_value(u.rad),
         f=f.to_value(u.km / u.s**2),
     )
-    return a_d, delta_V, t_f * u.s
+    return (
+        a_d_hf,
+        delta_V,
+        t_f * u.s,
+    )  # TODO delta_V is not a vector and does not carry a unit??

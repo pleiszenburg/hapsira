@@ -4,9 +4,10 @@ from numpy.testing import assert_allclose
 import pytest
 
 from hapsira.bodies import Earth
+from hapsira.core.jit import array_to_V_hf
 from hapsira.core.propagation import func_twobody
+from hapsira.core.thrust.change_a_inc import change_a_inc_hb
 from hapsira.core.thrust import (
-    change_a_inc as change_a_inc_fast,
     change_argp as change_argp_fast,
 )
 from hapsira.core.thrust.change_ecc_inc import beta as beta_change_ecc_inc
@@ -42,7 +43,7 @@ def test_leo_geo_numerical_safe(inc_0):
     # Propagate orbit
     def f_leo_geo(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
+        ax, ay, az = a_d(t0, array_to_V_hf(u_[:3]), array_to_V_hf(u_[3:]), k)
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad
 
@@ -66,7 +67,7 @@ def test_leo_geo_numerical_fast(inc_0):
 
     k = Earth.k.to(u.km**3 / u.s**2).value
 
-    a_d, _, t_f = change_a_inc_fast(k, a_0, a_f, inc_0, inc_f, f)
+    a_d_hf, _, t_f = change_a_inc_hb(k, a_0, a_f, inc_0, inc_f, f)
 
     # Retrieve r and v from initial orbit
     s0 = Orbit.circular(Earth, a_0 * u.km - Earth.R, inc_0 * u.rad)
@@ -74,7 +75,7 @@ def test_leo_geo_numerical_fast(inc_0):
     # Propagate orbit
     def f_leo_geo(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
+        ax, ay, az = a_d_hf(t0, array_to_V_hf(u_[:3]), array_to_V_hf(u_[3:]), k)
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad
 
@@ -354,7 +355,7 @@ def test_leo_geo_time_and_delta_v(inc_0, expected_t_f, expected_delta_V, rtol):
     k = Earth.k.to(u.km**3 / u.s**2).value
     inc_0 = np.radians(inc_0)  # rad
 
-    _, delta_V, t_f = change_a_inc_fast(k, a_0, a_f, inc_0, inc_f, f)
+    _, delta_V, t_f = change_a_inc_hb(k, a_0, a_f, inc_0, inc_f, f)
 
     assert_allclose(delta_V, expected_delta_V, rtol=rtol)
     assert_allclose((t_f * u.s).to(u.day).value, expected_t_f, rtol=rtol)

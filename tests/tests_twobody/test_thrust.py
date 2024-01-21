@@ -8,7 +8,7 @@ from hapsira.core.jit import array_to_V_hf
 from hapsira.core.propagation import func_twobody
 from hapsira.core.thrust.change_a_inc import change_a_inc_hb
 from hapsira.core.thrust.change_argp import change_argp_hb
-from hapsira.core.thrust.change_ecc_inc import beta as beta_change_ecc_inc
+from hapsira.core.thrust.change_ecc_inc import beta_vf as beta_change_ecc_inc
 from hapsira.twobody import Orbit
 from hapsira.twobody.propagation import CowellPropagator
 from hapsira.twobody.thrust import (
@@ -171,9 +171,7 @@ def test_geo_cases_beta_dnd_delta_v(ecc_0, inc_f, expected_beta, expected_delta_
         nu=0 * u.deg,
     )
 
-    beta = beta_change_ecc_inc(
-        ecc_0=ecc_0, ecc_f=ecc_f, inc_0=inc_0, inc_f=inc_f, argp=argp
-    )
+    beta = beta_change_ecc_inc(ecc_0, ecc_f, inc_0, inc_f, argp)
     _, delta_V, _ = change_ecc_inc(orb_0=s0, ecc_f=ecc_f, inc_f=inc_f * u.rad, f=f)
 
     assert_allclose(delta_V.to_value(u.km / u.s), expected_delta_V, rtol=1e-2)
@@ -198,12 +196,12 @@ def test_geo_cases_numerical(ecc_0, ecc_f):
         argp=argp * u.deg,
         nu=0 * u.deg,
     )
-    a_d, _, t_f = change_ecc_inc(orb_0=s0, ecc_f=ecc_f, inc_f=inc_f, f=f)
+    a_d_hf, _, t_f = change_ecc_inc(orb_0=s0, ecc_f=ecc_f, inc_f=inc_f, f=f)
 
     # Propagate orbit
     def f_geo(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
+        ax, ay, az = a_d_hf(t0, array_to_V_hf(u_[:3]), array_to_V_hf(u_[3:]), k)
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad
 

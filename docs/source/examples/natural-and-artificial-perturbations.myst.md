@@ -262,14 +262,15 @@ orb0 = Orbit.from_classical(
     epoch=Time(0, format="jd", scale="tdb"),
 )
 
-a_d, _, t_f = change_ecc_inc(orb0, ecc_f, inc_f, f)
+a_d_hf, _, t_f = change_ecc_inc(orb0, ecc_f, inc_f, f)
 
 
 def f(t0, state, k):
     du_kep = func_twobody(t0, state, k)
-    ax, ay, az = a_d(
+    ax, ay, az = a_d_hf(
         t0,
-        state,
+        array_to_V_hf(state[:3]),
+        array_to_V_hf(state[3:]),
         k,
     )
     du_ad = np.array([0, 0, 0, ax, ay, az])

@@ -1,9 +1,7 @@
 import numpy as np
+from numba import njit
 
 from scipy.interpolate import interp1d as _scipy_interp1d
-
-from numpy import asarray, array
-from numpy import searchsorted
 
 __all__ = [
     "interp1d",
@@ -12,22 +10,17 @@ __all__ = [
 ]
 
 
-def _check_broadcast_up_to(arr_from, shape_to, name):
-    """Helper to check that arr_from broadcasts up to shape_to"""
-    shape_from = arr_from.shape
-    if len(shape_to) >= len(shape_from):
-        for t, f in zip(shape_to[::-1], shape_from[::-1]):
-            if f != 1 and f != t:
-                break
-        else:  # all checks pass, do the upcasting that we need later
-            if arr_from.size != 1 and arr_from.shape != shape_to:
-                arr_from = np.ones(shape_to, arr_from.dtype) * arr_from
-            return arr_from.ravel()
-    # at least one check failed
-    raise ValueError(
-        f"{name} argument must be able to broadcast up "
-        f"to shape {shape_to} but had shape {shape_from}"
-    )
+@njit
+def bisect_left(a, x):
+    lo = 0
+    hi = len(a)
+    while lo < hi:
+        mid = (lo + hi) // 2
+        if a[mid] < x:
+            lo = mid + 1
+        else:
+            hi = mid
+    return lo
 
 
 class interp1d:
@@ -38,63 +31,27 @@ class interp1d:
     ):
         assert x.ndim == 1
         assert y.ndim == 2
+        assert x.shape[0] >= 1  # > instead of >=
         assert y.shape[0] == 3
         assert y.shape[1] == x.shape[0]
 
-        self._y_axis = 1
-        self._y_extra_shape = (3,)
+        self.y = y.T
+        self.x = np.array(x, copy=True)
 
-        self.y = array(y, copy=True)
-        self.x = array(x, copy=True)
-
-        y = np.moveaxis(np.asarray(y), 1, 0)
-        self._y = y.reshape((y.shape[0], -1))
-
-        assert len(self.x) >= 1
-
-        broadcast_shape = (3,)
-        fill_value = np.asarray(np.nan)
-        below_above = [
-            _check_broadcast_up_to(fill_value, broadcast_shape, "fill_value")
-        ] * 2
-        self._fill_value_below, self._fill_value_above = below_above
-        # backwards compat: fill_value was a public attr; make it writeable
-        self._fill_value_orig = fill_value
+        self._fill_value_below = np.array([np.nan])
+        self._fill_value_above = np.array([np.nan])
 
     def __call__(self, x):
-        x, x_shape = self._prepare_x(x)
-        y = self._evaluate(x)
-        return self._finish_y(y, x_shape)
+        "x is scalar"
 
-    def _prepare_x(self, x):
-        """Reshape input x array to 1-D"""
-        x = array(x)
-        assert x.shape == tuple()
-        x_shape = x.shape
-        return x.ravel(), x_shape
-
-    def _finish_y(self, y, x_shape):
-        """Reshape interpolated y back to an N-D array similar to initial y"""
-        y = y.reshape(x_shape + self._y_extra_shape)
-        if self._y_axis != 0 and x_shape != ():
-            nx = len(x_shape)
-            ny = len(self._y_extra_shape)
-            s = (
-                list(range(nx, nx + self._y_axis))
-                + list(range(nx))
-                + list(range(nx + self._y_axis, nx + ny))
-            )
-            y = y.transpose(s)
-        assert y.shape == (3,)
-        return y
-
-    def _evaluate(self, x_new):
-        x_new = asarray(x_new)
+        x_new = np.array([x])
 
         # 2. Find where in the original data, the values to interpolate
         #    would be inserted.
         #    Note: If x_new[n] == x[m], then m is returned by searchsorted.
-        x_new_indices = searchsorted(self.x, x_new)
+        x_new_indices = np.array(
+            [bisect_left(self.x, x_new[0])]
+        )  # np.searchsorted(self.x, x_new)
 
         # 3. Clip x_new_indices so that they are within the range of
         #    self.x indices and at least 1. Removes mis-interpolation
@@ -107,8 +64,8 @@ class interp1d:
 
         x_lo = self.x[lo]
         x_hi = self.x[hi]
-        y_lo = self._y[lo]
-        y_hi = self._y[hi]
+        y_lo = self.y[lo]
+        y_hi = self.y[hi]
 
         # Note that the following two expressions rely on the specifics of the
         # broadcasting semantics.
@@ -124,6 +81,7 @@ class interp1d:
             y_new[below_bounds] = self._fill_value_below
             y_new[above_bounds] = self._fill_value_above
 
+        y_new = y_new.reshape((3,))
         return y_new
 
     def _check_bounds(self, x_new):

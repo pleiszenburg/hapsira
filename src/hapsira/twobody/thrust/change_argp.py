@@ -9,7 +9,7 @@ References
 """
 from astropy import units as u
 
-from hapsira.core.thrust.change_argp import change_argp as change_a_inc_fast
+from hapsira.core.thrust.change_argp import change_argp_hb
 
 
 def change_argp(k, a, ecc, argp_0, argp_f, f):
@@ -36,13 +36,13 @@ def change_argp(k, a, ecc, argp_0, argp_f, f):
     -------
     a_d, delta_V, t_f : tuple (function, ~astropy.units.quantity.Quantity, ~astropy.time.Time)
     """
-    a_d, delta_V, t_f = change_a_inc_fast(
+    a_d_hf, delta_V, t_f = change_argp_hb(
         k=k.to_value(u.km**3 / u.s**2),
         a=a.to_value(u.km),
-        ecc=ecc,
+        ecc=ecc.to_value() if hasattr(ecc, "to_value") else ecc,
         argp_0=argp_0.to_value(u.rad),
         argp_f=argp_f.to_value(u.rad),
         f=f.to_value(u.km / u.s**2),
     )
 
-    return a_d, delta_V, t_f * u.s
+    return a_d_hf, delta_V, t_f * u.s  # delta_V is scalar, TODO add unit to it?

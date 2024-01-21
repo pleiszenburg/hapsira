@@ -7,9 +7,7 @@ from hapsira.bodies import Earth
 from hapsira.core.jit import array_to_V_hf
 from hapsira.core.propagation import func_twobody
 from hapsira.core.thrust.change_a_inc import change_a_inc_hb
-from hapsira.core.thrust import (
-    change_argp as change_argp_fast,
-)
+from hapsira.core.thrust.change_argp import change_argp_hb
 from hapsira.core.thrust.change_ecc_inc import beta as beta_change_ecc_inc
 from hapsira.twobody import Orbit
 from hapsira.twobody.propagation import CowellPropagator
@@ -250,7 +248,7 @@ def test_soyuz_standard_gto_delta_v_fast():
 
     k = Earth.k.to(u.km**3 / u.s**2).value
 
-    _, delta_V, t_f = change_argp_fast(k, a, ecc, argp_0, argp_f, f)
+    _, delta_V, t_f = change_argp_hb(k, a, ecc, argp_0, argp_f, f)
 
     expected_t_f = 12.0  # days, approximate
     expected_delta_V = 0.2489  # km / s
@@ -272,7 +270,7 @@ def test_soyuz_standard_gto_numerical_safe():
 
     k = Earth.k.to(u.km**3 / u.s**2)
 
-    a_d, _, t_f = change_argp(k, a, ecc, argp_0, argp_f, f)
+    a_d_hf, _, t_f = change_argp(k, a, ecc, argp_0, argp_f, f)
 
     # Retrieve r and v from initial orbit
     s0 = Orbit.from_classical(
@@ -288,7 +286,7 @@ def test_soyuz_standard_gto_numerical_safe():
     # Propagate orbit
     def f_soyuz(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
+        ax, ay, az = a_d_hf(t0, array_to_V_hf(u_[:3]), array_to_V_hf(u_[3:]), k)
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad
 
@@ -310,7 +308,7 @@ def test_soyuz_standard_gto_numerical_fast():
 
     k = Earth.k.to(u.km**3 / u.s**2).value
 
-    a_d, _, t_f = change_argp_fast(k, a, ecc, argp_0, argp_f, f)
+    a_d_hf, _, t_f = change_argp_hb(k, a, ecc, argp_0, argp_f, f)
 
     # Retrieve r and v from initial orbit
     s0 = Orbit.from_classical(
@@ -326,7 +324,7 @@ def test_soyuz_standard_gto_numerical_fast():
     # Propagate orbit
     def f_soyuz(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
+        ax, ay, az = a_d_hf(t0, array_to_V_hf(u_[:3]), array_to_V_hf(u_[3:]), k)
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad
 

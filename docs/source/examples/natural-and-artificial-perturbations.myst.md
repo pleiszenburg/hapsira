@@ -28,7 +28,7 @@ from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
 from hapsira.core.jit import array_to_V_hf
 from hapsira.core.perturbations import (
     atmospheric_drag_exponential_hf,
-    third_body,
+    third_body_hf,
     J2_perturbation_hf,
 )
 from hapsira.core.propagation import func_twobody
@@ -210,9 +210,10 @@ tofs = TimeDelta(np.linspace(0, 60 * u.day, num=1000))
 
 def f(t0, state, k):
     du_kep = func_twobody(t0, state, k)
-    ax, ay, az = third_body(
+    ax, ay, az = third_body_hf(
         t0,
-        state,
+        array_to_V_hf(state[:3]),
+        array_to_V_hf(state[3:]),
         k,
         k_third=400 * Moon.k.to(u.km**3 / u.s**2).value,
         perturbation_body=body_r,

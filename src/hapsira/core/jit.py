@@ -59,12 +59,14 @@ def _parse_signatures(signature: str, noreturn: bool = False) -> Union[str, List
         )
         return signature
 
-    # TODO hope for support of "f[:]" return values in cuda target; 2D/4D vectors?
     signature = signature.replace("M", "Tuple([V,V,V])")  # matrix is a tuple of vectors
     signature = signature.replace("V", "Tuple([f,f,f])")  # vector is a tuple of floats
     signature = signature.replace(
         "S", "Tuple([f,f,f,f,f,f])"
-    )  # state, two vectors, is a tuple of floats
+    )  # state, two vectors, is a tuple of floats TODO remove, use vectors instead?
+    signature = signature.replace(
+        "F", "FunctionType"
+    )  # TODO does not work for CUDA yet
 
     return [signature.replace("f", dtype) for dtype in PRECISIONS]
 

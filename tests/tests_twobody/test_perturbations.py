@@ -17,7 +17,7 @@ from hapsira.core.perturbations import (
     atmospheric_drag_hf,
     atmospheric_drag_exponential_hf,
     radiation_pressure,
-    third_body,  # pylint: disable=E1120,E1136
+    third_body_hf,  # pylint: disable=E1120,E1136
 )
 from hapsira.core.propagation import func_twobody
 from hapsira.earth.atmosphere import COESA76
@@ -611,12 +611,13 @@ def test_3rd_body_Curtis(test_params):
 
     def f(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = third_body(
+        ax, ay, az = third_body_hf(
             t0,
-            u_,
+            array_to_V_hf(u_[:3]),
+            array_to_V_hf(u_[3:]),
             k,
-            k_third=body.k.to_value(u.km**3 / u.s**2),
-            perturbation_body=body_r,
+            body.k.to_value(u.km**3 / u.s**2),  # k_third
+            body_r,  # perturbation_body
         )
         du_ad = np.array([0, 0, 0, ax, ay, az])
         return du_kep + du_ad

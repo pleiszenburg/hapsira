@@ -4,7 +4,7 @@ import numpy as np
 
 from .events import line_of_sight_hf
 from .jit import array_to_V_hf, hjit
-from .math.linalg import norm_hf, mul_Vs_hf, mul_VV_hf
+from .math.linalg import norm_hf, mul_Vs_hf, mul_VV_hf, sub_VV_hf
 
 
 __all__ = [
@@ -12,7 +12,7 @@ __all__ = [
     "J3_perturbation_hf",
     "atmospheric_drag_exponential_hf",
     "atmospheric_drag_hf",
-    "third_body",
+    "third_body_hf",
     "radiation_pressure",
 ]
 
@@ -181,7 +181,8 @@ def atmospheric_drag_hf(t0, rr, vv, k, C_D, A_over_m, rho):
     return mul_Vs_hf(vv, -(1.0 / 2.0) * rho * B * v)
 
 
-def third_body(t0, state, k, k_third, perturbation_body):
+@hjit("V(f,V,V,f,f,F(V(f)))")
+def third_body_hf(t0, rr, vv, k, k_third, perturbation_body):
     r"""Calculate third body acceleration (km/s2).
 
     .. math::
@@ -192,8 +193,10 @@ def third_body(t0, state, k, k_third, perturbation_body):
     ----------
     t0 : float
         Current time (s).
-    state : numpy.ndarray
-        Six component state vector [x, y, z, vx, vy, vz] (km, km/s).
+    rr : tuple[float,float,float]
+        Vector [x, y, z] (km)
+    vv : tuple[float,float,float]
+        Vector [vx, vy, vz] (km/s)
     k : float
         Standard Gravitational parameter of the attractor (km^3/s^2).
     k_third : float
@@ -208,11 +211,11 @@ def third_body(t0, state, k, k_third, perturbation_body):
     the gravity from the Moon acting on a small satellite.
 
     """
-    body_r = np.array(perturbation_body(t0))
-    delta_r = body_r - state[:3]
-    return (
-        k_third * delta_r / norm_hf(array_to_V_hf(delta_r)) ** 3
-        - k_third * body_r / norm_hf(array_to_V_hf(body_r)) ** 3
+    body_r = perturbation_body(t0)
+    delta_r = sub_VV_hf(body_r, rr)
+    return sub_VV_hf(
+        mul_Vs_hf(delta_r, k_third / norm_hf(delta_r) ** 3),
+        mul_Vs_hf(body_r, k_third / norm_hf(body_r) ** 3),
     )
 
 

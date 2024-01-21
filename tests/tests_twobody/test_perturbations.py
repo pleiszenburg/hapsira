@@ -11,13 +11,13 @@ from hapsira.constants import H0_earth, Wdivc_sun, rho0_earth
 from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
 from hapsira.core.jit import array_to_V_hf, hjit
 from hapsira.core.math.linalg import mul_Vs_hf, norm_hf
-from hapsira.core.perturbations import (
+from hapsira.core.perturbations import (  # pylint: disable=E1120,E1136
     J2_perturbation_hf,
     J3_perturbation_hf,
     atmospheric_drag_hf,
     atmospheric_drag_exponential_hf,
-    radiation_pressure,
-    third_body_hf,  # pylint: disable=E1120,E1136
+    radiation_pressure_hf,
+    third_body_hf,
 )
 from hapsira.core.propagation import func_twobody
 from hapsira.earth.atmosphere import COESA76
@@ -706,9 +706,10 @@ def test_solar_pressure(t_days, deltas_expected, sun_r):
 
     def f(t0, u_, k):
         du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = radiation_pressure(
+        ax, ay, az = radiation_pressure_hf(
             t0,
-            u_,
+            array_to_V_hf(u_[:3]),
+            array_to_V_hf(u_[3:]),
             k,
             R=Earth.R.to(u.km).value,
             C_R=2.0,

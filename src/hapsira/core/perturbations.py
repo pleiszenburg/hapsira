@@ -1,9 +1,7 @@
 from math import exp
 
-import numpy as np
-
 from .events import line_of_sight_hf
-from .jit import array_to_V_hf, hjit
+from .jit import hjit
 from .math.linalg import norm_hf, mul_Vs_hf, mul_VV_hf, sub_VV_hf
 
 
@@ -13,7 +11,7 @@ __all__ = [
     "atmospheric_drag_exponential_hf",
     "atmospheric_drag_hf",
     "third_body_hf",
-    "radiation_pressure",
+    "radiation_pressure_hf",
 ]
 
 
@@ -219,7 +217,8 @@ def third_body_hf(t0, rr, vv, k, k_third, perturbation_body):
     )
 
 
-def radiation_pressure(t0, state, k, R, C_R, A_over_m, Wdivc_s, star):
+@hjit("V(f,V,V,f,f,f,f,f,F(V(f)))")
+def radiation_pressure_hf(t0, rr, vv, k, R, C_R, A_over_m, Wdivc_s, star):
     r"""Calculates radiation pressure acceleration (km/s2).
 
     .. math::
@@ -230,8 +229,10 @@ def radiation_pressure(t0, state, k, R, C_R, A_over_m, Wdivc_s, star):
     ----------
     t0 : float
         Current time (s).
-    state : numpy.ndarray
-        Six component state vector [x, y, z, vx, vy, vz] (km, km/s).
+    rr : tuple[float,float,float]
+        Vector [x, y, z] (km)
+    vv : tuple[float,float,float]
+        Vector [vx, vy, vz] (km/s)
     k : float
         Standard Gravitational parameter (km^3/s^2).
     R : float
@@ -252,9 +253,11 @@ def radiation_pressure(t0, state, k, R, C_R, A_over_m, Wdivc_s, star):
     Howard Curtis, section 12.9
 
     """
-    r_star = np.array(star(t0))
-    r_sat = state[:3]
-    P_s = Wdivc_s / (norm_hf(array_to_V_hf(r_star)) ** 2)
+    r_star = star(t0)
+    P_s = Wdivc_s / (norm_hf(r_star) ** 2)
 
-    nu = float(line_of_sight_hf(array_to_V_hf(r_sat), array_to_V_hf(r_star), R) > 0)
-    return -nu * P_s * (C_R * A_over_m) * r_star / norm_hf(array_to_V_hf(r_star))
+    if line_of_sight_hf(rr, r_star, R) > 0:
+        nu = 1.0
+    else:
+        nu = 0.0
+    return mul_Vs_hf(r_star, -nu * P_s * (C_R * A_over_m) / norm_hf(r_star))

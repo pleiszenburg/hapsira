@@ -15,7 +15,7 @@ __all__ = [
 
 def interp_hb(x: np.ndarray, y: np.ndarray) -> Callable:
     """
-    Build compiled 1d-interpolator for 1D vectors
+    Build compiled 1d-interpolator for 3D vectors
     """
 
     assert x.ndim == 1

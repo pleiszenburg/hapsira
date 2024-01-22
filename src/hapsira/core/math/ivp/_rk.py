@@ -420,7 +420,9 @@ class DOP853:
             h = t_new - t
             h_abs = np.abs(h)
 
-            y_new, f_new = rk_step(self.fun, t, y, self.f, h, self.K, self.argk)
+            y_new, f_new, K_new = rk_step(self.fun, t, y, self.f, h, self.argk)
+            self.K[: N_STAGES + 1, :N_RV] = np.array([K_new])
+
             scale = atol + np.maximum(np.abs(y), np.abs(y_new)) * rtol
             error_norm = self._estimate_error_norm(self.K, h, scale)
 

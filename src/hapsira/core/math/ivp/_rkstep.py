@@ -816,7 +816,7 @@ def rk_step_hf(
         * h,
     )
     rr_new = add_VV_hf(rr, dr)
-    vv_new = add_VV_hf(vv, dr)
+    vv_new = add_VV_hf(vv, dv)
     fr_new, fv_new = fun(t + h, rr_new, vv_new, argk)
     K12 = *fr_new, *fv_new
 

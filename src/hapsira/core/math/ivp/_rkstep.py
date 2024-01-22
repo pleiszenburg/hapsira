@@ -1,7 +1,9 @@
 from typing import Callable, Tuple
 
+from numpy import float32 as f4
+
 from ._dop853_coefficients import A as _A, B as _B, C as _C
-from ...math.linalg import add_VV_hf
+from ..linalg import add_VV_hf
 from ...jit import hjit, DSIG
 
 __all__ = [
@@ -13,20 +15,19 @@ __all__ = [
 N_RV = 6
 N_STAGES = 12
 
-# A = tuple(tuple(float(number) for number in line) for line in A[:N_STAGES, :N_STAGES])
-A01 = tuple(float(number) for number in _A[1, :N_STAGES])
-A02 = tuple(float(number) for number in _A[2, :N_STAGES])
-A03 = tuple(float(number) for number in _A[3, :N_STAGES])
-A04 = tuple(float(number) for number in _A[4, :N_STAGES])
-A05 = tuple(float(number) for number in _A[5, :N_STAGES])
-A06 = tuple(float(number) for number in _A[6, :N_STAGES])
-A07 = tuple(float(number) for number in _A[7, :N_STAGES])
-A08 = tuple(float(number) for number in _A[8, :N_STAGES])
-A09 = tuple(float(number) for number in _A[9, :N_STAGES])
-A10 = tuple(float(number) for number in _A[10, :N_STAGES])
-A11 = tuple(float(number) for number in _A[11, :N_STAGES])
-B = tuple(float(number) for number in _B)
-C = tuple(float(number) for number in _C[:N_STAGES])
+A01 = tuple(f4(number) for number in _A[1, :N_STAGES])
+A02 = tuple(f4(number) for number in _A[2, :N_STAGES])
+A03 = tuple(f4(number) for number in _A[3, :N_STAGES])
+A04 = tuple(f4(number) for number in _A[4, :N_STAGES])
+A05 = tuple(f4(number) for number in _A[5, :N_STAGES])
+A06 = tuple(f4(number) for number in _A[6, :N_STAGES])
+A07 = tuple(f4(number) for number in _A[7, :N_STAGES])
+A08 = tuple(f4(number) for number in _A[8, :N_STAGES])
+A09 = tuple(f4(number) for number in _A[9, :N_STAGES])
+A10 = tuple(f4(number) for number in _A[10, :N_STAGES])
+A11 = tuple(f4(number) for number in _A[11, :N_STAGES])
+B = tuple(f4(number) for number in _B)
+C = tuple(f4(number) for number in _C[:N_STAGES])
 
 _KSIG = (
     "Tuple(["

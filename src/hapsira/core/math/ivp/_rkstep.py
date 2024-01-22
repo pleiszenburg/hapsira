@@ -680,7 +680,10 @@ def rk_step(
         ]
     ).T
 
-    y_new = y + h * np.dot(K_, B)
+    assert K_.shape == (6, 12)
+    assert B.shape == (12,)
+
+    y_new = y + h * K_ @ B  # np.dot(K_, B)
     f_new = fun(t + h, y_new, argk)
 
     K12 = f_new

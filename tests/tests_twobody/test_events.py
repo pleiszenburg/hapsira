@@ -8,9 +8,10 @@ import pytest
 from hapsira.bodies import Earth
 from hapsira.constants import H0_earth, rho0_earth
 from hapsira.core.events import line_of_sight_gf
-from hapsira.core.jit import array_to_V_hf
+from hapsira.core.jit import djit
+from hapsira.core.math.linalg import add_VV_hf
 from hapsira.core.perturbations import atmospheric_drag_exponential_hf
-from hapsira.core.propagation import func_twobody
+from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.twobody import Orbit
 from hapsira.twobody.events import (
     AltitudeCrossEvent,
@@ -48,23 +49,23 @@ def test_altitude_crossing():
     altitude_cross_event = AltitudeCrossEvent(thresh_alt, R)
     events = [altitude_cross_event]
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = atmospheric_drag_exponential_hf(
+    @djit
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = atmospheric_drag_exponential_hf(
             t0,
-            array_to_V_hf(u_[:3]),
-            array_to_V_hf(u_[3:]),
+            rr,
+            vv,
             k,
-            R=R,
-            C_D=C_D,
-            A_over_m=A_over_m,
-            H0=H0,
-            rho0=rho0,
+            R,
+            C_D,
+            A_over_m,
+            H0,
+            rho0,
         )
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    method = CowellPropagator(events=events, f=f)
+    method = CowellPropagator(events=events, f=f_hf)
     rr, _ = method.propagate_many(
         orbit._state,
         tofs,
@@ -339,8 +340,8 @@ def test_line_of_sight():
     r_sun = np.array([122233179, -76150708, 33016374]) << u.km
     R = Earth.R.to(u.km).value
 
-    los = line_of_sight_gf(r1.value, r2.value, R)
-    los_with_sun = line_of_sight_gf(r1.value, r_sun.value, R)
+    los = line_of_sight_gf(r1.value, r2.value, R)  # pylint: disable=E1120
+    los_with_sun = line_of_sight_gf(r1.value, r_sun.value, R)  # pylint: disable=E1120
 
     assert los < 0  # No LOS condition.
     assert los_with_sun >= 0  # LOS condition.

@@ -5,7 +5,9 @@ import numpy as np
 from numba import jit
 
 from . import _dop853_coefficients as dop853_coefficients
-from ._rkstep import rk_step, N_RV, N_STAGES
+from ._rkstep import rk_step_hf, N_RV, N_STAGES
+
+from ...jit import array_to_V_hf
 
 __all__ = [
     "EPS",
@@ -90,7 +92,13 @@ def select_initial_step(
         h0 = 0.01 * d0 / d1
 
     y1 = y0 + h0 * direction * f0
-    f1 = fun(t0 + h0 * direction, y1, argk)
+    rr, vv = fun(
+        t0 + h0 * direction,
+        array_to_V_hf(y1[:3]),
+        array_to_V_hf(y1[3:]),
+        argk,
+    )  # TODO call into hf
+    f1 = np.array([*rr, *vv])
     d2 = norm((f1 - f0) / scale) / h0
 
     if d1 <= 1e-15 and d2 <= 1e-15:
@@ -306,7 +314,13 @@ class DOP853:
         self.y_old = None
         self.max_step = validate_max_step(max_step)
         self.rtol, self.atol = validate_tol(rtol, atol)
-        self.f = self.fun(self.t, self.y, self.argk)
+        rr, vv = self.fun(
+            self.t,
+            array_to_V_hf(self.y[:3]),
+            array_to_V_hf(self.y[3:]),
+            self.argk,
+        )  # TODO call into hf
+        self.f = np.array([*rr, *vv])
         self.h_abs = select_initial_step(
             self.fun,
             self.t,
@@ -420,7 +434,18 @@ class DOP853:
             h = t_new - t
             h_abs = np.abs(h)
 
-            y_new, f_new, K_new = rk_step(self.fun, t, y, self.f, h, self.argk)
+            rr_new, vv_new, fr_new, fv_new, K_new = rk_step_hf(
+                self.fun,
+                t,
+                array_to_V_hf(y[:3]),
+                array_to_V_hf(y[3:]),
+                array_to_V_hf(self.f[:3]),
+                array_to_V_hf(self.f[3:]),
+                h,
+                self.argk,
+            )  # TODO call into hf
+            y_new = np.array([*rr_new, *vv_new])
+            f_new = np.array([*fr_new, *fv_new])
             self.K[: N_STAGES + 1, :N_RV] = np.array([K_new])
 
             scale = atol + np.maximum(np.abs(y), np.abs(y_new)) * rtol
@@ -458,7 +483,14 @@ class DOP853:
         h = self.h_previous
         for s, (a, c) in enumerate(zip(self.A_EXTRA, self.C_EXTRA), start=N_STAGES + 1):
             dy = np.dot(K[:s].T, a[:s]) * h
-            K[s] = self.fun(self.t_old + c * h, self.y_old + dy, self.argk)
+            y_ = self.y_old + dy
+            rr, vv = self.fun(
+                self.t_old + c * h,
+                array_to_V_hf(y_[:3]),
+                array_to_V_hf(y_[3:]),
+                self.argk,
+            )  # TODO call into hf
+            K[s] = np.array([*rr, *vv])
 
         F = np.empty((INTERPOLATOR_POWER, N_RV), dtype=self.y_old.dtype)
 

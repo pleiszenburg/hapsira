@@ -2,8 +2,8 @@ import sys
 
 from astropy import units as u
 
-from hapsira.core.propagation import cowell
-from hapsira.core.propagation.base import func_twobody
+from hapsira.core.propagation.cowell import cowell
+from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import RVState
 
@@ -27,7 +27,7 @@ class CowellPropagator:
         PropagatorKind.ELLIPTIC | PropagatorKind.PARABOLIC | PropagatorKind.HYPERBOLIC
     )
 
-    def __init__(self, rtol=1e-11, events=None, f=func_twobody):
+    def __init__(self, rtol=1e-11, events=None, f=func_twobody_hf):
         self._rtol = rtol
         self._events = events
         self._f = f

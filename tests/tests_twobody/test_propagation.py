@@ -10,7 +10,9 @@ from pytest import approx
 from hapsira.bodies import Earth, Moon, Sun
 from hapsira.constants import J2000
 from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
-from hapsira.core.propagation import func_twobody
+from hapsira.core.jit import djit, hjit
+from hapsira.core.math.linalg import add_VV_hf, mul_Vs_hf, norm_hf
+from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.examples import iss
 from hapsira.frames import Planes
 from hapsira.twobody import Orbit
@@ -289,22 +291,21 @@ def test_cowell_propagation_circle_to_circle():
     # From [Edelbaum, 1961]
     accel = 1e-7
 
-    def constant_accel(t0, u_, k):
-        v = u_[3:]
-        norm_v = (v[0] ** 2 + v[1] ** 2 + v[2] ** 2) ** 0.5
-        return accel * v / norm_v
+    @hjit("V(f,V,V,f)")
+    def constant_accel_hf(t0, rr, vv, k):
+        norm_v = norm_hf(vv)
+        return mul_Vs_hf(vv, accel / norm_v)
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = constant_accel(t0, u_, k)
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-
-        return du_kep + du_ad
+    @djit
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = constant_accel_hf(t0, rr, vv, k)
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
     ss = Orbit.circular(Earth, 500 * u.km)
     tofs = [20] * ss.period
 
-    method = CowellPropagator(f=f)
+    method = CowellPropagator(f=f_hf)
     rrs, vvs = method.propagate_many(ss._state, tofs)
 
     orb_final = Orbit.from_vectors(Earth, rrs[0], vvs[0])

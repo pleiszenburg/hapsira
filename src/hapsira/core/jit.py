@@ -10,6 +10,7 @@ from hapsira.settings import settings
 
 __all__ = [
     "PRECISIONS",
+    "DSIG",
     "hjit",
     "vjit",
     "gjit",
@@ -26,6 +27,8 @@ logger.debug("jit inline: %s", "yes" if settings["INLINE"].value else "no")
 logger.debug("jit nopython: %s", "yes" if settings["NOPYTHON"].value else "no")
 
 PRECISIONS = ("f4", "f8")  # TODO allow f2, i.e. half, for CUDA at least?
+
+DSIG = "Tuple([V,V])(f,V,V,f)"
 
 
 def _parse_signatures(signature: str, noreturn: bool = False) -> Union[str, List[str]]:
@@ -124,6 +127,16 @@ def hjit(*args, **kwargs) -> Callable:
         return wrapper(outer_func)
 
     return wrapper
+
+
+def djit(func):
+    """
+    Wrapper for hjit to track differential equations
+    """
+
+    compiled = hjit(DSIG)(func)
+    compiled.djit = None  # for debugging
+    return compiled
 
 
 def vjit(*args, **kwargs) -> Callable:

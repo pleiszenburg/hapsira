@@ -1,20 +1,15 @@
 import numpy as np
 
-from ..jit import hjit
 from ..math.ivp import solve_ivp
-from ..propagation.base import func_twobody
+from ..propagation.base import func_twobody_hf
 
 
-def cowelljit(func):
-    """
-    Wrapper for hjit to track funcs for cowell
-    """
-    compiled = hjit("Tuple([V,V])(f,V,V,f)")(func)
-    compiled.cowell = None  # for debugging
-    return compiled
+__all__ = [
+    "cowell",
+]
 
 
-def cowell(k, r, v, tofs, rtol=1e-11, events=None, f=func_twobody):
+def cowell(k, r, v, tofs, rtol=1e-11, events=None, f=func_twobody_hf):
     """
     Scalar cowell
 
@@ -24,7 +19,7 @@ def cowell(k, r, v, tofs, rtol=1e-11, events=None, f=func_twobody):
     tofs : ???
     rtol : float ... or also ndarray?
     """
-    # assert hasattr(f, "cowell")
+    assert hasattr(f, "djit")  # DEBUG check for compiler flag
     assert isinstance(rtol, float)
 
     x, y, z = r

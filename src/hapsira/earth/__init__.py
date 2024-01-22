@@ -1,14 +1,13 @@
 """Earth focused orbital mechanics routines."""
 
-from typing import Dict
 
 from astropy import units as u
-import numpy as np
 
 from hapsira.bodies import Earth
-from hapsira.core.jit import array_to_V_hf
+from hapsira.core.jit import hjit, djit
+from hapsira.core.math.linalg import add_VV_hf
 from hapsira.core.perturbations import J2_perturbation_hf
-from hapsira.core.propagation import func_twobody
+from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.earth.enums import EarthGravity
 from hapsira.twobody.propagation import CowellPropagator
 
@@ -74,40 +73,34 @@ class EarthSatellite:
             A new EarthSatellite with the propagated Orbit
 
         """
-        ad_kwargs: Dict[object, dict] = {}
-        perturbations: Dict[object, dict] = {}
 
-        def ad(t0, state, k, perturbations):  # TODO compile
-            rr, vv = array_to_V_hf(state[:3]), array_to_V_hf(state[3:])
-            if perturbations:
-                return np.sum(
-                    [
-                        f(t0=t0, rr=rr, vv=vv, k=k, **p)
-                        for f, p in perturbations.items()
-                    ],
-                    axis=0,
-                )
-            else:
-                return np.array([0, 0, 0])
+        if gravity not in (None, EarthGravity.J2):
+            raise NotImplementedError
 
-        if gravity is EarthGravity.J2:  # TODO move into compiled `ad` function
-            perturbations[J2_perturbation_hf] = {
-                "J2": Earth.J2.value,
-                "R": Earth.R.to_value(u.km),
-            }
         if atmosphere is not None:
             # Cannot compute density without knowing the state,
             # the perturbations parameters are not always fixed
-            # TODO: This whole function probably needs a refactoring
             raise NotImplementedError
 
-        def f(t0, state, k):  # TODO compile
-            du_kep = func_twobody(t0, state, k)
-            ax, ay, az = ad(t0, state, k, perturbations)
-            du_ad = np.array([0, 0, 0, ax, ay, az])
+        if gravity:
+            J2_ = Earth.J2.value
+            R_ = Earth.R.to_value(u.km)
 
-            return du_kep + du_ad
+            @hjit("V(f,V,V,f)")
+            def ad_hf(t0, rr, vv, k):
+                return J2_perturbation_hf(t0, rr, vv, k, J2_, R_)
 
-        ad_kwargs.update(perturbations=perturbations)
-        new_orbit = self.orbit.propagate(tof, method=CowellPropagator(f=f))
+        else:
+
+            @hjit("V(f,V,V,f)")
+            def ad_hf(t0, rr, vv, k):
+                return 0.0, 0.0, 0.0
+
+        @djit
+        def f_hf(t0, rr, vv, k):
+            du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+            du_ad_vv = ad_hf(t0, rr, vv, k)
+            return du_kep_rr, add_VV_hf(du_kep_vv, du_ad_vv)
+
+        new_orbit = self.orbit.propagate(tof, method=CowellPropagator(f=f_hf))
         return EarthSatellite(new_orbit, self.spacecraft)

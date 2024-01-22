@@ -5,12 +5,18 @@ from numba import jit
 
 from ._dop853_coefficients import A, B, C
 
+__all__ = [
+    "rk_step",
+    "N_RV",
+    "N_STAGES",
+]
+
 N_RV = 6
 N_STAGES = 12
 
-A = A[:N_STAGES, :N_STAGES]
+A = tuple(tuple(line) for line in A[:N_STAGES, :N_STAGES])
 # B = B
-C = C[:N_STAGES]
+C = tuple(C[:N_STAGES])
 
 
 @jit(nopython=False)
@@ -77,9 +83,9 @@ def rk_step(
     assert f.shape == (N_RV,)
     assert K.shape == (N_STAGES + 1, N_RV)
 
-    assert A.shape == (N_STAGES, N_STAGES)
+    # assert A.shape == (N_STAGES, N_STAGES)
     assert B.shape == (N_STAGES,)
-    assert C.shape == (N_STAGES,)
+    # assert C.shape == (N_STAGES,)
 
     K[0] = f
 

@@ -88,11 +88,6 @@ def rk_step(
 
     K00 = f
 
-    # for s, (a, c) in enumerate(zip(A[1:], C[1:]), start=1):
-    #     dy = np.dot(K[:s].T, a[:s]) * h
-    #     K[s] = fun(t + c * h, y + dy)
-
-    # dy = np.dot(K[:1].T, A[1, :1]) * h
     dy = np.array(
         [
             (K00[0] * A[1][0]) * h,
@@ -105,7 +100,6 @@ def rk_step(
     )
     K01 = fun(t + C[1] * h, y + dy, argk)
 
-    # dy = np.dot(K[:2].T, A[2, :2]) * h
     dy = np.array(
         [
             (K00[0] * A[2][0] + K01[0] * A[2][1]) * h,
@@ -118,7 +112,6 @@ def rk_step(
     )
     K02 = fun(t + C[2] * h, y + dy, argk)
 
-    # dy = np.dot(K[:3].T, A[3, :3]) * h
     dy = np.array(
         [
             (K00[0] * A[3][0] + K01[0] * A[3][1] + K02[0] * A[3][2]) * h,
@@ -132,7 +125,6 @@ def rk_step(
 
     K03 = fun(t + C[3] * h, y + dy, argk)
 
-    # dy = np.dot(K[:4].T, A[4, :4]) * h
     dy = np.array(
         [
             (K00[0] * A[4][0] + K01[0] * A[4][1] + K02[0] * A[4][2] + K03[0] * A[4][3])
@@ -151,7 +143,6 @@ def rk_step(
     )
     K04 = fun(t + C[4] * h, y + dy, argk)
 
-    # dy = np.dot(K[:5].T, A[5, :5]) * h
     dy = np.array(
         [
             (
@@ -206,7 +197,6 @@ def rk_step(
     )
     K05 = fun(t + C[5] * h, y + dy, argk)
 
-    # dy = np.dot(K[:6].T, A[6, :6]) * h
     dy = np.array(
         [
             (
@@ -267,7 +257,6 @@ def rk_step(
     )
     K06 = fun(t + C[6] * h, y + dy, argk)
 
-    # dy = np.dot(K[:7].T, A[7, :7]) * h
     dy = np.array(
         [
             (
@@ -335,7 +324,6 @@ def rk_step(
 
     K07 = fun(t + C[7] * h, y + dy, argk)
 
-    # dy = np.dot(K[:8].T, A[8, :8]) * h
     dy = np.array(
         [
             (
@@ -408,7 +396,6 @@ def rk_step(
     )
     K08 = fun(t + C[8] * h, y + dy, argk)
 
-    # dy = np.dot(K[:9].T, A[9, :9]) * h
     dy = np.array(
         [
             (
@@ -487,7 +474,6 @@ def rk_step(
     )
     K09 = fun(t + C[9] * h, y + dy, argk)
 
-    # dy = np.dot(K[:10].T, A[10, :10]) * h
     dy = np.array(
         [
             (
@@ -572,7 +558,6 @@ def rk_step(
     )
     K10 = fun(t + C[10] * h, y + dy, argk)
 
-    # dy = np.dot(K[:11].T, A[11, :11]) * h
     dy = np.array(
         [
             (
@@ -662,26 +647,6 @@ def rk_step(
         ]
     )
     K11 = fun(t + C[11] * h, y + dy, argk)
-
-    # K_ = np.array(
-    #     [
-    #         K00,
-    #         K01,
-    #         K02,
-    #         K03,
-    #         K04,
-    #         K05,
-    #         K06,
-    #         K07,
-    #         K08,
-    #         K09,
-    #         K10,
-    #         K11,
-    #     ]
-    # )
-
-    # assert K_.shape == (12, 6)
-    # assert B.shape == (12,)
 
     dy = np.array(
         [
@@ -777,8 +742,7 @@ def rk_step(
             * h,
         ]
     )
-
-    y_new = y + dy  # h * K_ @ B
+    y_new = y + dy
     f_new = fun(t + h, y_new, argk)
 
     K12 = f_new

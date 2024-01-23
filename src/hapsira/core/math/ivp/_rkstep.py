@@ -1,10 +1,19 @@
 from typing import Callable, Tuple
 
-from numpy import float32 as f4
-
 from ._dop853_coefficients import A as _A, B as _B, C as _C
 from ..linalg import add_VV_hf
 from ...jit import hjit, DSIG
+from ....settings import settings
+
+if settings["PRECISION"].value == "f8":
+    from numpy import float64 as float_
+elif settings["PRECISION"].value == "f4":
+    from numpy import float32 as float_
+elif settings["PRECISION"].value == "f2":
+    from numpy import float16 as float_
+else:
+    raise ValueError("unsupported precision")
+
 
 __all__ = [
     "rk_step_hf",
@@ -15,19 +24,19 @@ __all__ = [
 N_RV = 6
 N_STAGES = 12
 
-A01 = tuple(f4(number) for number in _A[1, :N_STAGES])
-A02 = tuple(f4(number) for number in _A[2, :N_STAGES])
-A03 = tuple(f4(number) for number in _A[3, :N_STAGES])
-A04 = tuple(f4(number) for number in _A[4, :N_STAGES])
-A05 = tuple(f4(number) for number in _A[5, :N_STAGES])
-A06 = tuple(f4(number) for number in _A[6, :N_STAGES])
-A07 = tuple(f4(number) for number in _A[7, :N_STAGES])
-A08 = tuple(f4(number) for number in _A[8, :N_STAGES])
-A09 = tuple(f4(number) for number in _A[9, :N_STAGES])
-A10 = tuple(f4(number) for number in _A[10, :N_STAGES])
-A11 = tuple(f4(number) for number in _A[11, :N_STAGES])
-B = tuple(f4(number) for number in _B)
-C = tuple(f4(number) for number in _C[:N_STAGES])
+A01 = tuple(float_(number) for number in _A[1, :N_STAGES])
+A02 = tuple(float_(number) for number in _A[2, :N_STAGES])
+A03 = tuple(float_(number) for number in _A[3, :N_STAGES])
+A04 = tuple(float_(number) for number in _A[4, :N_STAGES])
+A05 = tuple(float_(number) for number in _A[5, :N_STAGES])
+A06 = tuple(float_(number) for number in _A[6, :N_STAGES])
+A07 = tuple(float_(number) for number in _A[7, :N_STAGES])
+A08 = tuple(float_(number) for number in _A[8, :N_STAGES])
+A09 = tuple(float_(number) for number in _A[9, :N_STAGES])
+A10 = tuple(float_(number) for number in _A[10, :N_STAGES])
+A11 = tuple(float_(number) for number in _A[11, :N_STAGES])
+B = tuple(float_(number) for number in _B)
+C = tuple(float_(number) for number in _C[:N_STAGES])
 
 _KSIG = (
     "Tuple(["

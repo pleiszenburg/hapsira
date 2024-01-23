@@ -9,7 +9,6 @@ from hapsira.settings import settings
 
 
 __all__ = [
-    "PRECISIONS",
     "DSIG",
     "hjit",
     "vjit",
@@ -26,7 +25,12 @@ if settings["TARGET"].value == "cuda" and not cuda.is_available():
 logger.debug("jit inline: %s", "yes" if settings["INLINE"].value else "no")
 logger.debug("jit nopython: %s", "yes" if settings["NOPYTHON"].value else "no")
 
-PRECISIONS = ("f4", "f8")  # TODO allow f2, i.e. half, for CUDA at least?
+_PRECISIONS = (
+    settings["PRECISION"].value,
+)  # TODO again allow to compile for multiple precision?
+logger.debug("jit precision: %s", settings["PRECISION"].value)
+if settings["PRECISION"].value != "f8":
+    logger.warning("jit precision: DOP853 as used by Cowell's method requires f8!")
 
 DSIG = "Tuple([V,V])(f,V,V,f)"
 
@@ -56,7 +60,9 @@ def _parse_signatures(signature: str, noreturn: bool = False) -> Union[str, List
         )
         return signature
 
-    if any(level in signature for level in PRECISIONS):  # leave this signature as it is
+    if any(
+        level in signature for level in _PRECISIONS
+    ):  # leave this signature as it is
         logger.warning(
             "jit signature: precision specified, not parsing (%s)", signature
         )
@@ -72,7 +78,7 @@ def _parse_signatures(signature: str, noreturn: bool = False) -> Union[str, List
         "F", "FunctionType"
     )  # TODO does not work for CUDA yet
 
-    return [signature.replace("f", dtype) for dtype in PRECISIONS]
+    return [signature.replace("f", dtype) for dtype in _PRECISIONS]
 
 
 def hjit(*args, **kwargs) -> Callable:

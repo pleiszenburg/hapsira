@@ -133,6 +133,13 @@ class Settings:
                 True,
             )
         )
+        self._add(
+            Setting(
+                "PRECISION",
+                "f8",
+                options=("f2", "f4", "f8"),
+            )
+        )
 
     def _add(self, setting: Setting):
         """

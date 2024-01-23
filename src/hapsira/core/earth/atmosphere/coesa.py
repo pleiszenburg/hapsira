@@ -1,10 +1,15 @@
 """This script holds several utilities related to atmospheric computations."""
 
-from numba import njit as jit
+from ...jit import hjit
+
+__all__ = [
+    "get_index_hf",
+    "check_altitude_hf",
+]
 
 
-@jit
-def geometric_to_geopotential(z, r0):
+@hjit("f(f,f)")
+def _geometric_to_geopotential_hf(z, r0):
     """Converts from given geometric altitude to geopotential one.
 
     Parameters
@@ -23,11 +28,8 @@ def geometric_to_geopotential(z, r0):
     return h
 
 
-z_to_h = geometric_to_geopotential
-
-
-@jit
-def geopotential_to_geometric(h, r0):
+@hjit("f(f,f)")
+def _geopotential_to_geometric_hf(h, r0):
     """Converts from given geopotential altitude to geometric one.
 
     Parameters
@@ -46,11 +48,12 @@ def geopotential_to_geometric(h, r0):
     return z
 
 
-h_to_z = geopotential_to_geometric
+_z_to_h_hf = _geometric_to_geopotential_hf
+_h_to_z_hf = _geopotential_to_geometric_hf
 
 
-@jit
-def gravity(z, g0, r0):
+@hjit("f(f,f,f)")
+def _gravity_hf(z, g0, r0):
     """Relates Earth gravity field magnitude with the geometric height.
 
     Parameters
@@ -71,8 +74,8 @@ def gravity(z, g0, r0):
     return g
 
 
-@jit
-def _get_index(x, x_levels):
+@hjit  # ("i8(f,f)")  # TODO use tuple with fixed length
+def get_index_hf(x, x_levels):
     """Finds element in list and returns index.
 
     Parameters
@@ -97,14 +100,14 @@ def _get_index(x, x_levels):
             return i - 1
 
 
-@jit
-def _check_altitude(alt, r0, geometric):
+@hjit("Tuple([f,f])(f,f,b1)")
+def check_altitude_hf(alt, r0, geometric):
     # Get geometric and geopotential altitudes
     if geometric:
         z = alt
-        h = z_to_h(z, r0)
+        h = _z_to_h_hf(z, r0)
     else:
         h = alt
-        z = h_to_z(h, r0)
+        z = _h_to_z_hf(h, r0)
 
     return z, h

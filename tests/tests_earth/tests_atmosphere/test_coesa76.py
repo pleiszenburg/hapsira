@@ -4,6 +4,7 @@ import pytest
 
 from hapsira.earth.atmosphere import COESA76
 from hapsira.earth.atmosphere.coesa76 import p_coeff, rho_coeff
+from numpy import float32 as f4
 
 coesa76 = COESA76()
 
@@ -28,18 +29,18 @@ def test_get_index_coesa76():
 def test_coefficients_over_86km():
     # Expected pressure coefficients
     expected_p = [
-        9.814674e-11,
-        -1.654439e-07,
-        1.148115e-04,
-        -0.05431334,
-        -2.011365,
+        f4(9.814674e-11),
+        f4(-1.654439e-07),
+        f4(1.148115e-04),
+        f4(-0.05431334),
+        f4(-2.011365),
     ]
     expected_rho = [
-        1.140564e-10,
-        -2.130756e-07,
-        1.570762e-04,
-        -0.07029296,
-        -12.89844,
+        f4(1.140564e-10),
+        f4(-2.130756e-07),
+        f4(1.570762e-04),
+        f4(-0.07029296),
+        f4(-12.89844),
     ]
 
     assert coesa76._get_coefficients_avobe_86(350 * u.km, p_coeff) == expected_p

@@ -44,58 +44,66 @@ values were used.
 """
 
 from astropy import units as u
-from astropy.io import ascii
-from astropy.utils.data import get_pkg_data_filename
 import numpy as np
 
 from hapsira.earth.atmosphere.base import COESA
 
-# Following constants come from original U.S Atmosphere 1962 paper so a pure
-# model of this atmosphere can be implemented
-R = 8314.32 * u.J / u.kmol / u.K
-R_air = 287.053 * u.J / u.kg / u.K
-k = 1.380622e-23 * u.J / u.K
-Na = 6.022169e-26 / u.kmol
-g0 = 9.80665 * u.m / u.s**2
-r0 = 6356.766 * u.km
-M0 = 28.9644 * u.kg / u.kmol
-P0 = 101325 * u.Pa
-T0 = 288.15 * u.K
-Tinf = 1000 * u.K
-gamma = 1.4
-alpha = 34.1632 * u.K / u.km
-beta = 1.458e-6 * (u.kg / u.s / u.m / (u.K) ** 0.5)
-S = 110.4 * u.K
+from hapsira.core.earth.atmosphere.coesa76 import (
+    R,
+    R_air,
+    k,
+    Na,
+    g0,
+    r0,
+    M0,
+    P0,
+    T0,
+    Tinf,
+    gamma,
+    alpha,
+    beta,
+    S,
+    b_levels,
+    zb_levels,
+    hb_levels,
+    Tb_levels,
+    Lb_levels,
+    pb_levels,
+    z_coeff,
+    p_coeff,
+    rho_coeff,
+)
+
+__all__ = [
+    "COESA76",
+]
+
+R = R * u.J / u.kmol / u.K
+R_air = R_air * u.J / u.kg / u.K
+k = k * u.J / u.K
+Na = Na / u.kmol
+g0 = g0 * u.m / u.s**2
+r0 = r0 * u.km
+M0 = M0 * u.kg / u.kmol
+P0 = P0 * u.Pa
+T0 = T0 * u.K
+Tinf = Tinf * u.K
+alpha = alpha * u.K / u.km
+beta = beta * (u.kg / u.s / u.m / (u.K) ** 0.5)
+S = S * u.K
 
 # Reading layer parameters file
-coesa76_data = ascii.read(get_pkg_data_filename("data/coesa76.dat"))
-b_levels = coesa76_data["b"].data
-zb_levels = coesa76_data["Zb [km]"].data * u.km
-hb_levels = coesa76_data["Hb [km]"].data * u.km
-Tb_levels = coesa76_data["Tb [K]"].data * u.K
-Lb_levels = coesa76_data["Lb [K/km]"].data * u.K / u.km
-pb_levels = coesa76_data["pb [mbar]"].data * u.mbar
-
-# Reading pressure and density coefficients files
-p_data = ascii.read(get_pkg_data_filename("data/coesa76_p.dat"))
-rho_data = ascii.read(get_pkg_data_filename("data/coesa76_rho.dat"))
+b_levels = np.array(b_levels)
+zb_levels = np.array(zb_levels) * u.km
+hb_levels = np.array(hb_levels) * u.km
+Tb_levels = np.array(Tb_levels) * u.K
+Lb_levels = np.array(Lb_levels) * u.K / u.km
+pb_levels = np.array(pb_levels) * u.mbar
 
 # Zip coefficients for each altitude
-z_coeff = p_data["z [km]"].data * u.km
-p_coeff = [
-    p_data["A"].data,
-    p_data["B"].data,
-    p_data["C"].data,
-    p_data["D"].data,
-    p_data["E"].data,
-]
-rho_coeff = [
-    rho_data["A"].data,
-    rho_data["B"].data,
-    rho_data["C"].data,
-    rho_data["D"].data,
-    rho_data["E"].data,
-]
+z_coeff = z_coeff * u.km
+p_coeff = [np.array(entry) for entry in p_coeff]
+rho_coeff = [np.array(entry) for entry in rho_coeff]
 
 
 class COESA76(COESA):

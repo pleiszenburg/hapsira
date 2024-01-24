@@ -4,7 +4,7 @@ from typing import Callable
 import numpy as np
 
 from ._dop853_coefficients import A as _A, C as _C, D as _D
-from ._rkstep import rk_step_hf, N_RV, N_STAGES
+from ._rkstep import rk_step_hf, N_RV, N_STAGES, KSIG
 from ._rkerror import estimate_error_norm_hf
 
 from ...jit import array_to_V_hf, hjit, DSIG
@@ -236,7 +236,7 @@ class DOP853:
             return
 
         t = self.t
-        success, *rets = _step_impl(
+        success, *rets = _step_impl_hf(
             self.fun,
             self.argk,
             self.t,
@@ -311,7 +311,11 @@ class DOP853:
         return Dop853DenseOutput(self.t_old, self.t, self.y_old, F)
 
 
-def _step_impl(
+@hjit(
+    f"Tuple([b1,f,f,V,V,f,V,V,{KSIG:s}])"
+    f"(F({DSIG:s}),f,f,V,V,V,V,f,f,f,f,f,f,{KSIG:s})"
+)
+def _step_impl_hf(
     fun, argk, t, rr, vv, fr, fv, max_step, rtol, atol, direction, h_abs, t_bound, K
 ):
     min_step = 10 * abs(nextafter_hf(t, direction * inf) - t)
@@ -326,7 +330,17 @@ def _step_impl(
 
     while not step_accepted:
         if h_abs < min_step:
-            return False
+            return (
+                False,
+                0.0,
+                0.0,
+                (0.0, 0.0, 0.0),
+                (0.0, 0.0, 0.0),
+                0.0,
+                (0.0, 0.0, 0.0),
+                (0.0, 0.0, 0.0),
+                K,
+            )
 
         h = h_abs * direction
         t_new = t + h

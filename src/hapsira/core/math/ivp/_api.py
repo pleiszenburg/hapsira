@@ -1,3 +1,5 @@
+from typing import Callable, List, Optional
+
 import numpy as np
 
 from ._brentq import brentq
@@ -160,16 +162,14 @@ def find_active_events(g, g_new, direction):
 
 
 def solve_ivp(
-    fun,
-    t_span,
-    y0,
+    fun: Callable,
+    t0: float,
+    tf: float,
+    y0: np.ndarray,  # (6,)
     argk: float,
-    method=DOP853,
-    # t_eval=None,
-    # dense_output=False,
-    events=None,
+    events: Optional[List[Callable]] = None,
     **options,
-):
+) -> OdeResult:
     """Solve an initial value problem for a system of ODEs.
 
     Parameters
@@ -312,9 +312,7 @@ def solve_ivp(
 
     """
 
-    t0, tf = map(float, t_span)
-
-    solver = method(fun, t0, y0, tf, argk, **options)
+    solver = DOP853(fun, t0, y0, tf, argk, **options)
 
     ts = [t0]
     ys = [y0]

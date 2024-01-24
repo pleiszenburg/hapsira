@@ -9,16 +9,20 @@ __all__ = [
 ]
 
 
-def cowell(k, r, v, tofs, rtol=1e-11, events=None, f=func_twobody_hf):
+def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=None, f=func_twobody_hf):
     """
     Scalar cowell
 
-    f : float
+    k : float
     r : ndarray (3,)
     v : ndarray (3,)
-    tofs : ???
-    rtol : float ... or also ndarray?
+    tofs : array of relative times [seconds]
+    rtol : float
+    atol : float
+    events : Optional[List[Event]]
+    f : Callable
     """
+
     assert hasattr(f, "djit")  # DEBUG check for compiler flag
     assert isinstance(rtol, float)
 
@@ -29,12 +33,12 @@ def cowell(k, r, v, tofs, rtol=1e-11, events=None, f=func_twobody_hf):
 
     result = solve_ivp(
         f,
-        (0, max(tofs)),
+        0.0,
+        float(max(tofs)),
         u0,
         argk=k,
         rtol=rtol,
-        atol=1e-12,
-        # dense_output=True,
+        atol=atol,
         events=events,
     )
     if not result.success:
@@ -46,18 +50,16 @@ def cowell(k, r, v, tofs, rtol=1e-11, events=None, f=func_twobody_hf):
 
         # If there are no terminal events, then the last time of integration is the
         # greatest one from the original array of propagation times
-        if not terminal_events:
-            last_t = max(tofs)
-        else:
+        if terminal_events:
             # Filter the event which triggered first
             last_t = min(event._last_t for event in terminal_events)
             # FIXME: Here last_t has units, but tofs don't
-            tofs = [tof for tof in tofs if tof < last_t] + [last_t]
+            tofs = [tof for tof in tofs if tof < last_t]
+            tofs.append(last_t)
 
     rrs = []
     vvs = []
-    for i in range(len(tofs)):
-        t = tofs[i]
+    for t in tofs:
         y = result.sol(t)
         rrs.append(y[:3])
         vvs.append(y[3:])

@@ -27,6 +27,7 @@ MAX_FACTOR = 10  # Maximum allowed increase in a step size.
 INTERPOLATOR_POWER = 7
 N_STAGES_EXTENDED = 16
 ERROR_ESTIMATOR_ORDER = 7
+ERROR_EXPONENT = -1 / (ERROR_ESTIMATOR_ORDER + 1)
 
 
 @hjit("f(V,V)")
@@ -138,84 +139,9 @@ class Dop853DenseOutput:
         return y.T
 
 
-def check_arguments(y0):
-    """Helper function for checking arguments common to all solvers."""
-
-    y0 = np.asarray(y0)
-
-    assert not np.issubdtype(y0.dtype, np.complexfloating)
-
-    dtype = float
-    y0 = y0.astype(dtype, copy=False)
-
-    assert not y0.ndim != 1
-    assert np.isfinite(y0).all()
-
-    return y0
-
-
 class DOP853:
-    """Explicit Runge-Kutta method of order 8.
-
-    This is a Python implementation of "DOP853" algorithm originally written
-    in Fortran [1]_, [2]_. Note that this is not a literate translation, but
-    the algorithmic core and coefficients are the same.
-
-    Parameters
-    ----------
-    fun : callable
-        Right-hand side of the system. The calling signature is ``fun(t, y)``.
-        Here, ``t`` is a scalar, and there are two options for the ndarray ``y``:
-        It can either have shape (n,); then ``fun`` must return array_like with
-        shape (n,). Alternatively it can have shape (n, k); then ``fun``
-        must return an array_like with shape (n, k), i.e. each column
-        corresponds to a single column in ``y``. The choice between the two
-        options is determined by `vectorized` argument (see below).
-    t0 : float
-        Initial time.
-    y0 : array_like, shape (n,)
-        Initial state.
-    t_bound : float
-        Boundary time - the integration won't continue beyond it. It also
-        determines the direction of the integration.
-    max_step : float, optional
-        Maximum allowed step size. Default is np.inf, i.e. the step size is not
-        bounded and determined solely by the solver.
-    rtol, atol : float and array_like, optional
-        Relative and absolute tolerances. The solver keeps the local error
-        estimates less than ``atol + rtol * abs(y)``. Here `rtol` controls a
-        relative accuracy (number of correct digits), while `atol` controls
-        absolute accuracy (number of correct decimal places). To achieve the
-        desired `rtol`, set `atol` to be smaller than the smallest value that
-        can be expected from ``rtol * abs(y)`` so that `rtol` dominates the
-        allowable error. If `atol` is larger than ``rtol * abs(y)`` the
-        number of correct digits is not guaranteed. Conversely, to achieve the
-        desired `atol` set `rtol` such that ``rtol * abs(y)`` is always smaller
-        than `atol`. If components of y have different scales, it might be
-        beneficial to set different `atol` values for different components by
-        passing array_like with shape (n,) for `atol`. Default values are
-        1e-3 for `rtol` and 1e-6 for `atol`.
-
-    Attributes
-    ----------
-    n : int
-        Number of equations.
-    status : string
-        Current status of the solver: 'running', 'finished' or 'failed'.
-    t_bound : float
-        Boundary time.
-    direction : float
-        Integration direction: +1 or -1.
-    t : float
-        Current time.
-    y : ndarray
-        Current state.
-    t_old : float
-        Previous time. None if no steps were made yet.
-    step_size : float
-        Size of the last successful step. None if no steps were made yet.
-    nlu : int
-        Number of LU decompositions. Is always 0 for this solver.
+    """
+    Explicit Runge-Kutta method of order 8.
     """
 
     A_EXTRA = _A[N_STAGES + 1 :]
@@ -234,31 +160,31 @@ class DOP853:
         atol: float = 1e-6,
     ):
         assert y0.shape == (N_RV,)
-
-        self.t_old = None
-        self.t = t0
-        self.y = check_arguments(y0)
-        self.t_bound = t_bound
-
-        self.fun = fun
-        self.argk = argk
-
-        self.direction = np.sign(t_bound - t0) if t_bound != t0 else 1
-        self.status = "running"
-
-        self.nfev = 0
-        self.njev = 0
-        self.nlu = 0
-
-        self.y_old = None
-
+        assert np.isfinite(y0).all()
         assert max_step > 0
-        self.max_step = max_step
+        assert atol >= 0
 
         if rtol < 100 * EPS:
             rtol = 100 * EPS
-        assert atol >= 0
-        self.rtol, self.atol = rtol, atol
+
+        self.t = t0
+        self.y = y0
+        self.t_bound = t_bound
+        self.max_step = max_step
+        self.fun = fun
+        self.argk = argk
+        self.rtol = rtol
+        self.atol = atol
+
+        self.direction = np.sign(t_bound - t0) if t_bound != t0 else 1
+
+        self.K_extended = np.empty((N_STAGES_EXTENDED, N_RV), dtype=self.y.dtype)
+        self.K = self.K_extended[: N_STAGES + 1, :]
+        self.y_old = None
+        self.t_old = None
+        self.h_previous = None
+
+        self.status = "running"
 
         rr, vv = self.fun(
             self.t,
@@ -267,6 +193,7 @@ class DOP853:
             self.argk,
         )  # TODO call into hf
         self.f = np.array([*rr, *vv])
+
         self.h_abs = _select_initial_step_hf(
             self.fun,
             self.t,
@@ -280,11 +207,6 @@ class DOP853:
             self.rtol,
             self.atol,
         )  # TODO call into hf
-        self.error_exponent = -1 / (ERROR_ESTIMATOR_ORDER + 1)
-        self.h_previous = None
-
-        self.K_extended = np.empty((N_STAGES_EXTENDED, N_RV), dtype=self.y.dtype)
-        self.K = self.K_extended[: N_STAGES + 1]
 
     def step(self):
         """Perform one integration step.
@@ -416,7 +338,7 @@ class DOP853:
                 if error_norm == 0:
                     factor = MAX_FACTOR
                 else:
-                    factor = min(MAX_FACTOR, SAFETY * error_norm**self.error_exponent)
+                    factor = min(MAX_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
 
                 if step_rejected:
                     factor = min(1, factor)
@@ -425,7 +347,7 @@ class DOP853:
 
                 step_accepted = True
             else:
-                h_abs *= max(MIN_FACTOR, SAFETY * error_norm**self.error_exponent)
+                h_abs *= max(MIN_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
                 step_rejected = True
 
         self.h_previous = h

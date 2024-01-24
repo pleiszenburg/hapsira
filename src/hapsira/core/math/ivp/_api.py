@@ -389,7 +389,6 @@ def solve_ivp(
         sol=sol,
         t_events=t_events,
         y_events=y_events,
-        nlu=solver.nlu,
         status=status,
         success=status >= 0,
     )

@@ -255,12 +255,13 @@ class DOP853:
 
         if success:
             self.h_previous = rets[0]
-            self.y_old = np.array([*rets[1], *rets[2]])
-            self.t = rets[3]
-            self.y = np.array([*rets[4], *rets[5]])
-            self.h_abs = rets[6]
-            self.f = np.array([*rets[7], *rets[8]])
-            self.K[: N_STAGES + 1, :N_RV] = np.array(rets[9])
+            # self.y_old = np.array([*rets[1], *rets[2]])
+            self.y_old = self.y
+            self.t = rets[1]
+            self.y = np.array([*rets[2], *rets[3]])
+            self.h_abs = rets[4]
+            self.f = np.array([*rets[5], *rets[6]])
+            self.K[: N_STAGES + 1, :N_RV] = np.array(rets[7])
 
         if not success:
             self.status = "failed"
@@ -390,4 +391,4 @@ def _step_impl(
             h_abs *= max(MIN_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
             step_rejected = True
 
-    return True, h, rr, vv, t_new, rr_new, vv_new, h_abs, fr_new, fv_new, K_new
+    return True, h, t_new, rr_new, vv_new, h_abs, fr_new, fv_new, K_new

@@ -6,6 +6,7 @@ __all__ = [
     "add_VV_hf",
     "cross_VV_hf",
     "div_Vs_hf",
+    "div_VV_hf",
     "matmul_MM_hf",
     "matmul_VM_hf",
     "matmul_VV_hf",
@@ -41,6 +42,11 @@ def div_ss_hf(a, b):
     if b == 0:
         return inf if a >= 0 else -inf
     return a / b
+
+
+@hjit("V(V,V)")
+def div_VV_hf(x, y):
+    return x[0] / y[0], x[1] / y[1], x[2] / y[2]
 
 
 @hjit("V(V,f)")

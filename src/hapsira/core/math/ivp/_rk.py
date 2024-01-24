@@ -1,13 +1,13 @@
-from typing import Callable, Tuple
-from warnings import warn
+from math import sqrt
+from typing import Callable
 
 import numpy as np
-from numba import jit
 
 from . import _dop853_coefficients as dop853_coefficients
 from ._rkstep import rk_step_hf, N_RV, N_STAGES
 
-from ...jit import array_to_V_hf
+from ...jit import array_to_V_hf, hjit, DSIG
+from ...math.linalg import add_VV_hf, div_VV_hf, mul_Vs_hf, sub_VV_hf
 
 __all__ = [
     "EPS",
@@ -28,24 +28,15 @@ N_STAGES_EXTENDED = 16
 ERROR_ESTIMATOR_ORDER = 7
 
 
-@jit(nopython=False)
-def norm(x: np.ndarray) -> float:
-    """Compute RMS norm."""
-    return np.linalg.norm(x) / x.size**0.5
+@hjit("f(V,V)")
+def _norm_VV_hf(x, y):
+    return sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + y[0] ** 2 + y[1] ** 2 + y[2] ** 2)
 
 
-@jit(nopython=False)
-def select_initial_step(
-    fun: Callable,
-    t0: float,
-    y0: np.ndarray,
-    argk: float,
-    f0: np.ndarray,
-    direction: float,
-    order: float,
-    rtol: float,
-    atol: float,
-) -> float:
+@hjit(f"f(F({DSIG:s}),f,V,V,f,V,V,f,f,f,f)")
+def _select_initial_step_hf(
+    fun, t0, rr, vv, argk, fr, fv, direction, order, rtol, atol
+):
     """Empirically select a good initial step.
 
     The algorithm is described in [1]_.
@@ -80,26 +71,44 @@ def select_initial_step(
     .. [1] E. Hairer, S. P. Norsett G. Wanner, "Solving Ordinary Differential
            Equations I: Nonstiff Problems", Sec. II.4.
     """
-    if y0.size == 0:
-        return np.inf
 
-    scale = atol + np.abs(y0) * rtol
-    d0 = norm(y0 / scale)
-    d1 = norm(f0 / scale)
+    scale_r = (
+        atol + abs(rr[0]) * rtol,
+        atol + abs(rr[1]) * rtol,
+        atol + abs(rr[2]) * rtol,
+    )
+    scale_v = (
+        atol + abs(vv[0]) * rtol,
+        atol + abs(vv[1]) * rtol,
+        atol + abs(vv[2]) * rtol,
+    )
+
+    factor = 1 / sqrt(6)
+    d0 = _norm_VV_hf(div_VV_hf(rr, scale_r), div_VV_hf(vv, scale_v)) * factor
+    d1 = _norm_VV_hf(div_VV_hf(fr, scale_r), div_VV_hf(fv, scale_v)) * factor
+
     if d0 < 1e-5 or d1 < 1e-5:
         h0 = 1e-6
     else:
         h0 = 0.01 * d0 / d1
 
-    y1 = y0 + h0 * direction * f0
-    rr, vv = fun(
+    yr1 = add_VV_hf(rr, mul_Vs_hf(fr, h0 * direction))
+    yv1 = add_VV_hf(vv, mul_Vs_hf(fv, h0 * direction))
+
+    fr1, fv1 = fun(
         t0 + h0 * direction,
-        array_to_V_hf(y1[:3]),
-        array_to_V_hf(y1[3:]),
+        yr1,
+        yv1,
         argk,
-    )  # TODO call into hf
-    f1 = np.array([*rr, *vv])
-    d2 = norm((f1 - f0) / scale) / h0
+    )
+
+    d2 = (
+        _norm_VV_hf(
+            div_VV_hf(sub_VV_hf(fr1, fr), scale_r),
+            div_VV_hf(sub_VV_hf(fv1, fv), scale_v),
+        )
+        / h0
+    )
 
     if d1 <= 1e-15 and d2 <= 1e-15:
         h1 = max(1e-6, h0 * 1e-3)
@@ -107,35 +116,6 @@ def select_initial_step(
         h1 = (0.01 / max(d1, d2)) ** (1 / (order + 1))
 
     return min(100 * h0, h1)
-
-
-@jit(nopython=False)
-def validate_max_step(max_step: float) -> float:
-    """Assert that max_Step is valid and return it."""
-    if max_step <= 0:
-        raise ValueError("`max_step` must be positive.")
-    return max_step
-
-
-@jit(nopython=False)
-def validate_tol(rtol: float, atol: float) -> Tuple[float, float]:
-    """Validate tolerance values."""
-
-    if np.any(rtol < 100 * EPS):
-        warn(
-            "At least one element of `rtol` is too small. "
-            f"Setting `rtol = np.maximum(rtol, {100 * EPS})`."
-        )
-        rtol = np.maximum(rtol, 100 * EPS)
-
-    atol = np.asarray(atol)
-    if atol.ndim > 0 and atol.shape != (N_RV,):
-        raise ValueError("`atol` has wrong shape.")
-
-    if np.any(atol < 0):
-        raise ValueError("`atol` must be positive.")
-
-    return rtol, atol
 
 
 class Dop853DenseOutput:
@@ -312,8 +292,15 @@ class DOP853:
         self.nlu = 0
 
         self.y_old = None
-        self.max_step = validate_max_step(max_step)
-        self.rtol, self.atol = validate_tol(rtol, atol)
+
+        assert max_step > 0
+        self.max_step = max_step
+
+        if rtol < 100 * EPS:
+            rtol = 100 * EPS
+        assert atol >= 0
+        self.rtol, self.atol = rtol, atol
+
         rr, vv = self.fun(
             self.t,
             array_to_V_hf(self.y[:3]),
@@ -321,29 +308,24 @@ class DOP853:
             self.argk,
         )  # TODO call into hf
         self.f = np.array([*rr, *vv])
-        self.h_abs = select_initial_step(
+        self.h_abs = _select_initial_step_hf(
             self.fun,
             self.t,
-            self.y,
+            array_to_V_hf(self.y[:3]),
+            array_to_V_hf(self.y[3:]),
             self.argk,
-            self.f,
+            array_to_V_hf(self.f[:3]),
+            array_to_V_hf(self.f[3:]),
             self.direction,
             ERROR_ESTIMATOR_ORDER,
             self.rtol,
             self.atol,
-        )
+        )  # TODO call into hf
         self.error_exponent = -1 / (ERROR_ESTIMATOR_ORDER + 1)
         self.h_previous = None
 
         self.K_extended = np.empty((N_STAGES_EXTENDED, N_RV), dtype=self.y.dtype)
         self.K = self.K_extended[: N_STAGES + 1]
-
-    @property
-    def step_size(self):
-        if self.t_old is None:
-            return None
-        else:
-            return np.abs(self.t - self.t_old)
 
     def step(self):
         """Perform one integration step.

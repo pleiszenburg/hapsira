@@ -72,6 +72,9 @@ from hapsira.core.earth.atmosphere.coesa76 import (
     z_coeff,
     p_coeff,
     rho_coeff,
+    pressure_vf,
+    density_vf,
+    temperature_vf,
 )
 
 __all__ = [
@@ -153,40 +156,8 @@ class COESA76(COESA):
         T: ~astropy.units.Quantity
             Kinetic temeperature.
         """
-        # Test if altitude is inside valid range
-        z, h = self._check_altitude(alt, r0, geometric=geometric)
 
-        # Get base parameters
-        i = self._get_index(z, self.zb_levels)
-        Tb = self.Tb_levels[i]
-        Lb = self.Lb_levels[i]
-        hb = self.hb_levels[i]
-
-        # Apply different equations
-        if z < self.zb_levels[7]:
-            # Below 86km
-            # TODO: Apply air mean molecular weight ratio factor
-            Tm = Tb + Lb * (h - hb)
-            T = Tm
-        elif self.zb_levels[7] <= z and z < self.zb_levels[8]:
-            # [86km, 91km)
-            T = 186.87 * u.K
-        elif self.zb_levels[8] <= z and z < self.zb_levels[9]:
-            # [91km, 110km]
-            Tc = 263.1905 * u.K
-            A = -76.3232 * u.K
-            a = -19.9429 * u.km
-            T = Tc + A * (1 - ((z - self.zb_levels[8]) / a) ** 2) ** 0.5
-        elif self.zb_levels[9] <= z and z < self.zb_levels[10]:
-            # [110km, 120km]
-            T = 240 * u.K + Lb * (z - self.zb_levels[9])
-        else:
-            T10 = 360.0 * u.K
-            _gamma = self.Lb_levels[9] / (Tinf - T10)
-            epsilon = (z - self.zb_levels[10]) * (r0 + self.zb_levels[10]) / (r0 + z)
-            T = Tinf - (Tinf - T10) * np.exp(-_gamma * epsilon)
-
-        return T.to(u.K)
+        return temperature_vf(alt.to_value(u.km), geometric) * u.K
 
     def pressure(self, alt, geometric=True):
         """Solves pressure at given altitude.
@@ -203,36 +174,8 @@ class COESA76(COESA):
         p: ~astropy.units.Quantity
             Pressure at given altitude.
         """
-        # Test if altitude is inside valid range
-        z, h = self._check_altitude(alt, r0, geometric=geometric)
 
-        # Obtain gravity magnitude
-        # Get base parameters
-        i = self._get_index(z, self.zb_levels)
-        Tb = self.Tb_levels[i]
-        Lb = self.Lb_levels[i]
-        hb = self.hb_levels[i]
-        pb = self.pb_levels[i]
-
-        # If above 86[km] usual formulation is applied
-        if z < 86 * u.km:
-            if Lb == 0.0 * u.K / u.km:
-                p = pb * np.exp(-alpha * (h - hb) / Tb)
-            else:
-                T = self.temperature(z)
-                p = pb * (Tb / T) ** (alpha / Lb)
-        else:
-            # TODO: equation (33c) should be applied instead of using coefficients
-
-            # A 4th order polynomial is used to approximate pressure.  This was
-            # directly taken from: http://www.braeunig.us/space/atmmodel.htm
-            A, B, C, D, E = self._get_coefficients_avobe_86(z, p_coeff)
-
-            # Solve the polynomial
-            z = z.to_value(u.km)
-            p = np.exp(A * z**4 + B * z**3 + C * z**2 + D * z + E) * u.Pa
-
-        return p.to(u.Pa)
+        return pressure_vf(alt.to_value(u.km), geometric) * u.Pa
 
     def density(self, alt, geometric=True):
         """Solves density at given height.
@@ -249,30 +192,8 @@ class COESA76(COESA):
         rho: ~astropy.units.Quantity
             Density at given height.
         """
-        # Test if altitude is inside valid range
-        z, h = self._check_altitude(alt, r0, geometric=geometric)
 
-        # Solve temperature and pressure
-        if z <= 86 * u.km:
-            T = self.temperature(z)
-            p = self.pressure(z)
-            rho = p / R_air / T
-        else:
-            # TODO: equation (42) should be applied instead of using coefficients
-
-            # A 4th order polynomial is used to approximate pressure.  This was
-            # directly taken from: http://www.braeunig.us/space/atmmodel.htm
-            A, B, C, D, E = self._get_coefficients_avobe_86(z, rho_coeff)
-
-            # Solve the polynomial
-            z = z.to_value(u.km)
-            rho = (
-                np.exp(A * z**4 + B * z**3 + C * z**2 + D * z + E)
-                * u.kg
-                / u.m**3
-            )
-
-        return rho.to(u.kg / u.m**3)
+        return density_vf(alt.to_value(u.km), geometric) * u.kg / u.m**3
 
     def properties(self, alt, geometric=True):
         """Solves temperature, pressure, density at given height.

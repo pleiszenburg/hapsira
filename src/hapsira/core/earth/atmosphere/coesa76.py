@@ -6,7 +6,7 @@ from astropy.utils.data import get_pkg_data_filename
 from numpy import float32 as float_, int64 as i8
 
 from .coesa import check_altitude_hf
-from ...jit import hjit
+from ...jit import hjit, vjit
 
 __all__ = [
     "R",
@@ -32,9 +32,13 @@ __all__ = [
     "z_coeff",
     "p_coeff",
     "rho_coeff",
+    "COESA76_GEOMETRIC",
     "pressure_hf",
+    "pressure_vf",
     "temperature_hf",
+    "temperature_vf",
     "density_hf",
+    "density_vf",
 ]
 
 # Following constants come from original U.S Atmosphere 1962 paper so a pure
@@ -85,6 +89,8 @@ rho_coeff = (
     tuple(float_(number) for number in rho_data["D"].data),
     tuple(float_(number) for number in rho_data["E"].data),
 )
+
+COESA76_GEOMETRIC = True
 
 
 @hjit("Tuple([f,f])(f,f,b1)")
@@ -259,6 +265,15 @@ def temperature_hf(alt, geometric):  # geometric True by default
     return T
 
 
+@vjit("f(f,b1)")
+def temperature_vf(alt, geometric):  # geometric True by default
+    """
+    Vectorized temperature
+    """
+
+    return temperature_hf(alt, geometric)
+
+
 @hjit("f(f,b1)")
 def pressure_hf(alt, geometric):  # geometric True by default
     """Solves pressure at given altitude.
@@ -306,6 +321,15 @@ def pressure_hf(alt, geometric):  # geometric True by default
     return p
 
 
+@vjit("f(f,b1)")
+def pressure_vf(alt, geometric):  # geometric True by default
+    """
+    Vectorized pressure
+    """
+
+    return pressure_hf(alt, geometric)
+
+
 @hjit("f(f,b1)")
 def density_hf(alt, geometric):  # geometric True by default
     """Solves density at given height.
@@ -341,3 +365,12 @@ def density_hf(alt, geometric):  # geometric True by default
         rho = exp(A * z**4 + B * z**3 + C * z**2 + D * z + E)
 
     return rho
+
+
+@vjit("f(f,b1)")
+def density_vf(alt, geometric):  # geometric True by default
+    """
+    Vectorized density
+    """
+
+    return density_hf(alt, geometric)

@@ -297,11 +297,6 @@ def solve_ivp(
     if events is not None:
         events = [lambda t, x, event=event: event(t, x, argk) for event in events]
         g = [event(t0, y0) for event in events]
-        t_events = [[] for _ in range(len(events))]
-        y_events = [[] for _ in range(len(events))]
-    else:
-        t_events = None
-        y_events = None
 
     status = None
     while status is None:
@@ -324,22 +319,12 @@ def solve_ivp(
             g_new = [event(t, y) for event in events]
             active_events = find_active_events(g, g_new, event_dir)
             if active_events.size > 0:
-                if sol is None:
-                    sol = solver.dense_output()
-
-                root_indices, roots, terminate = handle_events(
+                _, roots, terminate = handle_events(
                     sol, events, active_events, is_terminal, t_old, t
                 )
-
-                for e, te in zip(root_indices, roots):
-                    t_events[e].append(te)
-                    y_events[e].append(sol(te))
-
                 if terminate:
                     status = 1
                     t = roots[-1]
-                    y = sol(t)
-
             g = g_new
 
         ts.append(t)

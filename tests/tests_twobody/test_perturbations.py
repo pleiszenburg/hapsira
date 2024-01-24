@@ -8,20 +8,20 @@ import pytest
 
 from hapsira.bodies import Earth, Moon, Sun
 from hapsira.constants import H0_earth, Wdivc_sun, rho0_earth
+from hapsira.core.earth.atmosphere.coesa76 import density_hf as coesa76_density_hf
 from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
 from hapsira.core.jit import hjit, djit
 from hapsira.core.math.linalg import add_VV_hf, mul_Vs_hf, norm_hf
 from hapsira.core.perturbations import (  # pylint: disable=E1120,E1136
     J2_perturbation_hf,
     J3_perturbation_hf,
-    # atmospheric_drag_hf,  # TODO reactivate test
+    atmospheric_drag_hf,
     atmospheric_drag_exponential_hf,
     radiation_pressure_hf,
     third_body_hf,
 )
 from hapsira.core.propagation.base import func_twobody_hf
 
-# from hapsira.earth.atmosphere import COESA76  # TODO reactivate test
 from hapsira.ephem import build_ephem_interpolant
 from hapsira.twobody import Orbit
 from hapsira.twobody.events import LithobrakeEvent
@@ -361,60 +361,58 @@ def test_atmospheric_demise():
     assert lithobrake_event.last_t == tofs[-1]
 
 
-# @pytest.mark.slow
-# def test_atmospheric_demise_coesa76():
-#     # Test an orbital decay that hits Earth. No analytic solution.
-#     R = Earth.R.to(u.km).value
+@pytest.mark.slow
+def test_atmospheric_demise_coesa76():
+    # Test an orbital decay that hits Earth. No analytic solution.
+    R = Earth.R.to(u.km).value
 
-#     orbit = Orbit.circular(Earth, 250 * u.km)
-#     t_decay = 7.17 * u.d
+    orbit = Orbit.circular(Earth, 250 * u.km)
+    t_decay = 7.17 * u.d
 
-#     # Parameters of a body
-#     C_D = 2.2  # Dimensionless (any value would do)
-#     A_over_m = ((np.pi / 4.0) * (u.m**2) / (100 * u.kg)).to_value(
-#         u.km**2 / u.kg
-#     )  # km^2/kg
+    # Parameters of a body
+    C_D = 2.2  # Dimensionless (any value would do)
+    A_over_m = ((np.pi / 4.0) * (u.m**2) / (100 * u.kg)).to_value(
+        u.km**2 / u.kg
+    )  # km^2/kg
 
-#     tofs = [365] * u.d
+    tofs = [365] * u.d
 
-#     lithobrake_event = LithobrakeEvent(R)
-#     events = [lithobrake_event]
+    lithobrake_event = LithobrakeEvent(R)
+    events = [lithobrake_event]
 
-#     coesa76 = COESA76()
+    @djit
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
 
-#     @djit
-#     def f_hf(t0, rr, vv, k):
-#         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        # Avoid undershooting H below attractor radius R
+        H = norm_hf(rr)
+        if H < R:
+            H = R
 
-#         # Avoid undershooting H below attractor radius R
-#         H = norm_hf(rr)
-#         if H < R:
-#             H = R
+        rho = (
+            coesa76_density_hf(H - R, True) * 1e9
+        )  # HACK convert from kg/m**3 to kg/km**3
 
-#         rho = coesa76.density(
-#             (H - R) * u.km
-#         ).to_value(u.kg / u.km**3)  # TODO jit'ed ... move to core?!?
+        du_ad = atmospheric_drag_hf(
+            t0,
+            rr,
+            vv,
+            k,
+            C_D,
+            A_over_m,
+            rho,
+        )
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-#         du_ad = atmospheric_drag_hf(
-#             t0,
-#             rr,
-#             vv,
-#             k,
-#             C_D,
-#             A_over_m,
-#             rho,
-#         )
-#         return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
+    method = CowellPropagator(events=events, f=f_hf)
+    rr, _ = method.propagate_many(
+        orbit._state,
+        tofs,
+    )
 
-#     method = CowellPropagator(events=events, f=f)
-#     rr, _ = method.propagate_many(
-#         orbit._state,
-#         tofs,
-#     )
+    assert_quantity_allclose(norm(rr[0].to(u.km).value), R, atol=1)  # Below 1km
 
-#     assert_quantity_allclose(norm(rr[0].to(u.km).value), R, atol=1)  # Below 1km
-
-#     assert_quantity_allclose(lithobrake_event.last_t, t_decay, rtol=1e-2)
+    assert_quantity_allclose(lithobrake_event.last_t, t_decay, rtol=1e-2)
 
 
 @pytest.mark.slow

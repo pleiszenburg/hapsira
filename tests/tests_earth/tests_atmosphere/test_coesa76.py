@@ -1,10 +1,10 @@
 from astropy import units as u
 from astropy.tests.helper import assert_quantity_allclose
+from numpy.testing import assert_allclose
 import pytest
 
 from hapsira.earth.atmosphere import COESA76
 from hapsira.earth.atmosphere.coesa76 import p_coeff, rho_coeff
-from numpy import float32 as f4
 
 coesa76 = COESA76()
 
@@ -29,22 +29,24 @@ def test_get_index_coesa76():
 def test_coefficients_over_86km():
     # Expected pressure coefficients
     expected_p = [
-        f4(9.814674e-11),
-        f4(-1.654439e-07),
-        f4(1.148115e-04),
-        f4(-0.05431334),
-        f4(-2.011365),
+        9.814674e-11,
+        -1.654439e-07,
+        1.148115e-04,
+        -0.05431334,
+        -2.011365,
     ]
     expected_rho = [
-        f4(1.140564e-10),
-        f4(-2.130756e-07),
-        f4(1.570762e-04),
-        f4(-0.07029296),
-        f4(-12.89844),
+        1.140564e-10,
+        -2.130756e-07,
+        1.570762e-04,
+        -0.07029296,
+        -12.89844,
     ]
 
-    assert coesa76._get_coefficients_avobe_86(350 * u.km, p_coeff) == expected_p
-    assert coesa76._get_coefficients_avobe_86(350 * u.km, rho_coeff) == expected_rho
+    assert_allclose(coesa76._get_coefficients_avobe_86(350 * u.km, p_coeff), expected_p)
+    assert_allclose(
+        coesa76._get_coefficients_avobe_86(350 * u.km, rho_coeff), expected_rho
+    )
 
 
 # SOLUTIONS DIRECTLY TAKEN FROM COESA76 REPORT

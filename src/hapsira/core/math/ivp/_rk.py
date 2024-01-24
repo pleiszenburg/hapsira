@@ -3,7 +3,7 @@ from typing import Callable
 
 import numpy as np
 
-from . import _dop853_coefficients as dop853_coefficients
+from ._dop853_coefficients import E3, E5, A as _A, C as _C, D as _D
 from ._rkstep import rk_step_hf, N_RV, N_STAGES
 
 from ...jit import array_to_V_hf, hjit, DSIG
@@ -219,12 +219,9 @@ class DOP853:
 
     TOO_SMALL_STEP = "Required step size is less than spacing between numbers."
 
-    E3 = dop853_coefficients.E3
-    E5 = dop853_coefficients.E5
-    D = dop853_coefficients.D
-
-    A_EXTRA = dop853_coefficients.A[N_STAGES + 1 :]
-    C_EXTRA = dop853_coefficients.C[N_STAGES + 1 :]
+    A_EXTRA = _A[N_STAGES + 1 :]
+    C_EXTRA = _C[N_STAGES + 1 :]
+    D = _D
 
     def __init__(
         self,
@@ -360,13 +357,20 @@ class DOP853:
         return Dop853DenseOutput(self.t_old, self.t, self.y_old, F)
 
     def _estimate_error_norm(self, K, h, scale):
-        err5 = np.dot(K.T, self.E5) / scale
-        err3 = np.dot(K.T, self.E3) / scale
+        assert K.shape == (N_STAGES + 1, N_RV)
+        assert E3.shape == (N_STAGES + 1,)
+        assert E5.shape == (N_STAGES + 1,)
+        assert scale.shape == (N_RV,)
+
+        err5 = np.dot(K.T, E5) / scale
+        err3 = np.dot(K.T, E3) / scale
         err5_norm_2 = np.linalg.norm(err5) ** 2
         err3_norm_2 = np.linalg.norm(err3) ** 2
+
         if err5_norm_2 == 0 and err3_norm_2 == 0:
             return 0.0
         denom = err5_norm_2 + 0.01 * err3_norm_2
+
         return np.abs(h) * err5_norm_2 / np.sqrt(denom * len(scale))
 
     def _step_impl(self):

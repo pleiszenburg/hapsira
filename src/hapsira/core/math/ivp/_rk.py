@@ -304,16 +304,20 @@ class DOP853:
             self.t_old = self.t
             self.t = self.t_bound
             self.status = "finished"
-        else:
-            t = self.t
-            success = self._step_impl()
+            return
 
-            if not success:
-                self.status = "failed"
-            else:
-                self.t_old = t
-                if self.direction * (self.t - self.t_bound) >= 0:
-                    self.status = "finished"
+        t = self.t
+        success = self._step_impl()
+
+        if not success:
+            self.status = "failed"
+            return
+
+        self.t_old = t
+        if self.direction * (self.t - self.t_bound) < 0:
+            return
+
+        self.status = "finished"
 
     def dense_output(self):
         """Compute a local interpolant over the last successful step.

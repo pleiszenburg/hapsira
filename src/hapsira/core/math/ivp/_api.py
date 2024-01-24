@@ -6,12 +6,6 @@ from ._common import OdeSolution
 from ._rk import EPS, DOP853
 
 
-MESSAGES = {
-    0: "The solver successfully reached the end of the integration interval.",
-    1: "A termination event occurred.",
-}
-
-
 class OdeResult(dict):
     """Represents the optimization result.
 
@@ -22,8 +16,6 @@ class OdeResult(dict):
     status : int
         Termination status of the optimizer. Its value depends on the
         underlying solver. Refer to `message` for details.
-    message : str
-        Description of the cause of the termination.
     t, y, sol, t_events, y_events, nlu : ?
     """
 
@@ -314,8 +306,6 @@ def solve_ivp(
             *  0: The solver successfully reached the end of `tspan`.
             *  1: A termination event occurred.
 
-    message : string
-        Human-readable description of the termination reason.
     success : bool
         True if the solver reached the interval end or a termination event
         occurred (``status >= 0``).
@@ -344,7 +334,7 @@ def solve_ivp(
 
     status = None
     while status is None:
-        message = solver.step()
+        solver.step()
 
         if solver.status == "finished":
             status = 0
@@ -401,6 +391,5 @@ def solve_ivp(
         y_events=y_events,
         nlu=solver.nlu,
         status=status,
-        message=MESSAGES.get(status, message),
         success=status >= 0,
     )

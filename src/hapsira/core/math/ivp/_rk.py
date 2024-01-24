@@ -218,8 +218,6 @@ class DOP853:
         Number of LU decompositions. Is always 0 for this solver.
     """
 
-    TOO_SMALL_STEP = "Required step size is less than spacing between numbers."
-
     A_EXTRA = _A[N_STAGES + 1 :]
     C_EXTRA = _C[N_STAGES + 1 :]
     D = _D
@@ -305,11 +303,10 @@ class DOP853:
             # Handle corner cases of empty solver or no integration.
             self.t_old = self.t
             self.t = self.t_bound
-            message = None
             self.status = "finished"
         else:
             t = self.t
-            success, message = self._step_impl()
+            success = self._step_impl()
 
             if not success:
                 self.status = "failed"
@@ -317,8 +314,6 @@ class DOP853:
                 self.t_old = t
                 if self.direction * (self.t - self.t_bound) >= 0:
                     self.status = "finished"
-
-        return message
 
     def dense_output(self):
         """Compute a local interpolant over the last successful step.
@@ -379,7 +374,7 @@ class DOP853:
 
         while not step_accepted:
             if h_abs < min_step:
-                return False, self.TOO_SMALL_STEP
+                return False
 
             h = h_abs * self.direction
             t_new = t + h
@@ -438,4 +433,4 @@ class DOP853:
         self.h_abs = h_abs
         self.f = f_new
 
-        return True, None
+        return True

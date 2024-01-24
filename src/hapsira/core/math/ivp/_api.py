@@ -289,7 +289,6 @@ def solve_ivp(
     solver = DOP853(fun, t0, y0, tf, argk, **options)
 
     ts = [t0]
-    ys = [y0]
 
     interpolants = []
 
@@ -344,15 +343,5 @@ def solve_ivp(
             g = g_new
 
         ts.append(t)
-        ys.append(y)
 
-    if t_events is not None:
-        t_events = [np.asarray(te) for te in t_events]
-        y_events = [np.asarray(ye) for ye in y_events]
-
-    ts = np.array(ts)
-    ys = np.vstack(ys).T
-
-    sol = OdeSolution(ts, interpolants)
-
-    return sol, status >= 0
+    return OdeSolution(np.array(ts), interpolants), status >= 0

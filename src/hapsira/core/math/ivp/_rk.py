@@ -241,7 +241,8 @@ class DOP853:
             self.argk,
             self.t,
             self.y,
-            self.f,
+            array_to_V_hf(self.f[:3]),
+            array_to_V_hf(self.f[3:]),
             self.max_step,
             self.rtol,
             self.atol,
@@ -257,8 +258,8 @@ class DOP853:
             self.t = rets[2]
             self.y = rets[3]
             self.h_abs = rets[4]
-            self.f = rets[5]
-            self.K[: N_STAGES + 1, :N_RV] = np.array(rets[6])
+            self.f = np.array([*rets[5], *rets[6]])
+            self.K[: N_STAGES + 1, :N_RV] = np.array(rets[7])
 
         if not success:
             self.status = "failed"
@@ -308,7 +309,9 @@ class DOP853:
         return Dop853DenseOutput(self.t_old, self.t, self.y_old, F)
 
 
-def _step_impl(fun, argk, t, y, f, max_step, rtol, atol, direction, h_abs, t_bound, K):
+def _step_impl(
+    fun, argk, t, y, fr, fv, max_step, rtol, atol, direction, h_abs, t_bound, K
+):
     min_step = 10 * abs(nextafter_hf(t, direction * inf) - t)
 
     if h_abs > max_step:
@@ -337,13 +340,12 @@ def _step_impl(fun, argk, t, y, f, max_step, rtol, atol, direction, h_abs, t_bou
             t,
             array_to_V_hf(y[:3]),
             array_to_V_hf(y[3:]),
-            array_to_V_hf(f[:3]),
-            array_to_V_hf(f[3:]),
+            fr,
+            fv,
             h,
             argk,
         )
         y_new = np.array([*rr_new, *vv_new])
-        f_new = np.array([*fr_new, *fv_new])
 
         scale_r = add_Vs_hf(
             mul_Vs_hf(
@@ -388,4 +390,4 @@ def _step_impl(fun, argk, t, y, f, max_step, rtol, atol, direction, h_abs, t_bou
             h_abs *= max(MIN_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
             step_rejected = True
 
-    return True, h, y, t_new, y_new, h_abs, f_new, K_new
+    return True, h, y, t_new, y_new, h_abs, fr_new, fv_new, K_new

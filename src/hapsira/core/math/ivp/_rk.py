@@ -1,4 +1,4 @@
-from math import sqrt
+from math import inf, sqrt
 from typing import Callable
 
 import numpy as np
@@ -8,7 +8,7 @@ from ._rkstep import rk_step_hf, N_RV, N_STAGES
 from ._rkerror import estimate_error_norm_hf
 
 from ...jit import array_to_V_hf, hjit, DSIG
-from ...math.linalg import add_VV_hf, div_VV_hf, mul_Vs_hf, sub_VV_hf, EPS
+from ...math.linalg import add_VV_hf, div_VV_hf, mul_Vs_hf, nextafter_hf, sub_VV_hf, EPS
 
 __all__ = [
     "DOP853",
@@ -283,7 +283,7 @@ class DOP853:
         rtol = self.rtol
         atol = self.atol
 
-        min_step = 10 * np.abs(np.nextafter(t, self.direction * np.inf) - t)
+        min_step = 10 * abs(nextafter_hf(t, self.direction * inf) - t)
 
         if self.h_abs > max_step:
             h_abs = max_step

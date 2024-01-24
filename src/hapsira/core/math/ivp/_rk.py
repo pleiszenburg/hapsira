@@ -240,7 +240,8 @@ class DOP853:
             self.fun,
             self.argk,
             self.t,
-            self.y,
+            array_to_V_hf(self.y[:3]),
+            array_to_V_hf(self.y[3:]),
             array_to_V_hf(self.f[:3]),
             array_to_V_hf(self.f[3:]),
             self.max_step,
@@ -254,12 +255,12 @@ class DOP853:
 
         if success:
             self.h_previous = rets[0]
-            self.y_old = rets[1]
-            self.t = rets[2]
-            self.y = rets[3]
-            self.h_abs = rets[4]
-            self.f = np.array([*rets[5], *rets[6]])
-            self.K[: N_STAGES + 1, :N_RV] = np.array(rets[7])
+            self.y_old = np.array([*rets[1], *rets[2]])
+            self.t = rets[3]
+            self.y = np.array([*rets[4], *rets[5]])
+            self.h_abs = rets[6]
+            self.f = np.array([*rets[7], *rets[8]])
+            self.K[: N_STAGES + 1, :N_RV] = np.array(rets[9])
 
         if not success:
             self.status = "failed"
@@ -310,7 +311,7 @@ class DOP853:
 
 
 def _step_impl(
-    fun, argk, t, y, fr, fv, max_step, rtol, atol, direction, h_abs, t_bound, K
+    fun, argk, t, rr, vv, fr, fv, max_step, rtol, atol, direction, h_abs, t_bound, K
 ):
     min_step = 10 * abs(nextafter_hf(t, direction * inf) - t)
 
@@ -338,19 +339,18 @@ def _step_impl(
         rr_new, vv_new, fr_new, fv_new, K_new = rk_step_hf(
             fun,
             t,
-            array_to_V_hf(y[:3]),
-            array_to_V_hf(y[3:]),
+            rr,
+            vv,
             fr,
             fv,
             h,
             argk,
         )
-        y_new = np.array([*rr_new, *vv_new])
 
         scale_r = add_Vs_hf(
             mul_Vs_hf(
                 max_VV_hf(
-                    abs_V_hf(array_to_V_hf(y[:3])),
+                    abs_V_hf(rr),
                     abs_V_hf(rr_new),
                 ),
                 rtol,
@@ -360,7 +360,7 @@ def _step_impl(
         scale_v = add_Vs_hf(
             mul_Vs_hf(
                 max_VV_hf(
-                    abs_V_hf(array_to_V_hf(y[3:])),
+                    abs_V_hf(vv),
                     abs_V_hf(vv_new),
                 ),
                 rtol,
@@ -390,4 +390,4 @@ def _step_impl(
             h_abs *= max(MIN_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
             step_rejected = True
 
-    return True, h, y, t_new, y_new, h_abs, fr_new, fv_new, K_new
+    return True, h, rr, vv, t_new, rr_new, vv_new, h_abs, fr_new, fv_new, K_new

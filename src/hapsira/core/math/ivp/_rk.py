@@ -236,7 +236,29 @@ class DOP853:
             return
 
         t = self.t
-        success = self._step_impl()
+        success, *rets = _step_impl(
+            self.fun,
+            self.argk,
+            self.t,
+            self.y,
+            self.f,
+            self.max_step,
+            self.rtol,
+            self.atol,
+            self.direction,
+            self.h_abs,
+            self.t_bound,
+            tuple(tuple(line) for line in self.K[: N_STAGES + 1, :N_RV]),
+        )
+
+        if success:
+            self.h_previous = rets[0]
+            self.y_old = rets[1]
+            self.t = rets[2]
+            self.y = rets[3]
+            self.h_abs = rets[4]
+            self.f = rets[5]
+            self.K[: N_STAGES + 1, :N_RV] = np.array(rets[6])
 
         if not success:
             self.status = "failed"
@@ -285,103 +307,85 @@ class DOP853:
 
         return Dop853DenseOutput(self.t_old, self.t, self.y_old, F)
 
-    def _step_impl(self):
-        t = self.t
-        y = self.y
 
-        max_step = self.max_step
-        rtol = self.rtol
-        atol = self.atol
+def _step_impl(fun, argk, t, y, f, max_step, rtol, atol, direction, h_abs, t_bound, K):
+    min_step = 10 * abs(nextafter_hf(t, direction * inf) - t)
 
-        min_step = 10 * abs(nextafter_hf(t, self.direction * inf) - t)
+    if h_abs > max_step:
+        h_abs = max_step
+    if h_abs < min_step:
+        h_abs = min_step
 
-        if self.h_abs > max_step:
-            h_abs = max_step
-        elif self.h_abs < min_step:
-            h_abs = min_step
-        else:
-            h_abs = self.h_abs
+    step_accepted = False
+    step_rejected = False
 
-        step_accepted = False
-        step_rejected = False
+    while not step_accepted:
+        if h_abs < min_step:
+            return False
 
-        while not step_accepted:
-            if h_abs < min_step:
-                return False
+        h = h_abs * direction
+        t_new = t + h
 
-            h = h_abs * self.direction
-            t_new = t + h
+        if direction * (t_new - t_bound) > 0:
+            t_new = t_bound
 
-            if self.direction * (t_new - self.t_bound) > 0:
-                t_new = self.t_bound
+        h = t_new - t
+        h_abs = abs(h)
 
-            h = t_new - t
-            h_abs = abs(h)
+        rr_new, vv_new, fr_new, fv_new, K_new = rk_step_hf(
+            fun,
+            t,
+            array_to_V_hf(y[:3]),
+            array_to_V_hf(y[3:]),
+            array_to_V_hf(f[:3]),
+            array_to_V_hf(f[3:]),
+            h,
+            argk,
+        )
+        y_new = np.array([*rr_new, *vv_new])
+        f_new = np.array([*fr_new, *fv_new])
 
-            rr_new, vv_new, fr_new, fv_new, K_new = rk_step_hf(
-                self.fun,
-                t,
-                array_to_V_hf(y[:3]),
-                array_to_V_hf(y[3:]),
-                array_to_V_hf(self.f[:3]),
-                array_to_V_hf(self.f[3:]),
-                h,
-                self.argk,
-            )  # TODO call into hf
-            y_new = np.array([*rr_new, *vv_new])
-            f_new = np.array([*fr_new, *fv_new])
-            self.K[: N_STAGES + 1, :N_RV] = np.array([K_new])
-
-            scale_r = add_Vs_hf(
-                mul_Vs_hf(
-                    max_VV_hf(
-                        abs_V_hf(array_to_V_hf(y[:3])),
-                        abs_V_hf(rr_new),
-                    ),
-                    rtol,
+        scale_r = add_Vs_hf(
+            mul_Vs_hf(
+                max_VV_hf(
+                    abs_V_hf(array_to_V_hf(y[:3])),
+                    abs_V_hf(rr_new),
                 ),
-                atol,
-            )
-            scale_v = add_Vs_hf(
-                mul_Vs_hf(
-                    max_VV_hf(
-                        abs_V_hf(array_to_V_hf(y[3:])),
-                        abs_V_hf(vv_new),
-                    ),
-                    rtol,
+                rtol,
+            ),
+            atol,
+        )
+        scale_v = add_Vs_hf(
+            mul_Vs_hf(
+                max_VV_hf(
+                    abs_V_hf(array_to_V_hf(y[3:])),
+                    abs_V_hf(vv_new),
                 ),
-                atol,
-            )
-            error_norm = estimate_error_norm_hf(
-                K_new,
-                h,
-                scale_r,
-                scale_v,
-            )  # TODO call into hf
+                rtol,
+            ),
+            atol,
+        )
+        error_norm = estimate_error_norm_hf(
+            K_new,
+            h,
+            scale_r,
+            scale_v,
+        )
 
-            if error_norm < 1:
-                if error_norm == 0:
-                    factor = MAX_FACTOR
-                else:
-                    factor = min(MAX_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
-
-                if step_rejected:
-                    factor = min(1, factor)
-
-                h_abs *= factor
-
-                step_accepted = True
+        if error_norm < 1:
+            if error_norm == 0:
+                factor = MAX_FACTOR
             else:
-                h_abs *= max(MIN_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
-                step_rejected = True
+                factor = min(MAX_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
 
-        self.h_previous = h
-        self.y_old = y
+            if step_rejected:
+                factor = min(1, factor)
 
-        self.t = t_new
-        self.y = y_new
+            h_abs *= factor
 
-        self.h_abs = h_abs
-        self.f = f_new
+            step_accepted = True
+        else:
+            h_abs *= max(MIN_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
+            step_rejected = True
 
-        return True
+    return True, h, y, t_new, y_new, h_abs, f_new, K_new

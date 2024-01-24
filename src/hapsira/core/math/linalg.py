@@ -5,6 +5,7 @@ from ..jit import hjit, vjit
 from ...settings import settings
 
 __all__ = [
+    "abs_V_hf",
     "add_Vs_hf",
     "add_VV_hf",
     "cross_VV_hf",
@@ -37,6 +38,11 @@ else:
 
 
 EPS = finfo(float_).eps
+
+
+@hjit("V(V)")
+def abs_V_hf(x):
+    return abs(x[0]), abs(x[1]), abs(x[2])
 
 
 @hjit("V(V,f)")

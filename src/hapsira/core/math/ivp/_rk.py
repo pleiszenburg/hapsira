@@ -8,7 +8,17 @@ from ._rkstep import rk_step_hf, N_RV, N_STAGES
 from ._rkerror import estimate_error_norm_hf
 
 from ...jit import array_to_V_hf, hjit, DSIG
-from ...math.linalg import add_VV_hf, div_VV_hf, mul_Vs_hf, nextafter_hf, sub_VV_hf, EPS
+from ...math.linalg import (
+    abs_V_hf,
+    add_Vs_hf,
+    add_VV_hf,
+    div_VV_hf,
+    max_VV_hf,
+    mul_Vs_hf,
+    nextafter_hf,
+    sub_VV_hf,
+    EPS,
+)
 
 __all__ = [
     "DOP853",
@@ -306,7 +316,7 @@ class DOP853:
                 t_new = self.t_bound
 
             h = t_new - t
-            h_abs = np.abs(h)
+            h_abs = abs(h)
 
             rr_new, vv_new, fr_new, fv_new, K_new = rk_step_hf(
                 self.fun,
@@ -322,13 +332,31 @@ class DOP853:
             f_new = np.array([*fr_new, *fv_new])
             self.K[: N_STAGES + 1, :N_RV] = np.array([K_new])
 
-            scale = atol + np.maximum(np.abs(y), np.abs(y_new)) * rtol
-            assert scale.shape == (N_RV,)
+            scale_r = add_Vs_hf(
+                mul_Vs_hf(
+                    max_VV_hf(
+                        abs_V_hf(array_to_V_hf(y[:3])),
+                        abs_V_hf(array_to_V_hf(y_new[:3])),
+                    ),
+                    rtol,
+                ),
+                atol,
+            )
+            scale_v = add_Vs_hf(
+                mul_Vs_hf(
+                    max_VV_hf(
+                        abs_V_hf(array_to_V_hf(y[3:])),
+                        abs_V_hf(array_to_V_hf(y_new[3:])),
+                    ),
+                    rtol,
+                ),
+                atol,
+            )
             error_norm = estimate_error_norm_hf(
                 K_new,
                 h,
-                array_to_V_hf(scale[:3]),
-                array_to_V_hf(scale[3:]),
+                scale_r,
+                scale_v,
             )  # TODO call into hf
 
             if error_norm < 1:

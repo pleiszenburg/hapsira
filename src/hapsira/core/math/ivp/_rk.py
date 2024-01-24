@@ -8,15 +8,12 @@ from ._rkstep import rk_step_hf, N_RV, N_STAGES
 from ._rkerror import estimate_error_norm_hf
 
 from ...jit import array_to_V_hf, hjit, DSIG
-from ...math.linalg import add_VV_hf, div_VV_hf, mul_Vs_hf, sub_VV_hf
+from ...math.linalg import add_VV_hf, div_VV_hf, mul_Vs_hf, sub_VV_hf, EPS
 
 __all__ = [
-    "EPS",
     "DOP853",
 ]
 
-
-EPS = np.finfo(float).eps
 
 # Multiply steps computed from asymptotic behaviour of errors by this.
 SAFETY = 0.9

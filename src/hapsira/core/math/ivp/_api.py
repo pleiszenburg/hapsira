@@ -2,8 +2,8 @@ import numpy as np
 
 from ._brentq import brentq
 from ._common import OdeSolution
-
-from ._rk import EPS, DOP853
+from ._rk import DOP853
+from ...math.linalg import EPS
 
 
 class OdeResult(dict):

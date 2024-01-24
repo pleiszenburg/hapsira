@@ -37,41 +37,6 @@ def _norm_VV_hf(x, y):
 def _select_initial_step_hf(
     fun, t0, rr, vv, argk, fr, fv, direction, order, rtol, atol
 ):
-    """Empirically select a good initial step.
-
-    The algorithm is described in [1]_.
-
-    Parameters
-    ----------
-    fun : callable
-        Right-hand side of the system.
-    t0 : float
-        Initial value of the independent variable.
-    y0 : ndarray, shape (n,)
-        Initial value of the dependent variable.
-    f0 : ndarray, shape (n,)
-        Initial value of the derivative, i.e., ``fun(t0, y0)``.
-    direction : float
-        Integration direction.
-    order : float
-        Error estimator order. It means that the error controlled by the
-        algorithm is proportional to ``step_size ** (order + 1)`.
-    rtol : float
-        Desired relative tolerance.
-    atol : float
-        Desired absolute tolerance.
-
-    Returns
-    -------
-    h_abs : float
-        Absolute value of the suggested initial step.
-
-    References
-    ----------
-    .. [1] E. Hairer, S. P. Norsett G. Wanner, "Solving Ordinary Differential
-           Equations I: Nonstiff Problems", Sec. II.4.
-    """
-
     scale_r = (
         atol + abs(rr[0]) * rtol,
         atol + abs(rr[1]) * rtol,

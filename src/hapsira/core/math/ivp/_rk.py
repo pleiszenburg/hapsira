@@ -336,7 +336,7 @@ class DOP853:
                 mul_Vs_hf(
                     max_VV_hf(
                         abs_V_hf(array_to_V_hf(y[:3])),
-                        abs_V_hf(array_to_V_hf(y_new[:3])),
+                        abs_V_hf(rr_new),
                     ),
                     rtol,
                 ),
@@ -346,7 +346,7 @@ class DOP853:
                 mul_Vs_hf(
                     max_VV_hf(
                         abs_V_hf(array_to_V_hf(y[3:])),
-                        abs_V_hf(array_to_V_hf(y_new[3:])),
+                        abs_V_hf(vv_new),
                     ),
                     rtol,
                 ),

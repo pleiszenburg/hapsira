@@ -1,8 +1,11 @@
 from math import inf, sqrt
+from numpy import finfo
 
 from ..jit import hjit, vjit
+from ...settings import settings
 
 __all__ = [
+    "add_Vs_hf",
     "add_VV_hf",
     "cross_VV_hf",
     "div_Vs_hf",
@@ -10,14 +13,35 @@ __all__ = [
     "matmul_MM_hf",
     "matmul_VM_hf",
     "matmul_VV_hf",
+    "max_VV_hf",
     "mul_Vs_hf",
     "mul_VV_hf",
+    "nextafter_hf",
     "norm_hf",
     "norm_vf",
     "sign_hf",
     "sub_VV_hf",
     "transpose_M_hf",
+    "EPS",
 ]
+
+
+if settings["PRECISION"].value == "f8":
+    from numpy import float64 as float_
+elif settings["PRECISION"].value == "f4":
+    from numpy import float32 as float_
+elif settings["PRECISION"].value == "f2":
+    from numpy import float16 as float_
+else:
+    raise ValueError("unsupported precision")
+
+
+EPS = finfo(float_).eps
+
+
+@hjit("V(V,f)")
+def add_Vs_hf(a, b):
+    return a[0] + b, a[1] + b, a[2] + b
 
 
 @hjit("V(V,V)")
@@ -89,6 +113,15 @@ def matmul_VV_hf(a, b):
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
 
+@hjit("V(V,V)")
+def max_VV_hf(x, y):
+    return (
+        x[0] if x[0] > y[0] else y[0],
+        x[1] if x[1] > y[1] else y[1],
+        x[2] if x[2] > y[2] else y[2],
+    )
+
+
 @hjit("V(V,f)")
 def mul_Vs_hf(v, s):
     return v[0] * s, v[1] * s, v[2] * s
@@ -97,6 +130,13 @@ def mul_Vs_hf(v, s):
 @hjit("V(V,V)")
 def mul_VV_hf(a, b):
     return a[0] * b[0], a[1] * b[1], a[2] * b[2]
+
+
+@hjit("f(f,f)")
+def nextafter_hf(x, direction):
+    if x < direction:
+        return x + EPS
+    return x - EPS
 
 
 @hjit("f(V)")

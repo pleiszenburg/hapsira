@@ -1,5 +1,3 @@
-from typing import Callable, Tuple
-
 from ._dop853_coefficients import A as _A, B as _B, C as _C
 from ..linalg import add_VV_hf
 from ...jit import hjit, DSIG
@@ -46,16 +44,7 @@ _KSIG = (
 
 
 @hjit(f"Tuple([V,V,V,V,{_KSIG:s}])(F({DSIG:s}),f,V,V,V,V,f,f)")
-def rk_step_hf(
-    fun: Callable,
-    t: float,
-    rr: tuple[float, float, float],
-    vv: tuple[float, float, float],
-    fr: tuple[float, float, float],
-    fv: tuple[float, float, float],
-    h: float,
-    argk: float,
-) -> Tuple[Tuple, Tuple, Tuple, Tuple, Tuple]:
+def rk_step_hf(fun, t, rr, vv, fr, fv, h, argk):
     """Perform a single Runge-Kutta step.
 
     This function computes a prediction of an explicit Runge-Kutta method and

@@ -117,9 +117,7 @@ class Dop853DenseOutput:
         """
         t = np.asarray(t)
         assert not t.ndim > 1
-        return self._call_impl(t)
 
-    def _call_impl(self, t):
         x = (t - self.t_old) / self.h
 
         if t.ndim == 0:

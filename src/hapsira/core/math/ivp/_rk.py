@@ -3,8 +3,9 @@ from typing import Callable
 
 import numpy as np
 
-from ._dop853_coefficients import E3, E5, A as _A, C as _C, D as _D
+from ._dop853_coefficients import A as _A, C as _C, D as _D
 from ._rkstep import rk_step_hf, N_RV, N_STAGES
+from ._rkerror import estimate_error_norm_hf
 
 from ...jit import array_to_V_hf, hjit, DSIG
 from ...math.linalg import add_VV_hf, div_VV_hf, mul_Vs_hf, sub_VV_hf
@@ -356,23 +357,6 @@ class DOP853:
 
         return Dop853DenseOutput(self.t_old, self.t, self.y_old, F)
 
-    def _estimate_error_norm(self, K, h, scale):
-        assert K.shape == (N_STAGES + 1, N_RV)
-        assert E3.shape == (N_STAGES + 1,)
-        assert E5.shape == (N_STAGES + 1,)
-        assert scale.shape == (N_RV,)
-
-        err5 = np.dot(K.T, E5) / scale
-        err3 = np.dot(K.T, E3) / scale
-        err5_norm_2 = np.linalg.norm(err5) ** 2
-        err3_norm_2 = np.linalg.norm(err3) ** 2
-
-        if err5_norm_2 == 0 and err3_norm_2 == 0:
-            return 0.0
-        denom = err5_norm_2 + 0.01 * err3_norm_2
-
-        return np.abs(h) * err5_norm_2 / np.sqrt(denom * len(scale))
-
     def _step_impl(self):
         t = self.t
         y = self.y
@@ -421,7 +405,13 @@ class DOP853:
             self.K[: N_STAGES + 1, :N_RV] = np.array([K_new])
 
             scale = atol + np.maximum(np.abs(y), np.abs(y_new)) * rtol
-            error_norm = self._estimate_error_norm(self.K, h, scale)
+            assert scale.shape == (N_RV,)
+            error_norm = estimate_error_norm_hf(
+                K_new,
+                h,
+                array_to_V_hf(scale[:3]),
+                array_to_V_hf(scale[3:]),
+            )  # TODO call into hf
 
             if error_norm < 1:
                 if error_norm == 0:

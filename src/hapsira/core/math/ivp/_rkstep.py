@@ -17,6 +17,7 @@ __all__ = [
     "rk_step_hf",
     "N_RV",
     "N_STAGES",
+    "KSIG",
 ]
 
 N_RV = 6
@@ -36,14 +37,14 @@ A11 = tuple(float_(number) for number in _A[11, :N_STAGES])
 B = tuple(float_(number) for number in _B)
 C = tuple(float_(number) for number in _C[:N_STAGES])
 
-_KSIG = (
+KSIG = (
     "Tuple(["
     + ",".join(["Tuple([" + ",".join(["f"] * N_RV) + "])"] * (N_STAGES + 1))
     + "])"
 )
 
 
-@hjit(f"Tuple([V,V,V,V,{_KSIG:s}])(F({DSIG:s}),f,V,V,V,V,f,f)")
+@hjit(f"Tuple([V,V,V,V,{KSIG:s}])(F({DSIG:s}),f,V,V,V,V,f,f)")
 def rk_step_hf(fun, t, rr, vv, fr, fv, h, argk):
     """Perform a single Runge-Kutta step.
 

@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 
@@ -6,32 +6,6 @@ from ._brentq import brentq
 from ._common import OdeSolution
 from ._rk import DOP853
 from ...math.linalg import EPS
-
-
-class OdeResult(dict):
-    """Represents the optimization result.
-
-    Attributes
-    ----------
-    success : bool
-        Whether or not the optimizer exited successfully.
-    status : int
-        Termination status of the optimizer. Its value depends on the
-        underlying solver. Refer to `message` for details.
-    t, y, sol, t_events, y_events, nlu : ?
-    """
-
-    def __getattr__(self, name):
-        try:
-            return self[name]
-        except KeyError as e:
-            raise AttributeError(name) from e
-
-    __setattr__ = dict.__setitem__
-    __delattr__ = dict.__delitem__
-
-    def __dir__(self):
-        return list(self.keys())
 
 
 def solve_event_equation(event, sol, t_old, t):
@@ -169,7 +143,7 @@ def solve_ivp(
     argk: float,
     events: Optional[List[Callable]] = None,
     **options,
-) -> OdeResult:
+) -> Tuple[OdeSolution, bool]:
     """Solve an initial value problem for a system of ODEs.
 
     Parameters
@@ -381,12 +355,4 @@ def solve_ivp(
 
     sol = OdeSolution(ts, interpolants)
 
-    return OdeResult(
-        t=ts,
-        y=ys,
-        sol=sol,
-        t_events=t_events,
-        y_events=y_events,
-        status=status,
-        success=status >= 0,
-    )
+    return sol, status >= 0

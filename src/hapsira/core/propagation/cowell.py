@@ -31,7 +31,7 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=None, f=func_twobody_hf
 
     u0 = np.array([x, y, z, vx, vy, vz])
 
-    result = solve_ivp(
+    sol, success = solve_ivp(
         f,
         0.0,
         float(max(tofs)),
@@ -41,7 +41,7 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=None, f=func_twobody_hf
         atol=atol,
         events=events,
     )
-    if not result.success:
+    if not success:
         raise RuntimeError("Integration failed")
 
     if events is not None:
@@ -60,7 +60,7 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=None, f=func_twobody_hf
     rrs = []
     vvs = []
     for t in tofs:
-        y = result.sol(t)
+        y = sol(t)
         rrs.append(y[:3])
         vvs.append(y[3:])
 

@@ -336,7 +336,30 @@ class DOP853:
 
         assert self.t != self.t_old
 
-        return self._dense_output_impl()
+        K = self.K_extended
+        h = self.h_previous
+        for s, (a, c) in enumerate(zip(self.A_EXTRA, self.C_EXTRA), start=N_STAGES + 1):
+            dy = np.dot(K[:s].T, a[:s]) * h
+            y_ = self.y_old + dy
+            rr, vv = self.fun(
+                self.t_old + c * h,
+                array_to_V_hf(y_[:3]),
+                array_to_V_hf(y_[3:]),
+                self.argk,
+            )  # TODO call into hf
+            K[s] = np.array([*rr, *vv])
+
+        F = np.empty((INTERPOLATOR_POWER, N_RV), dtype=self.y_old.dtype)
+
+        f_old = K[0]
+        delta_y = self.y - self.y_old
+
+        F[0] = delta_y
+        F[1] = h * f_old - delta_y
+        F[2] = 2 * delta_y - h * (self.f + f_old)
+        F[3:] = h * np.dot(self.D, K)
+
+        return Dop853DenseOutput(self.t_old, self.t, self.y_old, F)
 
     def _estimate_error_norm(self, K, h, scale):
         err5 = np.dot(K.T, self.E5) / scale
@@ -424,29 +447,3 @@ class DOP853:
         self.f = f_new
 
         return True, None
-
-    def _dense_output_impl(self):
-        K = self.K_extended
-        h = self.h_previous
-        for s, (a, c) in enumerate(zip(self.A_EXTRA, self.C_EXTRA), start=N_STAGES + 1):
-            dy = np.dot(K[:s].T, a[:s]) * h
-            y_ = self.y_old + dy
-            rr, vv = self.fun(
-                self.t_old + c * h,
-                array_to_V_hf(y_[:3]),
-                array_to_V_hf(y_[3:]),
-                self.argk,
-            )  # TODO call into hf
-            K[s] = np.array([*rr, *vv])
-
-        F = np.empty((INTERPOLATOR_POWER, N_RV), dtype=self.y_old.dtype)
-
-        f_old = K[0]
-        delta_y = self.y - self.y_old
-
-        F[0] = delta_y
-        F[1] = h * f_old - delta_y
-        F[2] = 2 * delta_y - h * (self.f + f_old)
-        F[3:] = h * np.dot(self.D, K)
-
-        return Dop853DenseOutput(self.t_old, self.t, self.y_old, F)

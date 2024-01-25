@@ -72,7 +72,7 @@ def change_argp_hb(k, a, ecc, argp_0, argp_f, f):
     t_f : float
     """
 
-    @hjit("V(f,V,V,f)")
+    @hjit("V(f,V,V,f)", cache=False)
     def a_d_hf(t0, rr, vv, k):
         nu = rv2coe_hf(k, rr, vv, RV2COE_TOL)[-1]
 

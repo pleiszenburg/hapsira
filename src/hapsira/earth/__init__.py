@@ -86,7 +86,7 @@ class EarthSatellite:
             J2_ = Earth.J2.value
             R_ = Earth.R.to_value(u.km)
 
-            @hjit("V(f,V,V,f)")
+            @hjit("V(f,V,V,f)", cache=False)
             def ad_hf(t0, rr, vv, k):
                 return J2_perturbation_hf(t0, rr, vv, k, J2_, R_)
 
@@ -96,7 +96,7 @@ class EarthSatellite:
             def ad_hf(t0, rr, vv, k):
                 return 0.0, 0.0, 0.0
 
-        @djit
+        @djit(cache=False)
         def f_hf(t0, rr, vv, k):
             du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
             du_ad_vv = ad_hf(t0, rr, vv, k)

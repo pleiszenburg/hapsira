@@ -40,7 +40,7 @@ def test_leo_geo_numerical_safe(inc_0):
     s0 = Orbit.circular(Earth, a_0 - Earth.R, inc_0)
 
     # Propagate orbit
-    @djit
+    @djit(cache=False)
     def f_leo_geo_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = a_d_hf(t0, rr, vv, k)
@@ -72,7 +72,7 @@ def test_leo_geo_numerical_fast(inc_0):
     s0 = Orbit.circular(Earth, a_0 * u.km - Earth.R, inc_0 * u.rad)
 
     # Propagate orbit
-    @djit
+    @djit(cache=False)
     def f_leo_geo_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = a_d_hf(t0, rr, vv, k)
@@ -131,7 +131,7 @@ def test_sso_disposal_numerical(ecc_0, ecc_f):
     a_d_hf, _, t_f = change_ecc_quasioptimal(s0, ecc_f, f)
 
     # Propagate orbit
-    @djit
+    @djit(cache=False)
     def f_ss0_disposal_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = a_d_hf(t0, rr, vv, k)
@@ -202,7 +202,7 @@ def test_geo_cases_numerical(ecc_0, ecc_f):
     a_d_hf, _, t_f = change_ecc_inc(orb_0=s0, ecc_f=ecc_f, inc_f=inc_f, f=f)
 
     # Propagate orbit
-    @djit
+    @djit(cache=False)
     def f_geo_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = a_d_hf(t0, rr, vv, k)
@@ -285,7 +285,7 @@ def test_soyuz_standard_gto_numerical_safe():
     )
 
     # Propagate orbit
-    @djit
+    @djit(cache=False)
     def f_soyuz_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = a_d_hf(t0, rr, vv, k)
@@ -323,7 +323,7 @@ def test_soyuz_standard_gto_numerical_fast():
     )
 
     # Propagate orbit
-    @djit
+    @djit(cache=False)
     def f_soyuz_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = a_d_hf(t0, rr, vv, k)

@@ -134,7 +134,7 @@ def change_ecc_inc_hb(k, a, ecc_0, ecc_f, inc_0, inc_f, argp, r, v, f):
     )
     thrust_unit = tuple(thrust_unit)
 
-    @hjit("V(f,V,V,f)")
+    @hjit("V(f,V,V,f)", cache=False)
     def a_d_hf(t0, rr, vv, k_):
         nu = rv2coe_hf(k_, rr, vv, RV2COE_TOL)[-1]
         beta_ = beta_0 * sign_hf(

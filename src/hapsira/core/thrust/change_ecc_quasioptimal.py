@@ -78,7 +78,7 @@ def change_ecc_quasioptimal_hb(k, a, ecc_0, ecc_f, e_vec, h_vec, r, f):
     )
     thrust_unit = tuple(thrust_unit)
 
-    @hjit("V(f,V,V,f)")
+    @hjit("V(f,V,V,f)", cache=False)
     def a_d_hf(t0, rr, vv, k):
         accel_v = mul_Vs_hf(thrust_unit, f)
         return accel_v

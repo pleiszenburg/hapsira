@@ -28,7 +28,7 @@ def interp_hb(x: np.ndarray, y: np.ndarray) -> Callable:
     x = tuple(x)
     x_len = len(x)
 
-    @hjit("V(f)")
+    @hjit("V(f)", cache=False)
     def interp_hf(x_new):
         assert x_new >= x[0]
         assert x_new <= x[-1]

@@ -296,7 +296,7 @@ def test_cowell_propagation_circle_to_circle():
         norm_v = norm_V_hf(vv)
         return mul_Vs_hf(vv, accel / norm_v)
 
-    @djit
+    @djit(cache=False)
     def f_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = constant_accel_hf(t0, rr, vv, k)

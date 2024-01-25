@@ -121,7 +121,7 @@ def change_a_inc_hb(k, a_0, a_f, inc_0, inc_f, f):
         k, a_0, a_f, inc_0, inc_f
     )
 
-    @hjit("V(f,V,V,f)")
+    @hjit("V(f,V,V,f)", cache=False)
     def a_d_hf(t0, rr, vv, k):
         # Change sign of beta with the out-of-plane velocity
         beta_ = _beta_hf(t0, V_0, f, beta_0_) * sign_hf(rr[0] * (inc_f - inc_0))

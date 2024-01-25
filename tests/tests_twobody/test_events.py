@@ -49,7 +49,7 @@ def test_altitude_crossing():
     altitude_cross_event = AltitudeCrossEvent(thresh_alt, R)
     events = [altitude_cross_event]
 
-    @djit
+    @djit(cache=False)
     def f_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = atmospheric_drag_exponential_hf(

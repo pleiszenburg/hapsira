@@ -41,7 +41,7 @@ def test_J2_propagation_Earth():
     J2 = Earth.J2.value
     R_ = Earth.R.to(u.km).value
 
-    @djit
+    @djit(cache=False)
     def f_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = J2_perturbation_hf(
@@ -132,7 +132,7 @@ def test_J3_propagation_Earth(test_params):
     J2 = Earth.J2.value
     R_ = Earth.R.to(u.km).value
 
-    @djit
+    @djit(cache=False)
     def f_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = J2_perturbation_hf(
@@ -154,7 +154,7 @@ def test_J3_propagation_Earth(test_params):
 
     J3 = Earth.J3.value
 
-    @djit
+    @djit(cache=False)
     def f_combined_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad_J2 = J2_perturbation_hf(
@@ -271,7 +271,7 @@ def test_atmospheric_drag_exponential():
     # dr_expected = F_r * tof (Newton's integration formula), where
     # F_r = -B rho(r) |r|^2 sqrt(k / |r|^3) = -B rho(r) sqrt(k |r|)
 
-    @djit
+    @djit(cache=False)
     def f_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = atmospheric_drag_exponential_hf(
@@ -321,7 +321,7 @@ def test_atmospheric_demise():
     lithobrake_event = LithobrakeEvent(R)
     events = [lithobrake_event]
 
-    @djit
+    @djit(cache=False)
     def f_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = atmospheric_drag_exponential_hf(
@@ -380,7 +380,7 @@ def test_atmospheric_demise_coesa76():
     lithobrake_event = LithobrakeEvent(R)
     events = [lithobrake_event]
 
-    @djit
+    @djit(cache=False)
     def f_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
 
@@ -617,7 +617,7 @@ def test_3rd_body_Curtis(test_params):
     body_r = build_ephem_interpolant(body, body_epochs)
     k_third = body.k.to_value(u.km**3 / u.s**2)
 
-    @djit
+    @djit(cache=False)
     def f_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = third_body_hf(
@@ -707,7 +707,7 @@ def test_solar_pressure(t_days, deltas_expected, sun_r):
         )
 
     # In Curtis, the mean distance to Sun is used. In order to validate against it, we have to do the same thing
-    @hjit("V(f)")
+    @hjit("V(f)", cache=False)
     def sun_normalized_hf(t0):
         r = sun_r(t0)  # sun_r is hf, returns V
         return mul_Vs_hf(r, 149600000 / norm_V_hf(r))
@@ -715,7 +715,7 @@ def test_solar_pressure(t_days, deltas_expected, sun_r):
     R_ = Earth.R.to(u.km).value
     Wdivc_s = Wdivc_sun.value
 
-    @djit
+    @djit(cache=False)
     def f_hf(t0, rr, vv, k):
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
         du_ad = radiation_pressure_hf(

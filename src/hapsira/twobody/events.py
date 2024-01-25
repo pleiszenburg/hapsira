@@ -4,7 +4,7 @@ from astropy import units as u
 from astropy.coordinates import get_body_barycentric_posvel
 import numpy as np
 
-from hapsira.core.math.linalg import norm_vf
+from hapsira.core.math.linalg import norm_V_vf
 from hapsira.core.events import (
     eclipse_function as eclipse_function_fast,
     line_of_sight_gf,
@@ -71,7 +71,7 @@ class AltitudeCrossEvent(Event):
 
     def __call__(self, t, u, k):
         self._last_t = t
-        r_norm = norm_vf(*u[:3])
+        r_norm = norm_V_vf(*u[:3])
 
         return (
             r_norm - self._R - self._alt
@@ -121,7 +121,7 @@ class LatitudeCrossEvent(Event):
 
     def __call__(self, t, u_, k):
         self._last_t = t
-        pos_on_body = (u_[:3] / norm_vf(*u_[:3])) * self._R
+        pos_on_body = (u_[:3] / norm_V_vf(*u_[:3])) * self._R
         _, lat_, _ = cartesian_to_ellipsoidal_fast(self._R, self._R_polar, *pos_on_body)
 
         return np.rad2deg(lat_) - self._lat
@@ -273,7 +273,7 @@ class LosEvent(Event):
     def __call__(self, t, u_, k):
         self._last_t = t
 
-        if norm_vf(*u_[:3]) < self._R:
+        if norm_V_vf(*u_[:3]) < self._R:
             warn(
                 "The norm of the position vector of the primary body is less than the radius of the attractor."
             )

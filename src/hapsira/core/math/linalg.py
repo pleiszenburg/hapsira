@@ -19,7 +19,7 @@ __all__ = [
     "mul_VV_hf",
     "nextafter_hf",
     "norm_V_hf",
-    "norm_vf",
+    "norm_V_vf",
     "norm_VV_hf",
     "sign_hf",
     "sub_VV_hf",
@@ -152,7 +152,7 @@ def norm_V_hf(a):
 
 
 @vjit("f(f,f,f)")
-def norm_vf(a, b, c):
+def norm_V_vf(a, b, c):
     # TODO add axis setting in some way for util.norm?
     return norm_V_hf((a, b, c))
 

@@ -4,7 +4,7 @@ from astropy.coordinates import Angle
 from astropy.time import Time
 import numpy as np
 
-from hapsira.core.math.linalg import norm_vf
+from hapsira.core.math.linalg import norm_V_vf
 from hapsira.core.util import alinspace as alinspace_fast
 
 
@@ -26,7 +26,7 @@ def norm(vec, axis=None):
 
         result = norm_np(vec.value, axis=axis)
     else:
-        result = norm_vf(*vec.value)
+        result = norm_V_vf(*vec.value)
 
     return result << vec.unit
 

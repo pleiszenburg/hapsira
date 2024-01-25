@@ -1,7 +1,7 @@
 from math import sqrt
 
+from ._const import N_RV, KSIG
 from ._dop853_coefficients import E3 as _E3, E5 as _E5
-from ._rkstep import N_RV, KSIG
 from ...jit import hjit
 from ....settings import settings
 

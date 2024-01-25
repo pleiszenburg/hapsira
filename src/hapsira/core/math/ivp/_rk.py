@@ -3,8 +3,20 @@ from typing import Callable
 
 import numpy as np
 
+from ._const import (
+    N_RV,
+    N_STAGES,
+    KSIG,
+    SAFETY,
+    MIN_FACTOR,
+    MAX_FACTOR,
+    INTERPOLATOR_POWER,
+    N_STAGES_EXTENDED,
+    ERROR_ESTIMATOR_ORDER,
+    ERROR_EXPONENT,
+)
 from ._dop853_coefficients import A as _A, C as _C, D as _D
-from ._rkstep import rk_step_hf, N_RV, N_STAGES, KSIG
+from ._rkstep import rk_step_hf
 from ._rkerror import estimate_error_norm_hf
 
 from ...jit import array_to_V_hf, hjit, DSIG
@@ -16,6 +28,7 @@ from ...math.linalg import (
     max_VV_hf,
     mul_Vs_hf,
     nextafter_hf,
+    norm_VV_hf,
     sub_VV_hf,
     EPS,
 )
@@ -23,23 +36,6 @@ from ...math.linalg import (
 __all__ = [
     "DOP853",
 ]
-
-
-# Multiply steps computed from asymptotic behaviour of errors by this.
-SAFETY = 0.9
-
-MIN_FACTOR = 0.2  # Minimum allowed decrease in a step size.
-MAX_FACTOR = 10  # Maximum allowed increase in a step size.
-
-INTERPOLATOR_POWER = 7
-N_STAGES_EXTENDED = 16
-ERROR_ESTIMATOR_ORDER = 7
-ERROR_EXPONENT = -1 / (ERROR_ESTIMATOR_ORDER + 1)
-
-
-@hjit("f(V,V)")
-def _norm_VV_hf(x, y):
-    return sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + y[0] ** 2 + y[1] ** 2 + y[2] ** 2)
 
 
 @hjit(f"f(F({DSIG:s}),f,V,V,f,V,V,f,f,f,f)")
@@ -58,8 +54,8 @@ def _select_initial_step_hf(
     )
 
     factor = 1 / sqrt(6)
-    d0 = _norm_VV_hf(div_VV_hf(rr, scale_r), div_VV_hf(vv, scale_v)) * factor
-    d1 = _norm_VV_hf(div_VV_hf(fr, scale_r), div_VV_hf(fv, scale_v)) * factor
+    d0 = norm_VV_hf(div_VV_hf(rr, scale_r), div_VV_hf(vv, scale_v)) * factor
+    d1 = norm_VV_hf(div_VV_hf(fr, scale_r), div_VV_hf(fv, scale_v)) * factor
 
     if d0 < 1e-5 or d1 < 1e-5:
         h0 = 1e-6
@@ -77,7 +73,7 @@ def _select_initial_step_hf(
     )
 
     d2 = (
-        _norm_VV_hf(
+        norm_VV_hf(
             div_VV_hf(sub_VV_hf(fr1, fr), scale_r),
             div_VV_hf(sub_VV_hf(fv1, fv), scale_v),
         )

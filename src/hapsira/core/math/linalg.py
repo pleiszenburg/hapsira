@@ -20,6 +20,7 @@ __all__ = [
     "nextafter_hf",
     "norm_hf",
     "norm_vf",
+    "norm_VV_hf",
     "sign_hf",
     "sub_VV_hf",
     "transpose_M_hf",
@@ -154,6 +155,11 @@ def norm_hf(a):
 def norm_vf(a, b, c):
     # TODO add axis setting in some way for util.norm?
     return norm_hf((a, b, c))
+
+
+@hjit("f(V,V)")
+def norm_VV_hf(x, y):
+    return sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + y[0] ** 2 + y[1] ** 2 + y[2] ** 2)
 
 
 @hjit("f(f)")

@@ -1,3 +1,4 @@
+from ._const import N_STAGES, KSIG
 from ._dop853_coefficients import A as _A, B as _B, C as _C
 from ..linalg import add_VV_hf
 from ...jit import hjit, DSIG
@@ -15,13 +16,7 @@ else:
 
 __all__ = [
     "rk_step_hf",
-    "N_RV",
-    "N_STAGES",
-    "KSIG",
 ]
-
-N_RV = 6
-N_STAGES = 12
 
 A01 = tuple(float_(number) for number in _A[1, :N_STAGES])
 A02 = tuple(float_(number) for number in _A[2, :N_STAGES])
@@ -36,12 +31,6 @@ A10 = tuple(float_(number) for number in _A[10, :N_STAGES])
 A11 = tuple(float_(number) for number in _A[11, :N_STAGES])
 B = tuple(float_(number) for number in _B)
 C = tuple(float_(number) for number in _C[:N_STAGES])
-
-KSIG = (
-    "Tuple(["
-    + ",".join(["Tuple([" + ",".join(["f"] * N_RV) + "])"] * (N_STAGES + 1))
-    + "])"
-)
 
 
 @hjit(f"Tuple([V,V,V,V,{KSIG:s}])(F({DSIG:s}),f,V,V,V,V,f,f)")

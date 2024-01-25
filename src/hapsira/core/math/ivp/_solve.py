@@ -3,12 +3,17 @@ from typing import Callable, List, Optional, Tuple
 import numpy as np
 
 from ._brentq import brentq
-from ._common import OdeSolution
+from ._solution import OdeSolution
 from ._rk import DOP853
 from ...math.linalg import EPS
 
 
-def solve_event_equation(event, sol, t_old, t):
+__all__ = [
+    "solve_ivp",
+]
+
+
+def _solve_event_equation(event, sol, t_old, t):
     """Solve an equation corresponding to an ODE event.
 
     The equation is ``event(t, y(t)) = 0``, here ``y(t)`` is known from an
@@ -35,7 +40,7 @@ def solve_event_equation(event, sol, t_old, t):
     return brentq(lambda t: event(t, sol(t)), t_old, t, xtol=4 * EPS, rtol=4 * EPS)
 
 
-def handle_events(sol, events, active_events, is_terminal, t_old, t):
+def _handle_events(sol, events, active_events, is_terminal, t_old, t):
     """Helper function to handle events.
 
     Parameters
@@ -63,7 +68,7 @@ def handle_events(sol, events, active_events, is_terminal, t_old, t):
         Whether a terminal event occurred.
     """
     roots = [
-        solve_event_equation(events[event_index], sol, t_old, t)
+        _solve_event_equation(events[event_index], sol, t_old, t)
         for event_index in active_events
     ]
 
@@ -86,7 +91,7 @@ def handle_events(sol, events, active_events, is_terminal, t_old, t):
     return active_events, roots, terminate
 
 
-def prepare_events(events):
+def _prepare_events(events):
     """Standardize event functions and extract is_terminal and direction."""
     if callable(events):
         events = (events,)
@@ -111,7 +116,7 @@ def prepare_events(events):
     return events, is_terminal, direction
 
 
-def find_active_events(g, g_new, direction):
+def _find_active_events(g, g_new, direction):
     """Find which event occurred during an integration step.
 
     Parameters
@@ -292,7 +297,7 @@ def solve_ivp(
 
     interpolants = []
 
-    events, is_terminal, event_dir = prepare_events(events)
+    events, is_terminal, event_dir = _prepare_events(events)
 
     if events is not None:
         events = [lambda t, x, event=event: event(t, x, argk) for event in events]
@@ -317,9 +322,9 @@ def solve_ivp(
 
         if events is not None:
             g_new = [event(t, y) for event in events]
-            active_events = find_active_events(g, g_new, event_dir)
+            active_events = _find_active_events(g, g_new, event_dir)
             if active_events.size > 0:
-                _, roots, terminate = handle_events(
+                _, roots, terminate = _handle_events(
                     sol, events, active_events, is_terminal, t_old, t
                 )
                 if terminate:

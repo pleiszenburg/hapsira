@@ -1,8 +1,15 @@
 import numpy as np
 
-N_STAGES = 12
-N_STAGES_EXTENDED = 16
-INTERPOLATOR_POWER = 7
+from ._const import N_STAGES, N_STAGES_EXTENDED, INTERPOLATOR_POWER
+
+__all__ = [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E3",
+    "E5",
+]
 
 C = np.array(
     [

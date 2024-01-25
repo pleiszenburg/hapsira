@@ -1,3 +1,4 @@
+from abc import ABC, abstractmethod
 from warnings import warn
 
 from astropy import units as u
@@ -14,7 +15,20 @@ from hapsira.core.spheroid_location import (
 )
 
 
-class Event:
+__all__ = [
+    "BaseEvent",
+    "AltitudeCrossEvent",
+    "LithobrakeEvent",
+    "LatitudeCrossEvent",
+    "EclipseEvent",
+    "PenumbraEvent",
+    "UmbraEvent",
+    "NodeCrossEvent",
+    "LosEvent",
+]
+
+
+class BaseEvent(ABC):
     """Base class for event functionalities.
 
     Parameters
@@ -42,11 +56,12 @@ class Event:
     def last_t(self):
         return self._last_t << u.s
 
+    @abstractmethod
     def __call__(self, t, u, k):
         raise NotImplementedError
 
 
-class AltitudeCrossEvent(Event):
+class AltitudeCrossEvent(BaseEvent):
     """Detect if a satellite crosses a specific threshold altitude.
 
     Parameters
@@ -94,7 +109,7 @@ class LithobrakeEvent(AltitudeCrossEvent):
         super().__init__(0, R, terminal, direction=-1)
 
 
-class LatitudeCrossEvent(Event):
+class LatitudeCrossEvent(BaseEvent):
     """Detect if a satellite crosses a specific threshold latitude.
 
     Parameters
@@ -127,7 +142,7 @@ class LatitudeCrossEvent(Event):
         return np.rad2deg(lat_) - self._lat
 
 
-class EclipseEvent(Event):
+class EclipseEvent(BaseEvent):
     """Base class for the eclipse event.
 
     Parameters
@@ -225,7 +240,7 @@ class UmbraEvent(EclipseEvent):
         return shadow_function
 
 
-class NodeCrossEvent(Event):
+class NodeCrossEvent(BaseEvent):
     """Detect equatorial node (ascending or descending) crossings.
 
     Parameters
@@ -248,7 +263,7 @@ class NodeCrossEvent(Event):
         return u_[2]
 
 
-class LosEvent(Event):
+class LosEvent(BaseEvent):
     """Detect whether there exists a LOS between two satellites.
 
     Parameters

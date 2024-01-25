@@ -5,9 +5,10 @@ from astropy import units as u
 from astropy.coordinates import get_body_barycentric_posvel
 import numpy as np
 
+from hapsira.core.jit import array_to_V_hf
 from hapsira.core.math.linalg import norm_V_vf
 from hapsira.core.events import (
-    eclipse_function as eclipse_function_fast,
+    eclipse_function_hf,
     line_of_sight_gf,
 )
 from hapsira.core.spheroid_location import (
@@ -199,14 +200,15 @@ class PenumbraEvent(EclipseEvent):
         self._last_t = t
 
         r_sec = super().__call__(t, u_, k)
-        shadow_function = eclipse_function_fast(
+        shadow_function = eclipse_function_hf(
             self.k,
-            u_,
-            r_sec,
+            array_to_V_hf(u_[:3]),
+            array_to_V_hf(u_[3:]),
+            array_to_V_hf(r_sec),
             self.R_sec,
             self.R_primary,
-            umbra=False,
-        )
+            False,
+        )  # TODO call into hf
 
         return shadow_function
 
@@ -233,8 +235,14 @@ class UmbraEvent(EclipseEvent):
         self._last_t = t
 
         r_sec = super().__call__(t, u_, k)
-        shadow_function = eclipse_function_fast(
-            self.k, u_, r_sec, self.R_sec, self.R_primary
+        shadow_function = eclipse_function_hf(
+            self.k,
+            array_to_V_hf(u_[:3]),
+            array_to_V_hf(u_[3:]),
+            array_to_V_hf(r_sec),
+            self.R_sec,
+            self.R_primary,
+            True,
         )
 
         return shadow_function

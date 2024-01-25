@@ -1,33 +1,35 @@
-from math import acos
+from math import acos, cos, sin
 
 from numba import njit as jit
 import numpy as np
 
 from .elements import coe_rotation_matrix_hf, rv2coe_hf, RV2COE_TOL
 from .jit import array_to_V_hf, hjit, gjit
-from .math.linalg import norm_V_hf, matmul_VV_hf
+from .math.linalg import matmul_VV_hf, norm_V_hf
 from .util import planetocentric_to_AltAz_hf
 
 
 __all__ = [
-    "eclipse_function",
+    "eclipse_function_hf",
     "line_of_sight_hf",
     "line_of_sight_gf",
     "elevation_function",
 ]
 
 
-@jit
-def eclipse_function(k, u_, r_sec, R_sec, R_primary, umbra=True):
+@hjit("f(f,V,V,V,f,f,b1)")
+def eclipse_function_hf(k, rr, vv, r_sec, R_sec, R_primary, umbra):
     """Calculates a continuous shadow function.
 
     Parameters
     ----------
     k : float
         Standard gravitational parameter (km^3 / s^2).
-    u_ : numpy.ndarray
-        Satellite position and velocity vector with respect to the primary body.
-    r_sec : numpy.ndarray
+    rr : tuple[float,float,float]
+        Satellite position vector with respect to the primary body.
+    vv : tuple[float,float,float]
+        Satellite velocity vector with respect to the primary body.
+    r_sec : tuple[float,float,float]
         Position vector of the secondary body with respect to the primary body.
     R_sec : float
         Equatorial radius of the secondary body.
@@ -43,28 +45,27 @@ def eclipse_function(k, u_, r_sec, R_sec, R_primary, umbra=True):
     The current implementation assumes circular bodies and doesn't account for flattening.
 
     """
+
     # Plus or minus condition
     pm = 1 if umbra else -1
-    p, ecc, inc, raan, argp, nu = rv2coe_hf(
-        k, array_to_V_hf(u_[:3]), array_to_V_hf(u_[3:]), RV2COE_TOL
-    )
+    p, ecc, inc, raan, argp, nu = rv2coe_hf(k, rr, vv, RV2COE_TOL)
 
-    PQW = np.array(coe_rotation_matrix_hf(inc, raan, argp))
-    # Make arrays contiguous for faster dot product with numba.
-    P_, Q_ = np.ascontiguousarray(PQW[:, 0]), np.ascontiguousarray(PQW[:, 1])
+    PQW = coe_rotation_matrix_hf(inc, raan, argp)
+    P_ = PQW[0][0], PQW[1][0], PQW[2][0]
+    Q_ = PQW[0][1], PQW[1][1], PQW[2][1]
 
-    r_sec_norm = norm_V_hf(array_to_V_hf(r_sec))
-    beta = (P_ @ r_sec) / r_sec_norm
-    zeta = (Q_ @ r_sec) / r_sec_norm
+    r_sec_norm = norm_V_hf(r_sec)
+    beta = matmul_VV_hf(P_, r_sec) / r_sec_norm
+    zeta = matmul_VV_hf(Q_, r_sec) / r_sec_norm
 
-    sin_delta_shadow = np.sin((R_sec - pm * R_primary) / r_sec_norm)
+    sin_delta_shadow = sin((R_sec - pm * R_primary) / r_sec_norm)
 
-    cos_psi = beta * np.cos(nu) + zeta * np.sin(nu)
+    cos_psi = beta * cos(nu) + zeta * sin(nu)
     shadow_function = (
-        ((R_primary**2) * (1 + ecc * np.cos(nu)) ** 2)
+        ((R_primary**2) * (1 + ecc * cos(nu)) ** 2)
         + (p**2) * (cos_psi**2)
         - p**2
-        + pm * (2 * p * R_primary * cos_psi) * (1 + ecc * np.cos(nu)) * sin_delta_shadow
+        + pm * (2 * p * R_primary * cos_psi) * (1 + ecc * cos(nu)) * sin_delta_shadow
     )
 
     return shadow_function

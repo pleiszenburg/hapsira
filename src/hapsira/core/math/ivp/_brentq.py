@@ -1,4 +1,4 @@
-from math import fabs
+from math import fabs, isnan
 
 import operator
 
@@ -41,21 +41,18 @@ def _brentq_hf(
     fpre, fcur, fblk = 0.0, 0.0, 0.0
     spre, scur = 0.0, 0.0
 
-    iterations = 0
-
     fpre = func(xpre)
+    assert not isnan(fpre)
     fcur = func(xcur)
-    funcalls = 2
+    assert not isnan(fcur)
     if fpre == 0:
-        return xpre, funcalls, iterations, CONVERGED
+        return xpre, CONVERGED
     if fcur == 0:
-        return xcur, funcalls, iterations, CONVERGED
+        return xcur, CONVERGED
     if _signbit_hf(fpre) == _signbit_hf(fcur):
-        return 0.0, funcalls, iterations, SIGNERR
+        return 0.0, SIGNERR
 
-    iterations = 0
     for _ in range(0, iter_):
-        iterations += 1
         if fpre != 0 and fcur != 0 and _signbit_hf(fpre) != _signbit_hf(fcur):
             xblk = xpre
             fblk = fpre
@@ -73,7 +70,7 @@ def _brentq_hf(
         delta = (xtol + rtol * fabs(xcur)) / 2
         sbis = (xblk - xcur) / 2
         if fcur == 0 or fabs(sbis) < delta:
-            return xcur, funcalls, iterations, CONVERGED
+            return xcur, CONVERGED
 
         if fabs(spre) > delta and fabs(fcur) < fabs(fpre):
             if xpre == xblk:
@@ -102,9 +99,9 @@ def _brentq_hf(
             xcur += delta if sbis > 0 else -delta
 
         fcur = func(xcur)
-        funcalls += 1
+        assert not isnan(fcur)
 
-    return xcur, funcalls, iterations, CONVERR
+    return xcur, CONVERR
 
 
 @jit(forceobj=True)
@@ -116,12 +113,7 @@ def brentq_sf(
     rtol,  # double
     iter_,  # int
 ):
-    if xtol < 0:
-        raise ValueError("xtol must be >= 0")
-    if iter_ < 0:
-        raise ValueError("maxiter should be > 0")
-
-    zero, funcalls, iterations, error_num = _brentq_hf(
+    zero, error_num = _brentq_hf(
         func,
         a,
         b,
@@ -129,29 +121,8 @@ def brentq_sf(
         rtol,
         iter_,
     )
-
-    if error_num == SIGNERR:
-        raise ValueError("f(a) and f(b) must have different signs")
-    if error_num == CONVERR:
-        raise RuntimeError("Failed to converge after %d iterations." % iterations)
-
+    assert error_num == CONVERGED
     return zero  # double
-
-
-def _wrap_nan_raise(f):
-    def f_raise(x):
-        fx = f(x)
-        f_raise._function_calls += 1
-        if np.isnan(fx):
-            msg = f"The function value at x={x} is NaN; " "solver cannot continue."
-            err = ValueError(msg)
-            err._x = x
-            err._function_calls = f_raise._function_calls
-            raise err
-        return fx
-
-    f_raise._function_calls = 0
-    return f_raise
 
 
 def brentq(
@@ -167,10 +138,8 @@ def brentq(
     https://github.com/scipy/scipy/blob/d23363809572e9a44074a3f06f66137083446b48/scipy/optimize/_zeros_py.py#L682
     """
     maxiter = operator.index(maxiter)
-    if xtol <= 0:
-        raise ValueError("xtol too small (%g <= 0)" % xtol)
-    if rtol < BRENTQ_RTOL:
-        raise ValueError(f"rtol too small ({rtol:g} < {BRENTQ_RTOL:g})")
-    f = _wrap_nan_raise(f)
+    assert xtol > 0
+    assert rtol >= BRENTQ_RTOL
+    assert maxiter >= 0
     r = brentq_sf(f, a, b, xtol, rtol, maxiter)
     return r

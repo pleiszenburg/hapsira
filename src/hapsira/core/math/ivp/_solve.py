@@ -2,7 +2,7 @@ from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 
-from ._brentq import brentq
+from ._brentq import brentq_hf, BRENTQ_CONVERGED, BRENTQ_MAXITER
 from ._solution import OdeSolution
 from ._rk import DOP853
 from ...math.linalg import EPS
@@ -42,13 +42,16 @@ def _solve_event_equation(
     def wrapper(t):
         return event(t, sol(t), argk)
 
-    return brentq(
+    value, status = brentq_hf(
         wrapper,
         t_old,
         t,
-        xtol=4 * EPS,
-        rtol=4 * EPS,
+        4 * EPS,
+        4 * EPS,
+        BRENTQ_MAXITER,
     )
+    assert BRENTQ_CONVERGED == status
+    return value
 
 
 def _handle_events(

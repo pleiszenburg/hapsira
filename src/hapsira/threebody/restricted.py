@@ -8,7 +8,13 @@ from astropy import units as u
 import numpy as np
 
 from hapsira.core.jit import hjit
-from hapsira.core.math.ivp import brentq
+from hapsira.core.math.ivp import (
+    brentq_hf,
+    BRENTQ_XTOL,
+    BRENTQ_RTOL,
+    BRENTQ_MAXITER,
+    BRENTQ_CONVERGED,
+)
 from hapsira.util import norm
 
 
@@ -51,15 +57,24 @@ def lagrange_points(r12, m1, m2):
     tol = 1e-11  # `brentq` uses a xtol of 2e-12, so it should be covered
     a = -pi2 + tol
     b = 1 - pi2 - tol
-    xi = brentq(eq_L123, a, b)
+    xi, status = brentq_hf(
+        eq_L123, a, b, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
+    )  # TODO call into hf
+    assert status == BRENTQ_CONVERGED
     lp[0] = xi + pi2
 
     # L2
-    xi = brentq(eq_L123, 1, 1.5)
+    xi, status = brentq_hf(
+        eq_L123, 1, 1.5, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
+    )  # TODO call into hf
+    assert status == BRENTQ_CONVERGED
     lp[1] = xi + pi2
 
     # L3
-    xi = brentq(eq_L123, -1.5, -1)
+    xi, status = brentq_hf(
+        eq_L123, -1.5, -1, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
+    )  # TODO call into hf
+    assert status == BRENTQ_CONVERGED
     lp[2] = xi + pi2
 
     # L4, L5

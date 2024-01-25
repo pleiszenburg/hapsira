@@ -1,33 +1,29 @@
 from math import fabs, isnan
 
-import operator
-
-from numba import njit, jit
-import numpy as np
+from ..linalg import EPS
+from ...jit import hjit
 
 
 CONVERGED = 0
 SIGNERR = -1
 CONVERR = -2
-# EVALUEERR = -3
-INPROGRESS = 1
 
 BRENTQ_ITER = 100
 BRENTQ_XTOL = 2e-12
-BRENTQ_RTOL = 4 * np.finfo(float).eps
+BRENTQ_RTOL = 4 * EPS
 
 
-@njit
-def _min_hf(a, b):
+@hjit("f(f,f)")
+def _min_ss_hf(a, b):
     return a if a < b else b
 
 
-@njit
-def _signbit_hf(a):
+@hjit("b1(f)")
+def _signbit_s_hf(a):
     return a < 0
 
 
-@jit(forceobj=True)
+@hjit("f(F(f(f)),f,f,f,f,f)", forceobj=True, nopython=False, cache=False)
 def _brentq_hf(
     func,  # callback_type
     xa,  # double
@@ -49,11 +45,11 @@ def _brentq_hf(
         return xpre, CONVERGED
     if fcur == 0:
         return xcur, CONVERGED
-    if _signbit_hf(fpre) == _signbit_hf(fcur):
+    if _signbit_s_hf(fpre) == _signbit_s_hf(fcur):
         return 0.0, SIGNERR
 
     for _ in range(0, iter_):
-        if fpre != 0 and fcur != 0 and _signbit_hf(fpre) != _signbit_hf(fcur):
+        if fpre != 0 and fcur != 0 and _signbit_s_hf(fpre) != _signbit_s_hf(fcur):
             xblk = xpre
             fblk = fpre
             scur = xcur - xpre
@@ -81,7 +77,7 @@ def _brentq_hf(
                 stry = (
                     -fcur * (fblk * dblk - fpre * dpre) / (dblk * dpre * (fblk - fpre))
                 )
-            if 2 * fabs(stry) < _min_hf(fabs(spre), 3 * fabs(sbis) - delta):
+            if 2 * fabs(stry) < _min_ss_hf(fabs(spre), 3 * fabs(sbis) - delta):
                 spre = scur
                 scur = stry
             else:
@@ -104,27 +100,7 @@ def _brentq_hf(
     return xcur, CONVERR
 
 
-@jit(forceobj=True)
-def brentq_sf(
-    func,  # func
-    a,  # double
-    b,  # double
-    xtol,  # double
-    rtol,  # double
-    iter_,  # int
-):
-    zero, error_num = _brentq_hf(
-        func,
-        a,
-        b,
-        xtol,
-        rtol,
-        iter_,
-    )
-    assert error_num == CONVERGED
-    return zero  # double
-
-
+@hjit("f(F(f(f)),f,f,f,f,f)", forceobj=True, nopython=False, cache=False)
 def brentq(
     f,
     a,
@@ -137,9 +113,20 @@ def brentq(
     Loosely adapted from
     https://github.com/scipy/scipy/blob/d23363809572e9a44074a3f06f66137083446b48/scipy/optimize/_zeros_py.py#L682
     """
-    maxiter = operator.index(maxiter)
+
     assert xtol > 0
     assert rtol >= BRENTQ_RTOL
     assert maxiter >= 0
-    r = brentq_sf(f, a, b, xtol, rtol, maxiter)
-    return r
+
+    zero, error_num = _brentq_hf(
+        f,
+        a,
+        b,
+        xtol,
+        rtol,
+        maxiter,
+    )
+
+    assert error_num == CONVERGED
+
+    return zero

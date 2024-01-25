@@ -27,7 +27,7 @@ def _signbit_hf(a):
     return a < 0
 
 
-@jit(nopython=False)
+@jit(forceobj=True)
 def _brentq_hf(
     func,  # callback_type
     xa,  # double
@@ -107,7 +107,7 @@ def _brentq_hf(
     return xcur, funcalls, iterations, CONVERR
 
 
-@jit(nopython=False)
+@jit(forceobj=True)
 def brentq_sf(
     func,  # func
     a,  # double

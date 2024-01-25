@@ -151,6 +151,13 @@ def djit(*args, **kwargs) -> Callable:
         Applies JIT
         """
 
+        logger.debug(
+            "djit: func=%s, args=%s, kwargs=%s",
+            getattr(inner_func, "__name__", repr(inner_func)),
+            repr(args),
+            repr(kwargs),
+        )
+
         compiled = hjit(
             DSIG,
             *args,

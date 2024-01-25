@@ -122,7 +122,7 @@ def test_penumbra_event_not_triggering_is_ok():
     v0 = np.array([7.36138, 2.98997, 1.64354])
     orbit = Orbit.from_vectors(attractor, r0 * u.km, v0 * u.km / u.s)
 
-    penumbra_event = PenumbraEvent(orbit)
+    penumbra_event = PenumbraEvent(orbit, tof=tof)
     method = CowellPropagator(events=[penumbra_event])
     rr, _ = method.propagate_many(
         orbit._state,
@@ -139,7 +139,7 @@ def test_umbra_event_not_triggering_is_ok():
     v0 = np.array([7.36138, 2.98997, 1.64354])
     orbit = Orbit.from_vectors(attractor, r0 * u.km, v0 * u.km / u.s)
 
-    umbra_event = UmbraEvent(orbit)
+    umbra_event = UmbraEvent(orbit, tof=tof)
 
     method = CowellPropagator(events=[umbra_event])
     rr, _ = method.propagate_many(
@@ -166,7 +166,7 @@ def test_umbra_event_crossing():
         epoch=epoch,
     )
 
-    umbra_event = UmbraEvent(orbit, terminal=True)
+    umbra_event = UmbraEvent(orbit, tof=tof, terminal=True)
 
     method = CowellPropagator(events=[umbra_event])
     rr, _ = method.propagate_many(
@@ -193,7 +193,7 @@ def test_penumbra_event_crossing():
         epoch=epoch,
     )
 
-    penumbra_event = PenumbraEvent(orbit, terminal=True)
+    penumbra_event = PenumbraEvent(orbit, tof=tof, terminal=True)
     method = CowellPropagator(events=[penumbra_event])
     rr, _ = method.propagate_many(
         orbit._state,
@@ -310,7 +310,11 @@ def test_propagation_stops_if_atleast_one_event_has_terminal_set_to_True(
         epoch=epoch,
     )
 
-    penumbra_event = PenumbraEvent(orbit, terminal=penumbra_terminal)
+    penumbra_event = PenumbraEvent(
+        orbit,
+        tof=600 * u.s,
+        terminal=penumbra_terminal,
+    )
 
     thresh_lat = 30 * u.deg
     latitude_cross_event = LatitudeCrossEvent(

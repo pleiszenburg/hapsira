@@ -11,7 +11,9 @@ from hapsira.core.events import (
     eclipse_function_hf,
     line_of_sight_gf,
 )
+from hapsira.core.math.interpolate import interp_hb
 from hapsira.core.spheroid_location import cartesian_to_ellipsoidal_hf
+from hapsira.util import time_range
 
 
 __all__ = [
@@ -150,6 +152,10 @@ class BaseEclipseEvent(BaseEvent):
     ----------
     orbit: hapsira.twobody.orbit.Orbit
         Orbit of the satellite.
+    tof: ~astropy.units.Quantity
+        Maximum time of flight for interpolator
+    steps: int
+        Steps for interpolator
     terminal: bool, optional
         Whether to terminate integration when the event occurs, defaults to False.
     direction: float, optional
@@ -157,7 +163,7 @@ class BaseEclipseEvent(BaseEvent):
 
     """
 
-    def __init__(self, orbit, terminal=False, direction=0):
+    def __init__(self, orbit, tof, steps=50, terminal=False, direction=0):
         super().__init__(terminal, direction)
         self._primary_body = orbit.attractor
         self._secondary_body = orbit.attractor.parent
@@ -166,17 +172,23 @@ class BaseEclipseEvent(BaseEvent):
         self.R_sec = self._secondary_body.R.to_value(u.km)
         self.R_primary = self._primary_body.R.to_value(u.km)
 
+        epochs = time_range(start=self._epoch, end=self._epoch + tof, num_values=steps)
+        r_primary_wrt_ssb, _ = get_body_barycentric_posvel(
+            self._primary_body.name, epochs
+        )
+        r_secondary_wrt_ssb, _ = get_body_barycentric_posvel(
+            self._secondary_body.name, epochs
+        )
+        self._r_sec = interp_hb(
+            (epochs - self._epoch).to_value(u.s),
+            (r_secondary_wrt_ssb - r_primary_wrt_ssb).xyz.to_value(u.km),
+        )
+
     @abstractmethod
     def __call__(self, t, u_, k):
         # Solve for primary and secondary bodies position w.r.t. solar system
         # barycenter at a particular epoch.
-        (r_primary_wrt_ssb, _), (r_secondary_wrt_ssb, _) = (
-            get_body_barycentric_posvel(body.name, self._epoch + t * u.s)
-            for body in (self._primary_body, self._secondary_body)
-        )
-        r_sec = ((r_secondary_wrt_ssb - r_primary_wrt_ssb).xyz << u.km).value
-
-        return r_sec
+        return self._r_sec(t)
 
 
 class PenumbraEvent(BaseEclipseEvent):
@@ -202,7 +214,7 @@ class PenumbraEvent(BaseEclipseEvent):
             self.k,
             array_to_V_hf(u_[:3]),
             array_to_V_hf(u_[3:]),
-            array_to_V_hf(r_sec),
+            r_sec,
             self.R_sec,
             self.R_primary,
             False,
@@ -234,7 +246,7 @@ class UmbraEvent(BaseEclipseEvent):
             self.k,
             array_to_V_hf(u_[:3]),
             array_to_V_hf(u_[3:]),
-            array_to_V_hf(r_sec),
+            r_sec,
             self.R_sec,
             self.R_primary,
             True,

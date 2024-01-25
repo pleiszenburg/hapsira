@@ -13,7 +13,9 @@ __all__ = [
 ]
 
 
-def _solve_event_equation(event, sol, t_old, t):
+def _solve_event_equation(
+    event: Callable, sol: Callable, t_old: float, t: float, argk: float
+) -> float:
     """Solve an equation corresponding to an ODE event.
 
     The equation is ``event(t, y(t)) = 0``, here ``y(t)`` is known from an
@@ -37,10 +39,27 @@ def _solve_event_equation(event, sol, t_old, t):
         Found solution.
     """
 
-    return brentq(lambda t: event(t, sol(t)), t_old, t, xtol=4 * EPS, rtol=4 * EPS)
+    def wrapper(t):
+        return event(t, sol(t), argk)
+
+    return brentq(
+        wrapper,
+        t_old,
+        t,
+        xtol=4 * EPS,
+        rtol=4 * EPS,
+    )
 
 
-def _handle_events(sol, events, active_events, is_terminal, t_old, t):
+def _handle_events(
+    sol,
+    events: List[Callable],
+    active_events,
+    is_terminal,
+    t_old: float,
+    t: float,
+    argk: float,
+):
     """Helper function to handle events.
 
     Parameters
@@ -68,7 +87,7 @@ def _handle_events(sol, events, active_events, is_terminal, t_old, t):
         Whether a terminal event occurred.
     """
     roots = [
-        _solve_event_equation(events[event_index], sol, t_old, t)
+        _solve_event_equation(events[event_index], sol, t_old, t, argk)
         for event_index in active_events
     ]
 
@@ -300,8 +319,7 @@ def solve_ivp(
     events, is_terminal, event_dir = _prepare_events(events)
 
     if events is not None:
-        events = [lambda t, x, event=event: event(t, x, argk) for event in events]
-        g = [event(t0, y0) for event in events]
+        g = [event(t0, y0, argk) for event in events]
 
     status = None
     while status is None:
@@ -321,11 +339,17 @@ def solve_ivp(
         interpolants.append(sol)
 
         if events is not None:
-            g_new = [event(t, y) for event in events]
+            g_new = [event(t, y, argk) for event in events]
             active_events = _find_active_events(g, g_new, event_dir)
             if active_events.size > 0:
                 _, roots, terminate = _handle_events(
-                    sol, events, active_events, is_terminal, t_old, t
+                    sol,
+                    events,
+                    active_events,
+                    is_terminal,
+                    t_old,
+                    t,
+                    argk,
                 )
                 if terminate:
                     status = 1

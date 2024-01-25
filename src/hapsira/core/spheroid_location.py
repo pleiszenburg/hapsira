@@ -4,14 +4,14 @@ from numba import njit as jit
 import numpy as np
 
 from .jit import array_to_V_hf
-from .math.linalg import norm_hf
+from .math.linalg import norm_V_hf
 
 
 @jit
 def cartesian_cords(a, c, lon, lat, h):
     """Calculates cartesian coordinates.
 
-    Parametersnorm_hf
+    Parametersnorm_V_hf
     ----------
     a : float
         Semi-major axis
@@ -67,7 +67,7 @@ def N(a, b, c, cartesian_cords):
     """
     x, y, z = cartesian_cords
     N = np.array([2 * x / a**2, 2 * y / b**2, 2 * z / c**2])
-    N /= norm_hf(array_to_V_hf(N))
+    N /= norm_V_hf(array_to_V_hf(N))
     return N
 
 
@@ -83,7 +83,7 @@ def tangential_vecs(N):
     """
     u = np.array([1.0, 0, 0])
     u -= (u @ N) * N
-    u /= norm_hf(array_to_V_hf(u))
+    u /= norm_V_hf(array_to_V_hf(u))
     v = np.cross(N, u)
 
     return u, v
@@ -126,7 +126,7 @@ def distance(cartesian_cords, px, py, pz):
     """
     c = cartesian_cords
     u = np.array([px, py, pz])
-    d = norm_hf(array_to_V_hf(c - u))
+    d = norm_V_hf(array_to_V_hf(c - u))
     return d
 
 

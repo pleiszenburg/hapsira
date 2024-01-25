@@ -2,7 +2,14 @@ from math import atan2, cos, pi, sin, tan
 
 from ..jit import hjit, gjit
 from ..elements import circular_velocity_hf
-from ..math.linalg import add_VV_hf, cross_VV_hf, div_Vs_hf, mul_Vs_hf, norm_hf, sign_hf
+from ..math.linalg import (
+    add_VV_hf,
+    cross_VV_hf,
+    div_Vs_hf,
+    mul_Vs_hf,
+    norm_V_hf,
+    sign_hf,
+)
 
 
 __all__ = [
@@ -119,9 +126,9 @@ def change_a_inc_hb(k, a_0, a_f, inc_0, inc_f, f):
         # Change sign of beta with the out-of-plane velocity
         beta_ = _beta_hf(t0, V_0, f, beta_0_) * sign_hf(rr[0] * (inc_f - inc_0))
 
-        t_ = div_Vs_hf(vv, norm_hf(vv))
+        t_ = div_Vs_hf(vv, norm_V_hf(vv))
         crv = cross_VV_hf(rr, vv)
-        w_ = div_Vs_hf(crv, norm_hf(crv))
+        w_ = div_Vs_hf(crv, norm_V_hf(crv))
         accel_v = mul_Vs_hf(
             add_VV_hf(mul_Vs_hf(t_, cos(beta_)), mul_Vs_hf(w_, sin(beta_))), f
         )

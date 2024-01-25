@@ -16,7 +16,7 @@ else:
 
 
 __all__ = [
-    "estimate_error_norm_hf",
+    "estimate_error_norm_V_hf",
 ]
 
 
@@ -25,7 +25,7 @@ E5 = tuple(float_(number) for number in _E5)  # N_STAGES + 1
 
 
 @hjit(f"f({KSIG:s},f,V,V)")
-def estimate_error_norm_hf(K, h, scale_r, scale_v):
+def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
     K00, K01, K02, K03, K04, K05, K06, K07, K08, K09, K10, K11, K12 = K
 
     err3 = (

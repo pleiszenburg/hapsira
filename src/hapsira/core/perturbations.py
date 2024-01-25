@@ -2,7 +2,7 @@ from math import exp
 
 from .events import line_of_sight_hf
 from .jit import hjit
-from .math.linalg import norm_hf, mul_Vs_hf, mul_VV_hf, sub_VV_hf
+from .math.linalg import norm_V_hf, mul_Vs_hf, mul_VV_hf, sub_VV_hf
 
 
 __all__ = [
@@ -46,7 +46,7 @@ def J2_perturbation_hf(t0, rr, vv, k, J2, R):
     Howard Curtis, (12.30)
 
     """
-    r = norm_hf(rr)
+    r = norm_V_hf(rr)
 
     factor = (3.0 / 2.0) * k * J2 * (R**2) / (r**5)
 
@@ -81,7 +81,7 @@ def J3_perturbation_hf(t0, rr, vv, k, J3, R):
     This perturbation has not been fully validated, see https://github.com/poliastro/poliastro/pull/398
 
     """
-    r = norm_hf(rr)
+    r = norm_V_hf(rr)
 
     factor = (1.0 / 2.0) * k * J3 * (R**3) / (r**5)
     cos_phi = rr[2] / r
@@ -131,9 +131,9 @@ def atmospheric_drag_exponential_hf(t0, rr, vv, k, R, C_D, A_over_m, H0, rho0):
     the atmospheric density model is rho(H) = rho0 x exp(-H / H0)
 
     """
-    H = norm_hf(rr)
+    H = norm_V_hf(rr)
 
-    v = norm_hf(vv)
+    v = norm_V_hf(vv)
     B = C_D * A_over_m
     rho = rho0 * exp(-(H - R) / H0)
 
@@ -173,7 +173,7 @@ def atmospheric_drag_hf(t0, rr, vv, k, C_D, A_over_m, rho):
     computed by a model from hapsira.earth.atmosphere
 
     """
-    v = norm_hf(vv)
+    v = norm_V_hf(vv)
     B = C_D * A_over_m
 
     return mul_Vs_hf(vv, -(1.0 / 2.0) * rho * B * v)
@@ -212,8 +212,8 @@ def third_body_hf(t0, rr, vv, k, k_third, perturbation_body):
     body_r = perturbation_body(t0)
     delta_r = sub_VV_hf(body_r, rr)
     return sub_VV_hf(
-        mul_Vs_hf(delta_r, k_third / norm_hf(delta_r) ** 3),
-        mul_Vs_hf(body_r, k_third / norm_hf(body_r) ** 3),
+        mul_Vs_hf(delta_r, k_third / norm_V_hf(delta_r) ** 3),
+        mul_Vs_hf(body_r, k_third / norm_V_hf(body_r) ** 3),
     )
 
 
@@ -254,10 +254,10 @@ def radiation_pressure_hf(t0, rr, vv, k, R, C_R, A_over_m, Wdivc_s, star):
 
     """
     r_star = star(t0)
-    P_s = Wdivc_s / (norm_hf(r_star) ** 2)
+    P_s = Wdivc_s / (norm_V_hf(r_star) ** 2)
 
     if line_of_sight_hf(rr, r_star, R) > 0:
         nu = 1.0
     else:
         nu = 0.0
-    return mul_Vs_hf(r_star, -nu * P_s * (C_R * A_over_m) / norm_hf(r_star))
+    return mul_Vs_hf(r_star, -nu * P_s * (C_R * A_over_m) / norm_V_hf(r_star))

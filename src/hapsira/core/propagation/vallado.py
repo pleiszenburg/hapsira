@@ -1,7 +1,7 @@
 from math import log, sqrt
 
 from ..elements import coe2rv_hf, rv2coe_hf, RV2COE_TOL
-from ..math.linalg import add_VV_hf, matmul_VV_hf, mul_Vs_hf, norm_hf, sign_hf
+from ..math.linalg import add_VV_hf, matmul_VV_hf, mul_Vs_hf, norm_V_hf, sign_hf
 from ..math.special import stumpff_c2_hf, stumpff_c3_hf
 from ..jit import array_to_V_hf, hjit, vjit, gjit
 
@@ -86,7 +86,7 @@ def _vallado_hf(k, r0, v0, tof, numiter):
     """
     # Cache some results
     dot_r0v0 = matmul_VV_hf(r0, v0)
-    norm_r0 = norm_hf(r0)
+    norm_r0 = norm_V_hf(r0)
     sqrt_mu = k**0.5
     alpha = -matmul_VV_hf(v0, v0) / k + 2 / norm_r0
 

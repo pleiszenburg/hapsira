@@ -11,7 +11,7 @@ from hapsira.bodies import Earth, Moon, Sun
 from hapsira.constants import J2000
 from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
 from hapsira.core.jit import djit, hjit
-from hapsira.core.math.linalg import add_VV_hf, mul_Vs_hf, norm_hf
+from hapsira.core.math.linalg import add_VV_hf, mul_Vs_hf, norm_V_hf
 from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.examples import iss
 from hapsira.frames import Planes
@@ -293,7 +293,7 @@ def test_cowell_propagation_circle_to_circle():
 
     @hjit("V(f,V,V,f)")
     def constant_accel_hf(t0, rr, vv, k):
-        norm_v = norm_hf(vv)
+        norm_v = norm_V_hf(vv)
         return mul_Vs_hf(vv, accel / norm_v)
 
     @djit

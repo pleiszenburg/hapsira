@@ -17,7 +17,7 @@ from ._const import (
 )
 from ._dop853_coefficients import A as _A, C as _C, D as _D
 from ._rkstep import rk_step_hf
-from ._rkerror import estimate_error_norm_hf
+from ._rkerror import estimate_error_norm_V_hf
 
 from ...jit import array_to_V_hf, hjit, DSIG
 from ...math.linalg import (
@@ -159,7 +159,7 @@ def _step_impl_hf(
             ),
             atol,
         )
-        error_norm = estimate_error_norm_hf(
+        error_norm = estimate_error_norm_V_hf(
             K_new,
             h,
             scale_r,

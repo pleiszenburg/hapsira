@@ -8,7 +8,7 @@ from .math.linalg import (
     div_Vs_hf,
     matmul_VV_hf,
     mul_Vs_hf,
-    norm_hf,
+    norm_V_hf,
     sub_VV_hf,
 )
 from .math.special import hyp2f1b_hf, stumpff_c2_hf, stumpff_c3_hf
@@ -396,8 +396,8 @@ def vallado_hf(k, r0, r, tof, M, prograde, lowpath, numiter, rtol):
 
     t_m = 1 if prograde else -1
 
-    norm_r0 = norm_hf(r0)
-    norm_r = norm_hf(r)
+    norm_r0 = norm_V_hf(r0)
+    norm_r = norm_V_hf(r)
     norm_r0_times_norm_r = norm_r0 * norm_r
     norm_r0_plus_norm_r = norm_r0 + norm_r
 
@@ -521,9 +521,9 @@ def izzo_hf(k, r1, r2, tof, M, prograde, lowpath, numiter, rtol):
     # Chord
     c = sub_VV_hf(r2, r1)
     c_norm, r1_norm, r2_norm = (
-        norm_hf(c),
-        norm_hf(r1),
-        norm_hf(r2),
+        norm_V_hf(c),
+        norm_V_hf(r1),
+        norm_V_hf(r2),
     )
 
     # Semiperimeter
@@ -532,7 +532,7 @@ def izzo_hf(k, r1, r2, tof, M, prograde, lowpath, numiter, rtol):
     # Versors
     i_r1, i_r2 = div_Vs_hf(r1, r1_norm), div_Vs_hf(r2, r2_norm)
     i_h = cross_VV_hf(i_r1, i_r2)
-    i_h = div_Vs_hf(i_h, norm_hf(i_h))  # Fixed from paper
+    i_h = div_Vs_hf(i_h, norm_V_hf(i_h))  # Fixed from paper
 
     # Geometry of the problem
     ll = sqrt(1 - min(1.0, c_norm / s))

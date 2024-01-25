@@ -4,7 +4,7 @@ from numpy import array
 
 from ..elements import circular_velocity_hf
 from ..jit import array_to_V_hf, hjit, gjit
-from ..math.linalg import cross_VV_hf, div_Vs_hf, mul_Vs_hf, norm_hf, sign_hf
+from ..math.linalg import cross_VV_hf, div_Vs_hf, mul_Vs_hf, norm_V_hf, sign_hf
 
 __all__ = [
     "change_ecc_quasioptimal_hb",
@@ -51,9 +51,9 @@ def _prepare_hf(k, a, ecc_0, ecc_f, e_vec, h_vec, r):
     if ecc_0 > 0.001:  # Arbitrary tolerance
         ref_vec = div_Vs_hf(e_vec, ecc_0)
     else:
-        ref_vec = div_Vs_hf(r, norm_hf(r))
+        ref_vec = div_Vs_hf(r, norm_V_hf(r))
 
-    h_unit = div_Vs_hf(h_vec, norm_hf(h_vec))
+    h_unit = div_Vs_hf(h_vec, norm_V_hf(h_vec))
     thrust_unit = mul_Vs_hf(cross_VV_hf(h_unit, ref_vec), sign_hf(ecc_f - ecc_0))
 
     return thrust_unit

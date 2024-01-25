@@ -13,7 +13,7 @@ from .math.linalg import (
     matmul_VM_hf,
     matmul_VV_hf,
     mul_Vs_hf,
-    norm_hf,
+    norm_V_hf,
     sub_VV_hf,
     transpose_M_hf,
 )
@@ -63,7 +63,7 @@ def eccentricity_vector_hf(k, r, v):
     v : tuple[float,float,float]
         Velocity vector (km / s)
     """
-    a = matmul_VV_hf(v, v) - k / norm_hf(r)
+    a = matmul_VV_hf(v, v) - k / norm_V_hf(r)
     b = matmul_VV_hf(r, v)
     return div_Vs_hf(sub_VV_hf(mul_Vs_hf(r, a), mul_Vs_hf(v, b)), k)
 
@@ -448,14 +448,14 @@ def rv2coe_hf(k, r, v, tol):
     n = cross_VV_hf((0, 0, 1), h)
     e = mul_Vs_hf(
         sub_VV_hf(
-            mul_Vs_hf(r, (matmul_VV_hf(v, v) - k / norm_hf(r))),
+            mul_Vs_hf(r, (matmul_VV_hf(v, v) - k / norm_V_hf(r))),
             mul_Vs_hf(v, matmul_VV_hf(r, v)),
         ),
         1 / k,
     )
-    ecc = norm_hf(e)
+    ecc = norm_V_hf(e)
     p = matmul_VV_hf(h, h) / k
-    inc = acos(h[2] / norm_hf(h))
+    inc = acos(h[2] / norm_V_hf(h))
 
     circular = ecc < tol
     equatorial = abs(inc) < tol
@@ -463,12 +463,16 @@ def rv2coe_hf(k, r, v, tol):
     if equatorial and not circular:
         raan = 0
         argp = atan2(e[1], e[0]) % (2 * pi)  # Longitude of periapsis
-        nu = atan2(matmul_VV_hf(h, cross_VV_hf(e, r)) / norm_hf(h), matmul_VV_hf(r, e))
+        nu = atan2(
+            matmul_VV_hf(h, cross_VV_hf(e, r)) / norm_V_hf(h), matmul_VV_hf(r, e)
+        )
     elif not equatorial and circular:
         raan = atan2(n[1], n[0]) % (2 * pi)
         argp = 0
         # Argument of latitude
-        nu = atan2(matmul_VV_hf(r, cross_VV_hf(h, n)) / norm_hf(h), matmul_VV_hf(r, n))
+        nu = atan2(
+            matmul_VV_hf(r, cross_VV_hf(h, n)) / norm_V_hf(h), matmul_VV_hf(r, n)
+        )
     elif equatorial and circular:
         raan = 0
         argp = 0
@@ -478,16 +482,16 @@ def rv2coe_hf(k, r, v, tol):
         ka = k * a
         if a > 0:
             e_se = matmul_VV_hf(r, v) / sqrt(ka)
-            e_ce = norm_hf(r) * matmul_VV_hf(v, v) / k - 1
+            e_ce = norm_V_hf(r) * matmul_VV_hf(v, v) / k - 1
             nu = E_to_nu_hf(atan2(e_se, e_ce), ecc)
         else:
             e_sh = matmul_VV_hf(r, v) / sqrt(-ka)
-            e_ch = norm_hf(r) * (norm_hf(v) ** 2) / k - 1
+            e_ch = norm_V_hf(r) * (norm_V_hf(v) ** 2) / k - 1
             nu = F_to_nu_hf(log((e_ch + e_sh) / (e_ch - e_sh)) / 2, ecc)
 
         raan = atan2(n[1], n[0]) % (2 * pi)
         px = matmul_VV_hf(r, n)
-        py = matmul_VV_hf(r, cross_VV_hf(h, n)) / norm_hf(h)
+        py = matmul_VV_hf(r, cross_VV_hf(h, n)) / norm_V_hf(h)
         argp = (atan2(py, px) - nu) % (2 * pi)
 
     nu = (nu + pi) % (2 * pi) - pi

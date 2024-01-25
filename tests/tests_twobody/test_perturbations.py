@@ -11,7 +11,7 @@ from hapsira.constants import H0_earth, Wdivc_sun, rho0_earth
 from hapsira.core.earth.atmosphere.coesa76 import density_hf as coesa76_density_hf
 from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
 from hapsira.core.jit import hjit, djit
-from hapsira.core.math.linalg import add_VV_hf, mul_Vs_hf, norm_hf
+from hapsira.core.math.linalg import add_VV_hf, mul_Vs_hf, norm_V_hf
 from hapsira.core.perturbations import (  # pylint: disable=E1120,E1136
     J2_perturbation_hf,
     J3_perturbation_hf,
@@ -385,7 +385,7 @@ def test_atmospheric_demise_coesa76():
         du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
 
         # Avoid undershooting H below attractor radius R
-        H = norm_hf(rr)
+        H = norm_V_hf(rr)
         if H < R:
             H = R
 
@@ -440,7 +440,7 @@ def test_cowell_works_with_small_perturbations():
 
     @hjit("V(f,V,V,f)")
     def accel_hf(t0, rr, vv, k):
-        return mul_Vs_hf(vv, 1e-5 / norm_hf(vv))
+        return mul_Vs_hf(vv, 1e-5 / norm_V_hf(vv))
 
     @djit
     def f_hf(t0, rr, vv, k):
@@ -465,7 +465,7 @@ def test_cowell_converges_with_small_perturbations():
 
     @hjit("V(f,V,V,f)")
     def accel_hf(t0, rr, vv, k):
-        norm_v = norm_hf(vv)
+        norm_v = norm_V_hf(vv)
         return mul_Vs_hf(vv, 0.0 / norm_v)
 
     @djit
@@ -710,7 +710,7 @@ def test_solar_pressure(t_days, deltas_expected, sun_r):
     @hjit("V(f)")
     def sun_normalized_hf(t0):
         r = sun_r(t0)  # sun_r is hf, returns V
-        return mul_Vs_hf(r, 149600000 / norm_hf(r))
+        return mul_Vs_hf(r, 149600000 / norm_V_hf(r))
 
     R_ = Earth.R.to(u.km).value
     Wdivc_s = Wdivc_sun.value

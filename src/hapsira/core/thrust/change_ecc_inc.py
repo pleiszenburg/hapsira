@@ -17,7 +17,14 @@ from ..elements import (
     RV2COE_TOL,
 )
 from ..jit import array_to_V_hf, hjit, vjit, gjit
-from ..math.linalg import add_VV_hf, cross_VV_hf, div_Vs_hf, mul_Vs_hf, norm_hf, sign_hf
+from ..math.linalg import (
+    add_VV_hf,
+    cross_VV_hf,
+    div_Vs_hf,
+    mul_Vs_hf,
+    norm_V_hf,
+    sign_hf,
+)
 
 
 __all__ = [
@@ -91,10 +98,10 @@ def _prepare_hf(k, a, ecc_0, ecc_f, inc_0, inc_f, argp, r, v, f):
         e_vec = eccentricity_vector_hf(k, r, v)
         ref_vec = div_Vs_hf(e_vec, ecc_0)
     else:
-        ref_vec = div_Vs_hf(r, norm_hf(r))
+        ref_vec = div_Vs_hf(r, norm_V_hf(r))
 
     h_vec = cross_VV_hf(r, v)  # Specific angular momentum vector
-    h_unit = div_Vs_hf(h_vec, norm_hf(h_vec))
+    h_unit = div_Vs_hf(h_vec, norm_V_hf(h_vec))
     thrust_unit = mul_Vs_hf(cross_VV_hf(h_unit, ref_vec), sign_hf(ecc_f - ecc_0))
 
     beta_0 = beta_hf(ecc_0, ecc_f, inc_0, inc_f, argp)
@@ -135,7 +142,7 @@ def change_ecc_inc_hb(k, a, ecc_0, ecc_f, inc_0, inc_f, argp, r, v, f):
         )  # The sign of ß reverses at minor axis crossings
 
         w_ = mul_Vs_hf(
-            cross_VV_hf(rr, vv), sign_hf(inc_f - inc_0) / norm_hf(cross_VV_hf(rr, vv))
+            cross_VV_hf(rr, vv), sign_hf(inc_f - inc_0) / norm_V_hf(cross_VV_hf(rr, vv))
         )
         accel_v = mul_Vs_hf(
             add_VV_hf(mul_Vs_hf(thrust_unit, cos(beta_)), mul_Vs_hf(w_, sin(beta_))), f

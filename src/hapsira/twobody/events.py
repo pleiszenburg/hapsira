@@ -11,9 +11,7 @@ from hapsira.core.events import (
     eclipse_function_hf,
     line_of_sight_gf,
 )
-from hapsira.core.spheroid_location import (
-    cartesian_to_ellipsoidal as cartesian_to_ellipsoidal_fast,
-)
+from hapsira.core.spheroid_location import cartesian_to_ellipsoidal_hf
 
 
 __all__ = [
@@ -138,7 +136,9 @@ class LatitudeCrossEvent(BaseEvent):
     def __call__(self, t, u_, k):
         self._last_t = t
         pos_on_body = (u_[:3] / norm_V_vf(*u_[:3])) * self._R
-        _, lat_, _ = cartesian_to_ellipsoidal_fast(self._R, self._R_polar, *pos_on_body)
+        _, lat_, _ = cartesian_to_ellipsoidal_hf(
+            self._R, self._R_polar, *pos_on_body
+        )  # TODO call into hf
 
         return np.rad2deg(lat_) - self._lat
 

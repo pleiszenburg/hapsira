@@ -4,7 +4,7 @@ import numpy as np
 from hapsira.core.spheroid_location import (
     N as N_fast,
     cartesian_cords as cartesian_cords_fast,
-    cartesian_to_ellipsoidal as cartesian_to_ellipsoidal_fast,
+    cartesian_to_ellipsoidal_gf,
     distance as distance_fast,
     f as f_fast,
     is_visible as is_visible_fast,
@@ -145,5 +145,11 @@ class SpheroidLocation:
         """
         _a, _c = self._a.to_value(u.m), self._c.to_value(u.m)
         x, y, z = x.to_value(u.m), y.to_value(u.m), z.to_value(u.m)
-        lon, lat, h = cartesian_to_ellipsoidal_fast(_a, _c, x, y, z)
+        lon, lat, h = cartesian_to_ellipsoidal_gf(  # pylint: disable=E1120,E0633
+            _a,
+            _c,
+            x,
+            y,
+            z,
+        )
         return lon * u.rad, lat * u.rad, h * u.m

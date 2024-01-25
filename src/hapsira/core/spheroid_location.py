@@ -1,10 +1,25 @@
 """Low level calculations for oblate spheroid locations."""
 
+from math import atan, atan2, cos, sin, sqrt
+
 from numba import njit as jit
 import numpy as np
 
-from .jit import array_to_V_hf
+from .jit import array_to_V_hf, hjit, gjit
 from .math.linalg import norm_V_hf
+
+
+__all__ = [
+    "cartesian_cords",
+    "f",
+    "N",
+    "tangential_vecs",
+    "radius_of_curvature",
+    "distance",
+    "is_visible",
+    "cartesian_to_ellipsoidal_hf",
+    "cartesian_to_ellipsoidal_gf",
+]
 
 
 @jit
@@ -156,8 +171,8 @@ def is_visible(cartesian_cords, px, py, pz, N):
     return p >= 0
 
 
-@jit
-def cartesian_to_ellipsoidal(a, c, x, y, z):
+@hjit("Tuple([f,f,f])(f,f,f,f,f)")
+def cartesian_to_ellipsoidal_hf(a, c, x, y, z):
     """Converts cartesian coordinates to ellipsoidal coordinates for the given ellipsoid.
     Instead of the iterative formula, the function uses the approximation introduced in
     Bowring, B. R. (1976). TRANSFORMATION FROM SPATIAL TO GEOGRAPHICAL COORDINATES.
@@ -178,16 +193,25 @@ def cartesian_to_ellipsoidal(a, c, x, y, z):
     """
     e2 = 1 - (c / a) ** 2
     e2_ = e2 / (1 - e2)
-    p = np.sqrt(x**2 + y**2)
-    th = np.arctan(z * a / (p * c))
-    lon = np.arctan2(y, x)  # Use `arctan2` so that lon lies in the range: [-pi, +pi]
-    lat = np.arctan((z + e2_ * c * np.sin(th) ** 3) / (p - e2 * a * np.cos(th) ** 3))
+    p = sqrt(x**2 + y**2)
+    th = atan(z * a / (p * c))
+    lon = atan2(y, x)  # Use `atan2` so that lon lies in the range: [-pi, +pi]
+    lat = atan((z + e2_ * c * sin(th) ** 3) / (p - e2 * a * cos(th) ** 3))
 
-    v = a / np.sqrt(1 - e2 * np.sin(lat) ** 2)
+    v = a / sqrt(1 - e2 * sin(lat) ** 2)
     h = (
-        np.sqrt(x**2 + y**2) / np.cos(lat) - v
+        sqrt(x**2 + y**2) / cos(lat) - v
         if lat < abs(1e-18)  # to avoid errors very close and at zero
-        else z / np.sin(lat) - (1 - e2) * v
+        else z / sin(lat) - (1 - e2) * v
     )
 
     return lon, lat, h
+
+
+@gjit("void(f,f,f,f,f,f[:],f[:],f[:])", "(),(),(),(),()->(),(),()")
+def cartesian_to_ellipsoidal_gf(a, c, x, y, z, lon, lat, h):
+    """
+    Vectorized cartesian_to_ellipsoidal
+    """
+
+    lon[0], lat[0], h[0] = cartesian_to_ellipsoidal_hf(a, c, x, y, z)

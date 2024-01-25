@@ -135,14 +135,34 @@ def hjit(*args, **kwargs) -> Callable:
     return wrapper
 
 
-def djit(func):
+def djit(*args, **kwargs) -> Callable:
     """
     Wrapper for hjit to track differential equations
     """
 
-    compiled = hjit(DSIG)(func)
-    compiled.djit = None  # for debugging
-    return compiled
+    if len(args) == 1 and callable(args[0]):
+        outer_func = args[0]
+        args = tuple()
+    else:
+        outer_func = None
+
+    def wrapper(inner_func: Callable) -> Callable:
+        """
+        Applies JIT
+        """
+
+        compiled = hjit(
+            DSIG,
+            *args,
+            **kwargs,
+        )(inner_func)
+        compiled.djit = None  # attribute for debugging
+        return compiled
+
+    if outer_func is not None:
+        return wrapper(outer_func)
+
+    return wrapper
 
 
 def vjit(*args, **kwargs) -> Callable:

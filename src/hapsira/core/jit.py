@@ -11,6 +11,7 @@ from hapsira.settings import settings
 __all__ = [
     "DSIG",
     "hjit",
+    "djit",
     "vjit",
     "gjit",
     "sjit",

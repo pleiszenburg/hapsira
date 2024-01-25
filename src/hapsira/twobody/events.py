@@ -281,5 +281,9 @@ class LosEvent(Event):
         pos_coord = self._pos_coords.pop(0) if self._pos_coords else self._last_coord
 
         # Need to cast `pos_coord` to array since `norm` inside numba only works for arrays, not lists.
-        delta_angle = line_of_sight_gf(u_[:3], np.array(pos_coord), self._R)
+        delta_angle = line_of_sight_gf(  # pylint: disable=E1120
+            u_[:3],
+            np.array(pos_coord),
+            self._R,
+        )
         return delta_angle

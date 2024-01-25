@@ -90,15 +90,13 @@ def _select_initial_step_hf(
 
 @hjit(
     f"Tuple([b1,f,f,V,V,f,V,V,{KSIG:s}])"
-    f"(F({DSIG:s}),f,f,V,V,V,V,f,f,f,f,f,f,{KSIG:s})"
+    f"(F({DSIG:s}),f,f,V,V,V,V,f,f,f,f,f,{KSIG:s})"
 )
 def _step_impl_hf(
-    fun, argk, t, rr, vv, fr, fv, max_step, rtol, atol, direction, h_abs, t_bound, K
+    fun, argk, t, rr, vv, fr, fv, rtol, atol, direction, h_abs, t_bound, K
 ):
     min_step = 10 * abs(nextafter_hf(t, direction * inf) - t)
 
-    if h_abs > max_step:
-        h_abs = max_step
     if h_abs < min_step:
         h_abs = min_step
 
@@ -256,11 +254,9 @@ class DOP853:
         vv: tuple,
         t_bound: float,
         argk: float,
-        max_step: float = np.inf,
-        rtol: float = 1e-3,
-        atol: float = 1e-6,
+        rtol: float,
+        atol: float,
     ):
-        assert max_step > 0
         assert atol >= 0
 
         if rtol < 100 * EPS:
@@ -270,7 +266,6 @@ class DOP853:
         self.rr = rr
         self.vv = vv
         self.t_bound = t_bound
-        self.max_step = max_step
         self.fun = fun
         self.argk = argk
         self.rtol = rtol
@@ -339,7 +334,6 @@ class DOP853:
             self.vv,
             self.fr,
             self.fv,
-            self.max_step,
             self.rtol,
             self.atol,
             self.direction,

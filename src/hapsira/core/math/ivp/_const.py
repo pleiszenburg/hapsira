@@ -13,6 +13,7 @@ __all__ = [
 
 N_RV = 6
 N_STAGES = 12
+N_STAGES_EXTENDED = 16
 
 SAFETY = 0.9  # Multiply steps computed from asymptotic behaviour of errors by this.
 

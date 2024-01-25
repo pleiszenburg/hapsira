@@ -19,7 +19,7 @@ __all__ = [
     "AltitudeCrossEvent",
     "LithobrakeEvent",
     "LatitudeCrossEvent",
-    "EclipseEvent",
+    "BaseEclipseEvent",
     "PenumbraEvent",
     "UmbraEvent",
     "NodeCrossEvent",
@@ -143,7 +143,7 @@ class LatitudeCrossEvent(BaseEvent):
         return np.rad2deg(lat_) - self._lat
 
 
-class EclipseEvent(BaseEvent):
+class BaseEclipseEvent(BaseEvent):
     """Base class for the eclipse event.
 
     Parameters
@@ -166,6 +166,7 @@ class EclipseEvent(BaseEvent):
         self.R_sec = self._secondary_body.R.to_value(u.km)
         self.R_primary = self._primary_body.R.to_value(u.km)
 
+    @abstractmethod
     def __call__(self, t, u_, k):
         # Solve for primary and secondary bodies position w.r.t. solar system
         # barycenter at a particular epoch.
@@ -178,7 +179,7 @@ class EclipseEvent(BaseEvent):
         return r_sec
 
 
-class PenumbraEvent(EclipseEvent):
+class PenumbraEvent(BaseEclipseEvent):
     """Detect whether a satellite is in penumbra or not.
 
     Parameters
@@ -192,9 +193,6 @@ class PenumbraEvent(EclipseEvent):
         penumbra, defaults to 0, i.e., event is triggered at both, entry and exit points.
 
     """
-
-    def __init__(self, orbit, terminal=False, direction=0):
-        super().__init__(orbit, terminal, direction)
 
     def __call__(self, t, u_, k):
         self._last_t = t
@@ -213,7 +211,7 @@ class PenumbraEvent(EclipseEvent):
         return shadow_function
 
 
-class UmbraEvent(EclipseEvent):
+class UmbraEvent(BaseEclipseEvent):
     """Detect whether a satellite is in umbra or not.
 
     Parameters
@@ -227,9 +225,6 @@ class UmbraEvent(EclipseEvent):
         umbra, defaults to 0, i.e., event is triggered at both, entry and exit points.
 
     """
-
-    def __init__(self, orbit, terminal=False, direction=0):
-        super().__init__(orbit, terminal, direction)
 
     def __call__(self, t, u_, k):
         self._last_t = t

@@ -7,6 +7,7 @@ Includes the computation of Lagrange points
 from astropy import units as u
 import numpy as np
 
+from hapsira.core.jit import hjit
 from hapsira.core.math.ivp import brentq
 from hapsira.util import norm
 
@@ -37,6 +38,7 @@ def lagrange_points(r12, m1, m2):
     """
     pi2 = (m2 / (m1 + m2)).value
 
+    @hjit("f(f)", cache=False)
     def eq_L123(xi):
         aux = (1 - pi2) * (xi + pi2) / abs(xi + pi2) ** 3
         aux += pi2 * (xi + pi2 - 1) / abs(xi + pi2 - 1) ** 3

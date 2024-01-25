@@ -252,15 +252,14 @@ class DOP853:
         self,
         fun: Callable,
         t0: float,
-        y0: np.array,
+        rr: tuple,
+        vv: tuple,
         t_bound: float,
         argk: float,
         max_step: float = np.inf,
         rtol: float = 1e-3,
         atol: float = 1e-6,
     ):
-        assert y0.shape == (N_RV,)
-        assert np.isfinite(y0).all()
         assert max_step > 0
         assert atol >= 0
 
@@ -268,7 +267,8 @@ class DOP853:
             rtol = 100 * EPS
 
         self.t = t0
-        self.y = y0
+        self.rr = rr
+        self.vv = vv
         self.t_bound = t_bound
         self.max_step = max_step
         self.fun = fun
@@ -278,30 +278,32 @@ class DOP853:
 
         self.direction = np.sign(t_bound - t0) if t_bound != t0 else 1
 
-        self.K_extended = np.empty((N_STAGES_EXTENDED, N_RV), dtype=self.y.dtype)
+        self.K_extended = np.empty(
+            (N_STAGES_EXTENDED, N_RV), dtype=float
+        )  # TODO set type
         self.K = self.K_extended[: N_STAGES + 1, :]
-        self.y_old = None
+        self.rr_old = None
+        self.vv_old = None
         self.t_old = None
         self.h_previous = None
 
         self.status = "running"
 
-        rr, vv = self.fun(
+        self.fr, self.fv = self.fun(
             self.t,
-            array_to_V_hf(self.y[:3]),
-            array_to_V_hf(self.y[3:]),
+            self.rr,
+            self.vv,
             self.argk,
         )  # TODO call into hf
-        self.f = np.array([*rr, *vv])
 
         self.h_abs = _select_initial_step_hf(
             self.fun,
             self.t,
-            array_to_V_hf(self.y[:3]),
-            array_to_V_hf(self.y[3:]),
+            self.rr,
+            self.vv,
             self.argk,
-            array_to_V_hf(self.f[:3]),
-            array_to_V_hf(self.f[3:]),
+            self.fr,
+            self.fv,
             self.direction,
             ERROR_ESTIMATOR_ORDER,
             self.rtol,
@@ -333,10 +335,10 @@ class DOP853:
             self.fun,
             self.argk,
             self.t,
-            array_to_V_hf(self.y[:3]),
-            array_to_V_hf(self.y[3:]),
-            array_to_V_hf(self.f[:3]),
-            array_to_V_hf(self.f[3:]),
+            self.rr,
+            self.vv,
+            self.fr,
+            self.fv,
             self.max_step,
             self.rtol,
             self.atol,
@@ -349,11 +351,12 @@ class DOP853:
         if success:
             self.h_previous = rets[0]
             # self.y_old = np.array([*rets[1], *rets[2]])
-            self.y_old = self.y
+            self.rr_old = self.rr
+            self.vv_old = self.vv
             self.t = rets[1]
-            self.y = np.array([*rets[2], *rets[3]])
+            self.rr, self.vv = rets[2], rets[3]
             self.h_abs = rets[4]
-            self.f = np.array([*rets[5], *rets[6]])
+            self.fr, self.fv = rets[5], rets[6]
             self.K[: N_STAGES + 1, :N_RV] = np.array(rets[7])
 
         if not success:
@@ -374,31 +377,48 @@ class DOP853:
         sol : `DenseOutput`
             Local interpolant over the last successful step.
         """
-        assert self.t_old is not None
 
+        assert self.t_old is not None
         assert self.t != self.t_old
 
         K = self.K_extended
         h = self.h_previous
+
         for s, (a, c) in enumerate(zip(self.A_EXTRA, self.C_EXTRA), start=N_STAGES + 1):
             dy = np.dot(K[:s].T, a[:s]) * h
-            y_ = self.y_old + dy
+            rr_ = add_VV_hf(self.rr_old, array_to_V_hf(dy[:3]))
+            vv_ = add_VV_hf(self.vv_old, array_to_V_hf(dy[3:]))
             rr, vv = self.fun(
                 self.t_old + c * h,
-                array_to_V_hf(y_[:3]),
-                array_to_V_hf(y_[3:]),
+                rr_,
+                vv_,
                 self.argk,
             )  # TODO call into hf
             K[s] = np.array([*rr, *vv])
 
-        F = np.empty((INTERPOLATOR_POWER, N_RV), dtype=self.y_old.dtype)
+        F = np.empty((INTERPOLATOR_POWER, N_RV), dtype=float)  # TODO use correct type
 
-        f_old = K[0]
-        delta_y = self.y - self.y_old
+        fr_old = array_to_V_hf(K[0, :3])
+        fv_old = array_to_V_hf(K[0, 3:])
 
-        F[0] = delta_y
-        F[1] = h * f_old - delta_y
-        F[2] = 2 * delta_y - h * (self.f + f_old)
-        F[3:] = h * np.dot(self.D, K)
+        delta_rr = sub_VV_hf(self.rr, self.rr_old)
+        delta_vv = sub_VV_hf(self.vv, self.vv_old)
 
-        return Dop853DenseOutput(self.t_old, self.t, self.y_old, F)
+        F[0, :3] = delta_rr
+        F[0, 3:] = delta_vv
+
+        F[1, :3] = sub_VV_hf(mul_Vs_hf(fr_old, h), delta_rr)
+        F[1, 3:] = sub_VV_hf(mul_Vs_hf(fv_old, h), delta_vv)
+
+        F[2, :3] = sub_VV_hf(
+            mul_Vs_hf(delta_rr, 2), mul_Vs_hf(add_VV_hf(self.fr, fr_old), h)
+        )
+        F[2, 3:] = sub_VV_hf(
+            mul_Vs_hf(delta_vv, 2), mul_Vs_hf(add_VV_hf(self.fv, fv_old), h)
+        )
+
+        F[3:, :] = h * np.dot(self.D, K)  # TODO
+
+        return Dop853DenseOutput(
+            self.t_old, self.t, np.array([*self.rr_old, *self.vv_old]), F
+        )

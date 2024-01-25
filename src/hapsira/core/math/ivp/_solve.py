@@ -163,7 +163,8 @@ def solve_ivp(
     fun: Callable,
     t0: float,
     tf: float,
-    y0: np.ndarray,  # (6,)
+    rr: Tuple[float, float, float],
+    vv: Tuple[float, float, float],
     argk: float,
     events: Optional[List[Callable]] = None,
     **options,
@@ -310,8 +311,9 @@ def solve_ivp(
 
     """
 
-    solver = DOP853(fun, t0, y0, tf, argk, **options)
+    solver = DOP853(fun, t0, rr, vv, tf, argk, **options)
 
+    y0 = np.array([*rr, *vv])  # TODO turn into tuples
     ts = [t0]
 
     interpolants = []
@@ -333,7 +335,7 @@ def solve_ivp(
 
         t_old = solver.t_old
         t = solver.t
-        y = solver.y
+        y = np.array([*solver.rr, *solver.vv])  # TODO turn into tuples
 
         sol = solver.dense_output()
         interpolants.append(sol)

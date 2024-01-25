@@ -1,5 +1,4 @@
-import numpy as np
-
+from ..jit import array_to_V_hf
 from ..math.ivp import solve_ivp
 from ..propagation.base import func_twobody_hf
 
@@ -26,16 +25,12 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=None, f=func_twobody_hf
     assert hasattr(f, "djit")  # DEBUG check for compiler flag
     assert isinstance(rtol, float)
 
-    x, y, z = r
-    vx, vy, vz = v
-
-    u0 = np.array([x, y, z, vx, vy, vz])
-
     sol, success = solve_ivp(
         f,
         0.0,
         float(max(tofs)),
-        u0,
+        array_to_V_hf(r),
+        array_to_V_hf(v),
         argk=k,
         rtol=rtol,
         atol=atol,

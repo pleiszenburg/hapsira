@@ -76,9 +76,9 @@ def line_of_sight_hf(r1, r2, R):
 
     Parameters
     ----------
-    r1 : numpy.ndarray
+    r1 : tuple[float,float,float]
         The position vector of the first object with respect to a central attractor.
-    r2 : numpy.ndarray
+    r2 : tuple[float,float,float]
         The position vector of the second object with respect to a central attractor.
     R : float
         The radius of the central attractor.

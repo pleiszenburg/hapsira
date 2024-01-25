@@ -179,7 +179,7 @@ class BaseEclipseEvent(BaseEvent):
         r_secondary_wrt_ssb, _ = get_body_barycentric_posvel(
             self._secondary_body.name, epochs
         )
-        self._r_sec = interp_hb(
+        self._r_sec_hf = interp_hb(
             (epochs - self._epoch).to_value(u.s),
             (r_secondary_wrt_ssb - r_primary_wrt_ssb).xyz.to_value(u.km),
         )
@@ -188,7 +188,7 @@ class BaseEclipseEvent(BaseEvent):
     def __call__(self, t, u_, k):
         # Solve for primary and secondary bodies position w.r.t. solar system
         # barycenter at a particular epoch.
-        return self._r_sec(t)
+        return self._r_sec_hf(t)
 
 
 class PenumbraEvent(BaseEclipseEvent):

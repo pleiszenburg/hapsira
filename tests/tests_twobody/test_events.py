@@ -356,14 +356,13 @@ def test_LOS_event_raises_warning_if_norm_of_r1_less_than_attractor_radius_durin
     v2 = np.array([5021.38, -2900.7, 1000.354]) << u.km / u.s
     orbit = Orbit.from_vectors(Earth, r2, v2)
 
-    tofs = [100, 500, 1000, 2000] << u.s
+    tofs = tofs = np.arange(0, 2000, 10) << u.s
     # Propagate the secondary body to generate its position coordinates
     method = CowellPropagator()
-    rr, vv = method.propagate_many(
+    secondary_rr, _ = method.propagate_many(
         orbit._state,
         tofs,
     )
-    pos_coords = rr  # Trajectory of the secondary body.
 
     r1 = (
         np.array([0, -5010.696, -5102.509]) << u.km
@@ -371,7 +370,7 @@ def test_LOS_event_raises_warning_if_norm_of_r1_less_than_attractor_radius_durin
     v1 = np.array([736.138, 29899.7, 164.354]) << u.km / u.s
     orb = Orbit.from_vectors(Earth, r1, v1)
 
-    los_event = LosEvent(Earth, pos_coords, terminal=True)
+    los_event = LosEvent(Earth, tofs, secondary_rr.T, terminal=True)
     events = [los_event]
     tofs = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.5] << u.s
 
@@ -389,20 +388,19 @@ def test_LOS_event_with_lithobrake_event_raises_warning_when_satellite_cuts_attr
     v2 = np.array([5021.38, -2900.7, 1000.354]) << u.km / u.s
     orbit = Orbit.from_vectors(Earth, r2, v2)
 
-    tofs = [100, 500, 1000, 2000] << u.s
+    tofs = tofs = np.arange(0, 2000, 10) << u.s
     # Propagate the secondary body to generate its position coordinates
     method = CowellPropagator()
-    rr, vv = method.propagate_many(
+    secondary_rr, _ = method.propagate_many(
         orbit._state,
         tofs,
     )
-    pos_coords = rr  # Trajectory of the secondary body.
 
     r1 = np.array([0, -5010.696, -5102.509]) << u.km
     v1 = np.array([736.138, 2989.7, 164.354]) << u.km / u.s
     orb = Orbit.from_vectors(Earth, r1, v1)
 
-    los_event = LosEvent(Earth, pos_coords, terminal=True)
+    los_event = LosEvent(Earth, tofs, secondary_rr.T, terminal=True)
     tofs = [
         0.003,
         0.004,
@@ -421,7 +419,7 @@ def test_LOS_event_with_lithobrake_event_raises_warning_when_satellite_cuts_attr
 
     lithobrake_event = LithobrakeEvent(Earth.R.to_value(u.km))
     method = CowellPropagator(events=[lithobrake_event, los_event])
-    r, v = method.propagate_many(
+    _, _ = method.propagate_many(
         orb._state,
         tofs,
     )
@@ -430,19 +428,19 @@ def test_LOS_event_with_lithobrake_event_raises_warning_when_satellite_cuts_attr
 
 
 def test_LOS_event():
-    t_los = 2327.165 * u.s
+    t_los = 2327.381434 * u.s
     r2 = np.array([-500, 1500, 4012.09]) << u.km
     v2 = np.array([5021.38, -2900.7, 1000.354]) << u.km / u.s
     orbit = Orbit.from_vectors(Earth, r2, v2)
 
-    tofs = [100, 500, 1000, 2000] << u.s
+    tofs = np.arange(0, 5000, 10) << u.s
+
     # Propagate the secondary body to generate its position coordinates
     method = CowellPropagator()
-    rr, vv = method.propagate_many(
+    secondary_rr, _ = method.propagate_many(
         orbit._state,
         tofs,
     )
-    pos_coords = rr  # Trajectory of the secondary body.
 
     orb = Orbit.from_classical(
         attractor=Earth,
@@ -454,12 +452,11 @@ def test_LOS_event():
         nu=30 * u.deg,
     )
 
-    los_event = LosEvent(Earth, pos_coords, terminal=True)
+    los_event = LosEvent(Earth, tofs, secondary_rr.T, terminal=True)
     events = [los_event]
-    tofs = [1, 5, 10, 100, 1000, 2000, 3000, 5000] << u.s
 
     method = CowellPropagator(events=events)
-    r, v = method.propagate_many(
+    _, _ = method.propagate_many(
         orb._state,
         tofs,
     )

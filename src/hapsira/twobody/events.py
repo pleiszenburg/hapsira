@@ -291,13 +291,10 @@ class LosEvent(BaseEvent):
 
     """
 
-    def __init__(self, attractor, pos_coords, terminal=False, direction=0):
+    def __init__(self, attractor, tofs, secondary_rr, terminal=False, direction=0):
         super().__init__(terminal, direction)
         self._attractor = attractor
-        self._pos_coords = (pos_coords << u.km).value.tolist()
-        self._last_coord = (
-            self._pos_coords[-1] << u.km
-        ).value  # Used to prevent any errors if `self._pos_coords` gets exhausted early.
+        self._secondary_hf = interp_hb(tofs.to_value(u.s), secondary_rr.to_value(u.km))
         self._R = self._attractor.R.to_value(u.km)
 
     def __call__(self, t, u_, k):
@@ -308,12 +305,9 @@ class LosEvent(BaseEvent):
                 "The norm of the position vector of the primary body is less than the radius of the attractor."
             )
 
-        pos_coord = self._pos_coords.pop(0) if self._pos_coords else self._last_coord
-
-        # Need to cast `pos_coord` to array since `norm` inside numba only works for arrays, not lists.
         delta_angle = line_of_sight_gf(  # pylint: disable=E1120
             u_[:3],
-            np.array(pos_coord),
+            np.array(self._secondary_hf(t)),
             self._R,
         )
         return delta_angle

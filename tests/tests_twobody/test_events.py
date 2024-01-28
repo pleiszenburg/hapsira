@@ -374,12 +374,14 @@ def test_LOS_event_raises_warning_if_norm_of_r1_less_than_attractor_radius_durin
     events = [los_event]
     tofs = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.5] << u.s
 
-    with pytest.warns(UserWarning, match="The norm of the position vector"):
-        method = CowellPropagator(events=events)
-        r, v = method.propagate_many(
-            orb._state,
-            tofs,
-        )
+    # Can currently not warn due to: https://github.com/numba/numba/issues/1243
+    # TODO Matching implementation in LosEvent deactivated
+    # with pytest.warns(UserWarning, match="The norm of the position vector"):
+    method = CowellPropagator(events=events)
+    _, _ = method.propagate_many(
+        orb._state,
+        tofs,
+    )  # should trigger waring
 
 
 @pytest.mark.filterwarnings("ignore::UserWarning")

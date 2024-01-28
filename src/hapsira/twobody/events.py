@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
-from warnings import warn
+from math import degrees as rad2deg
+from typing import Callable
 
 from astropy import units as u
 from astropy.coordinates import get_body_barycentric_posvel
-import numpy as np
 
-from hapsira.core.jit import array_to_V_hf
-from hapsira.core.math.linalg import norm_V_vf
+from hapsira.core.jit import hjit
+from hapsira.core.math.linalg import mul_Vs_hf, norm_V_hf
 from hapsira.core.events import (
     eclipse_function_hf,
-    line_of_sight_gf,
+    line_of_sight_hf,
 )
 from hapsira.core.math.interpolate import interp_hb
 from hapsira.core.spheroid_location import cartesian_to_ellipsoidal_hf
@@ -41,9 +41,11 @@ class BaseEvent(ABC):
 
     """
 
+    @abstractmethod
     def __init__(self, terminal, direction):
         self._terminal, self._direction = terminal, direction
         self._last_t = None
+        self._impl_hf = None
 
     @property
     def terminal(self):
@@ -57,9 +59,21 @@ class BaseEvent(ABC):
     def last_t(self):
         return self._last_t << u.s
 
-    @abstractmethod
-    def __call__(self, t, u, k):
-        raise NotImplementedError
+    @property
+    def last_t_raw(self) -> float:
+        return self._last_t
+
+    @last_t_raw.setter
+    def last_t_raw(self, value: float):
+        self._last_t = value
+
+    @property
+    def impl_hf(self) -> Callable:
+        return self._impl_hf
+
+    def __call__(self, t, rr, vv, k):
+        self._last_t = t
+        return self._impl_hf(t, rr, vv, k)
 
 
 class AltitudeCrossEvent(BaseEvent):
@@ -85,13 +99,14 @@ class AltitudeCrossEvent(BaseEvent):
         self._R = R
         self._alt = alt  # Threshold altitude from the ground.
 
-    def __call__(self, t, u, k):
-        self._last_t = t
-        r_norm = norm_V_vf(*u[:3])
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            r_norm = norm_V_hf(rr)
+            return (
+                r_norm - R - alt
+            )  # If this goes from +ve to -ve, altitude is decreasing.
 
-        return (
-            r_norm - self._R - self._alt
-        )  # If this goes from +ve to -ve, altitude is decreasing.
+        self._impl_hf = impl_hf
 
 
 class LithobrakeEvent(AltitudeCrossEvent):
@@ -135,14 +150,17 @@ class LatitudeCrossEvent(BaseEvent):
         self._epoch = orbit.epoch
         self._lat = lat.to_value(u.deg)  # Threshold latitude (in degrees).
 
-    def __call__(self, t, u_, k):
-        self._last_t = t
-        pos_on_body = (u_[:3] / norm_V_vf(*u_[:3])) * self._R
-        _, lat_, _ = cartesian_to_ellipsoidal_hf(
-            self._R, self._R_polar, *pos_on_body
-        )  # TODO call into hf
+        _R = self._R
+        _R_polar = self._R_polar
+        _lat = self._lat
 
-        return np.rad2deg(lat_) - self._lat
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            pos_on_body = mul_Vs_hf(rr, _R / norm_V_hf(rr))
+            _, lat_, _ = cartesian_to_ellipsoidal_hf(_R, _R_polar, *pos_on_body)
+            return rad2deg(lat_) - _lat
+
+        self._impl_hf = impl_hf
 
 
 class BaseEclipseEvent(BaseEvent):
@@ -184,11 +202,15 @@ class BaseEclipseEvent(BaseEvent):
             (r_secondary_wrt_ssb - r_primary_wrt_ssb).xyz.to_value(u.km),
         )
 
-    @abstractmethod
-    def __call__(self, t, u_, k):
-        # Solve for primary and secondary bodies position w.r.t. solar system
-        # barycenter at a particular epoch.
-        return self._r_sec_hf(t)
+        _r_sec_hf = self._r_sec_hf
+
+        @hjit("V(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            # Solve for primary and secondary bodies position w.r.t.
+            # solar system barycenter at a particular epoch.
+            return _r_sec_hf(t)
+
+        self._impl_hf = impl_hf
 
 
 class PenumbraEvent(BaseEclipseEvent):
@@ -206,21 +228,28 @@ class PenumbraEvent(BaseEclipseEvent):
 
     """
 
-    def __call__(self, t, u_, k):
-        self._last_t = t
+    def __init__(self, orbit, tof, steps=50, terminal=False, direction=0):
+        super().__init__(orbit, tof, steps, terminal, direction)
 
-        r_sec = super().__call__(t, u_, k)
-        shadow_function = eclipse_function_hf(
-            self.k,
-            array_to_V_hf(u_[:3]),
-            array_to_V_hf(u_[3:]),
-            r_sec,
-            self.R_sec,
-            self.R_primary,
-            False,
-        )  # TODO call into hf
+        R_sec = self.R_sec
+        R_primary = self.R_primary
+        _impl_hf = self._impl_hf
 
-        return shadow_function
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            r_sec = _impl_hf(t, rr, vv, k)
+            shadow_function = eclipse_function_hf(
+                k,
+                rr,
+                vv,
+                r_sec,
+                R_sec,
+                R_primary,
+                False,
+            )
+            return shadow_function
+
+        self._impl_hf = impl_hf
 
 
 class UmbraEvent(BaseEclipseEvent):
@@ -238,21 +267,28 @@ class UmbraEvent(BaseEclipseEvent):
 
     """
 
-    def __call__(self, t, u_, k):
-        self._last_t = t
+    def __init__(self, orbit, tof, steps=50, terminal=False, direction=0):
+        super().__init__(orbit, tof, steps, terminal, direction)
 
-        r_sec = super().__call__(t, u_, k)
-        shadow_function = eclipse_function_hf(
-            self.k,
-            array_to_V_hf(u_[:3]),
-            array_to_V_hf(u_[3:]),
-            r_sec,
-            self.R_sec,
-            self.R_primary,
-            True,
-        )
+        R_sec = self.R_sec
+        R_primary = self.R_primary
+        _impl_hf = self._impl_hf
 
-        return shadow_function
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            r_sec = _impl_hf(t, rr, vv, k)
+            shadow_function = eclipse_function_hf(
+                k,
+                rr,
+                vv,
+                r_sec,
+                R_sec,
+                R_primary,
+                True,
+            )
+            return shadow_function
+
+        self._impl_hf = impl_hf
 
 
 class NodeCrossEvent(BaseEvent):
@@ -272,10 +308,12 @@ class NodeCrossEvent(BaseEvent):
     def __init__(self, terminal=False, direction=0):
         super().__init__(terminal, direction)
 
-    def __call__(self, t, u_, k):
-        self._last_t = t
-        # Check if the z coordinate of the satellite is zero.
-        return u_[2]
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            # Check if the z coordinate of the satellite is zero.
+            return rr[2]
+
+        self._impl_hf = impl_hf
 
 
 class LosEvent(BaseEvent):
@@ -297,17 +335,22 @@ class LosEvent(BaseEvent):
         self._secondary_hf = interp_hb(tofs.to_value(u.s), secondary_rr.to_value(u.km))
         self._R = self._attractor.R.to_value(u.km)
 
-    def __call__(self, t, u_, k):
-        self._last_t = t
+        _R = self._R
+        _secondary_hf = self._secondary_hf
 
-        if norm_V_vf(*u_[:3]) < self._R:
-            warn(
-                "The norm of the position vector of the primary body is less than the radius of the attractor."
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            # Can currently not warn due to: https://github.com/numba/numba/issues/1243
+            # TODO Matching test deactivated ...
+            # if norm_V_hf(rr) < _R:
+            #     warn(
+            #         "The norm of the position vector of the primary body is less than the radius of the attractor."
+            #     )
+            delta_angle = line_of_sight_hf(
+                rr,
+                _secondary_hf(t),
+                _R,
             )
+            return delta_angle
 
-        delta_angle = line_of_sight_gf(  # pylint: disable=E1120
-            u_[:3],
-            np.array(self._secondary_hf(t)),
-            self._R,
-        )
-        return delta_angle
+        self._impl_hf = impl_hf

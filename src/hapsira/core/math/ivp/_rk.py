@@ -198,7 +198,7 @@ class Dop853DenseOutput:
         self.F = F
         self.y_old = y_old
 
-    def __call__(self, t):
+    def __call__(self, t: float):
         """Evaluate the interpolant.
 
         Parameters
@@ -212,16 +212,12 @@ class Dop853DenseOutput:
             Computed values. Shape depends on whether `t` was a scalar or a
             1-D array.
         """
-        t = np.asarray(t)
-        assert not t.ndim > 1
+        # t = np.asarray(t)
+        # assert not t.ndim > 1
+        assert np.asarray(t).shape == tuple()
 
         x = (t - self.t_old) / self.h
-
-        if t.ndim == 0:
-            y = np.zeros_like(self.y_old)
-        else:
-            x = x[:, None]
-            y = np.zeros((len(x), len(self.y_old)), dtype=self.y_old.dtype)
+        y = np.zeros_like(self.y_old)
 
         for i, f in enumerate(reversed(self.F)):
             y += f
@@ -231,7 +227,7 @@ class Dop853DenseOutput:
                 y *= 1 - x
         y += self.y_old
 
-        y = y.reshape(6)
+        assert y.shape == (6,)
         return array_to_V_hf(y[:3]), array_to_V_hf(y[3:])
 
 

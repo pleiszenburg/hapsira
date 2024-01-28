@@ -194,9 +194,6 @@ class Dop853DenseOutput:
 
     def __init__(self, t_old, t, y_old, F):
         self.t_old = t_old
-        self.t = t
-        self.t_min = min(t, t_old)
-        self.t_max = max(t, t_old)
         self.h = t - t_old
         self.F = F
         self.y_old = y_old

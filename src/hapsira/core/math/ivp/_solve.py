@@ -40,7 +40,8 @@ def _solve_event_equation(
     """
 
     def wrapper(t):
-        return event(t, sol(t), argk)
+        rr, vv = sol(t)
+        return event(t, rr, vv, argk)
 
     value, status = brentq_hf(
         wrapper,
@@ -203,7 +204,6 @@ def solve_ivp(
 
     solver = DOP853(fun, t0, rr, vv, tf, argk, rtol, atol)
 
-    y0 = np.array([*rr, *vv])  # TODO turn into tuples
     ts = [t0]
 
     interpolants = []
@@ -211,7 +211,7 @@ def solve_ivp(
     events, is_terminal, event_dir = _prepare_events(events)
 
     if events is not None:
-        g = [event(t0, y0, argk) for event in events]
+        g = [event(t0, rr, vv, argk) for event in events]
 
     status = None
     while status is None:
@@ -225,13 +225,12 @@ def solve_ivp(
 
         t_old = solver.t_old
         t = solver.t
-        y = np.array([*solver.rr, *solver.vv])  # TODO turn into tuples
 
         sol = solver.dense_output()
         interpolants.append(sol)
 
         if events is not None:
-            g_new = [event(t, y, argk) for event in events]
+            g_new = [event(t, solver.rr, solver.vv, argk) for event in events]
             active_events = _find_active_events(g, g_new, event_dir)
             if active_events.size > 0:
                 _, roots, terminate = _handle_events(

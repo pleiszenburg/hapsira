@@ -55,8 +55,8 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=None, f=func_twobody_hf
     rrs = []
     vvs = []
     for t in tofs:
-        y = sol(t)
-        rrs.append(y[:3])
-        vvs.append(y[3:])
+        r_new, v_new = sol(t)
+        rrs.append(r_new)
+        vvs.append(v_new)
 
     return rrs, vvs

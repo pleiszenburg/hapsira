@@ -234,7 +234,8 @@ class Dop853DenseOutput:
                 y *= 1 - x
         y += self.y_old
 
-        return y.T
+        y = y.reshape(6)
+        return array_to_V_hf(y[:3]), array_to_V_hf(y[3:])
 
 
 class DOP853:

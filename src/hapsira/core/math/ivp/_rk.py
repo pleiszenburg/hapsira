@@ -192,11 +192,12 @@ class Dop853DenseOutput:
         Time range of the interpolation.
     """
 
-    def __init__(self, t_old, t, y_old, F):
+    def __init__(self, t_old, h, rr_old, vv_old, F):
         self.t_old = t_old
-        self.h = t - t_old
+        self.h = h
         self.F = F
-        self.y_old = y_old
+        self.rr_old = rr_old
+        self.vv_old = vv_old
 
     def __call__(self, t: float):
         """Evaluate the interpolant.
@@ -212,23 +213,26 @@ class Dop853DenseOutput:
             Computed values. Shape depends on whether `t` was a scalar or a
             1-D array.
         """
-        # t = np.asarray(t)
-        # assert not t.ndim > 1
-        assert np.asarray(t).shape == tuple()
 
         x = (t - self.t_old) / self.h
-        y = np.zeros_like(self.y_old)
+        rr_new = (0.0, 0.0, 0.0)
+        vv_new = (0.0, 0.0, 0.0)
 
-        for i, f in enumerate(reversed(self.F)):
-            y += f
-            if i % 2 == 0:
-                y *= x
+        for idx, f in enumerate(reversed(self.F)):
+            rr_new = add_VV_hf(rr_new, array_to_V_hf(f[:3]))
+            vv_new = add_VV_hf(vv_new, array_to_V_hf(f[3:]))
+
+            if idx % 2 == 0:
+                rr_new = mul_Vs_hf(rr_new, x)
+                vv_new = mul_Vs_hf(vv_new, x)
             else:
-                y *= 1 - x
-        y += self.y_old
+                rr_new = mul_Vs_hf(rr_new, 1 - x)
+                vv_new = mul_Vs_hf(vv_new, 1 - x)
 
-        assert y.shape == (6,)
-        return array_to_V_hf(y[:3]), array_to_V_hf(y[3:])
+        rr_new = add_VV_hf(rr_new, self.rr_old)
+        vv_new = add_VV_hf(vv_new, self.vv_old)
+
+        return rr_new, vv_new
 
 
 class DOP853:
@@ -408,5 +412,9 @@ class DOP853:
         F[3:, :] = h * np.dot(self.D, K)  # TODO
 
         return Dop853DenseOutput(
-            self.t_old, self.t, np.array([*self.rr_old, *self.vv_old]), F
+            self.t_old,
+            self.t - self.t_old,  # h
+            self.rr_old,
+            self.vv_old,
+            F,
         )

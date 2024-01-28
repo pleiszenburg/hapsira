@@ -10,7 +10,6 @@ from ._const import (
     SAFETY,
     MIN_FACTOR,
     MAX_FACTOR,
-    INTERPOLATOR_POWER,
     N_STAGES_EXTENDED,
     ERROR_ESTIMATOR_ORDER,
     ERROR_EXPONENT,
@@ -195,7 +194,7 @@ class Dop853DenseOutput:
     def __init__(self, t_old, h, rr_old, vv_old, F):
         self.t_old = t_old
         self.h = h
-        self.F = F
+        self._F = F
         self.rr_old = rr_old
         self.vv_old = vv_old
 
@@ -214,13 +213,15 @@ class Dop853DenseOutput:
             1-D array.
         """
 
+        F00, F01, F02, F03, F04, F05, F06 = self._F
+
         x = (t - self.t_old) / self.h
         rr_new = (0.0, 0.0, 0.0)
         vv_new = (0.0, 0.0, 0.0)
 
-        for idx, f in enumerate(reversed(self.F)):
-            rr_new = add_VV_hf(rr_new, array_to_V_hf(f[:3]))
-            vv_new = add_VV_hf(vv_new, array_to_V_hf(f[3:]))
+        for idx, f in enumerate((F06, F05, F04, F03, F02, F01, F00)):
+            rr_new = add_VV_hf(rr_new, f[:3])
+            vv_new = add_VV_hf(vv_new, f[3:])
 
             if idx % 2 == 0:
                 rr_new = mul_Vs_hf(rr_new, x)
@@ -388,33 +389,28 @@ class DOP853:
             )  # TODO call into hf
             K[s] = np.array([*rr, *vv])
 
-        F = np.empty((INTERPOLATOR_POWER, N_RV), dtype=float)  # TODO use correct type
-
         fr_old = array_to_V_hf(K[0, :3])
         fv_old = array_to_V_hf(K[0, 3:])
 
         delta_rr = sub_VV_hf(self.rr, self.rr_old)
         delta_vv = sub_VV_hf(self.vv, self.vv_old)
 
-        F[0, :3] = delta_rr
-        F[0, 3:] = delta_vv
-
-        F[1, :3] = sub_VV_hf(mul_Vs_hf(fr_old, h), delta_rr)
-        F[1, 3:] = sub_VV_hf(mul_Vs_hf(fv_old, h), delta_vv)
-
-        F[2, :3] = sub_VV_hf(
+        F00 = *delta_rr, *delta_vv
+        F01 = *sub_VV_hf(mul_Vs_hf(fr_old, h), delta_rr), *sub_VV_hf(
+            mul_Vs_hf(fv_old, h), delta_vv
+        )
+        F02 = *sub_VV_hf(
             mul_Vs_hf(delta_rr, 2), mul_Vs_hf(add_VV_hf(self.fr, fr_old), h)
-        )
-        F[2, 3:] = sub_VV_hf(
-            mul_Vs_hf(delta_vv, 2), mul_Vs_hf(add_VV_hf(self.fv, fv_old), h)
-        )
+        ), *sub_VV_hf(mul_Vs_hf(delta_vv, 2), mul_Vs_hf(add_VV_hf(self.fv, fv_old), h))
 
-        F[3:, :] = h * np.dot(self.D, K)  # TODO
+        F03, F04, F05, F06 = tuple(
+            tuple(float(number) for number in line) for line in (h * np.dot(self.D, K))
+        )  # TODO
 
         return Dop853DenseOutput(
             self.t_old,
             self.t - self.t_old,  # h
             self.rr_old,
             self.vv_old,
-            F,
+            (F00, F01, F02, F03, F04, F05, F06),
         )

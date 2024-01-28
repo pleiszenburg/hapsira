@@ -82,7 +82,7 @@ class AltitudeCrossEvent(BaseEvent):
     Parameters
     ----------
     alt: float
-        Threshold altitude (km).
+        Threshold altitude from the ground (km).
     R: float
         Radius of the attractor (km).
     terminal: bool
@@ -96,8 +96,6 @@ class AltitudeCrossEvent(BaseEvent):
 
     def __init__(self, alt, R, terminal=True, direction=-1):
         super().__init__(terminal, direction)
-        self._R = R
-        self._alt = alt  # Threshold altitude from the ground.
 
         @hjit("f(f,V,V,f)", cache=False)
         def impl_hf(t, rr, vv, k):
@@ -145,20 +143,15 @@ class LatitudeCrossEvent(BaseEvent):
     def __init__(self, orbit, lat, terminal=False, direction=0):
         super().__init__(terminal, direction)
 
-        self._R = orbit.attractor.R.to_value(u.m)
-        self._R_polar = orbit.attractor.R_polar.to_value(u.m)
-        self._epoch = orbit.epoch
-        self._lat = lat.to_value(u.deg)  # Threshold latitude (in degrees).
-
-        _R = self._R
-        _R_polar = self._R_polar
-        _lat = self._lat
+        R = orbit.attractor.R.to_value(u.m)
+        R_polar = orbit.attractor.R_polar.to_value(u.m)
+        lat = lat.to_value(u.deg)  # Threshold latitude (in degrees).
 
         @hjit("f(f,V,V,f)", cache=False)
         def impl_hf(t, rr, vv, k):
-            pos_on_body = mul_Vs_hf(rr, _R / norm_V_hf(rr))
-            _, lat_, _ = cartesian_to_ellipsoidal_hf(_R, _R_polar, *pos_on_body)
-            return rad2deg(lat_) - _lat
+            pos_on_body = mul_Vs_hf(rr, R / norm_V_hf(rr))
+            _, lat_, _ = cartesian_to_ellipsoidal_hf(R, R_polar, *pos_on_body)
+            return rad2deg(lat_) - lat
 
         self._impl_hf = impl_hf
 
@@ -183,34 +176,22 @@ class BaseEclipseEvent(BaseEvent):
 
     def __init__(self, orbit, tof, steps=50, terminal=False, direction=0):
         super().__init__(terminal, direction)
-        self._primary_body = orbit.attractor
-        self._secondary_body = orbit.attractor.parent
-        self._epoch = orbit.epoch
-        self.k = self._primary_body.k.to_value(u.km**3 / u.s**2)
-        self.R_sec = self._secondary_body.R.to_value(u.km)
-        self.R_primary = self._primary_body.R.to_value(u.km)
+        primary_body = orbit.attractor
+        secondary_body = orbit.attractor.parent
+        epoch = orbit.epoch
 
-        epochs = time_range(start=self._epoch, end=self._epoch + tof, num_values=steps)
-        r_primary_wrt_ssb, _ = get_body_barycentric_posvel(
-            self._primary_body.name, epochs
-        )
+        self._R_sec = secondary_body.R.to_value(u.km)
+        self._R_primary = primary_body.R.to_value(u.km)
+
+        epochs = time_range(start=epoch, end=epoch + tof, num_values=steps)
+        r_primary_wrt_ssb, _ = get_body_barycentric_posvel(primary_body.name, epochs)
         r_secondary_wrt_ssb, _ = get_body_barycentric_posvel(
-            self._secondary_body.name, epochs
+            secondary_body.name, epochs
         )
         self._r_sec_hf = interp_hb(
-            (epochs - self._epoch).to_value(u.s),
+            (epochs - epoch).to_value(u.s),
             (r_secondary_wrt_ssb - r_primary_wrt_ssb).xyz.to_value(u.km),
         )
-
-        _r_sec_hf = self._r_sec_hf
-
-        @hjit("V(f,V,V,f)", cache=False)
-        def impl_hf(t, rr, vv, k):
-            # Solve for primary and secondary bodies position w.r.t.
-            # solar system barycenter at a particular epoch.
-            return _r_sec_hf(t)
-
-        self._impl_hf = impl_hf
 
 
 class PenumbraEvent(BaseEclipseEvent):
@@ -231,13 +212,13 @@ class PenumbraEvent(BaseEclipseEvent):
     def __init__(self, orbit, tof, steps=50, terminal=False, direction=0):
         super().__init__(orbit, tof, steps, terminal, direction)
 
-        R_sec = self.R_sec
-        R_primary = self.R_primary
-        _impl_hf = self._impl_hf
+        R_sec = self._R_sec
+        R_primary = self._R_primary
+        r_sec_hf = self._r_sec_hf
 
         @hjit("f(f,V,V,f)", cache=False)
         def impl_hf(t, rr, vv, k):
-            r_sec = _impl_hf(t, rr, vv, k)
+            r_sec = r_sec_hf(t)
             shadow_function = eclipse_function_hf(
                 k,
                 rr,
@@ -270,13 +251,13 @@ class UmbraEvent(BaseEclipseEvent):
     def __init__(self, orbit, tof, steps=50, terminal=False, direction=0):
         super().__init__(orbit, tof, steps, terminal, direction)
 
-        R_sec = self.R_sec
-        R_primary = self.R_primary
-        _impl_hf = self._impl_hf
+        R_sec = self._R_sec
+        R_primary = self._R_primary
+        r_sec_hf = self._r_sec_hf
 
         @hjit("f(f,V,V,f)", cache=False)
         def impl_hf(t, rr, vv, k):
-            r_sec = _impl_hf(t, rr, vv, k)
+            r_sec = r_sec_hf(t)
             shadow_function = eclipse_function_hf(
                 k,
                 rr,
@@ -331,25 +312,21 @@ class LosEvent(BaseEvent):
 
     def __init__(self, attractor, tofs, secondary_rr, terminal=False, direction=0):
         super().__init__(terminal, direction)
-        self._attractor = attractor
-        self._secondary_hf = interp_hb(tofs.to_value(u.s), secondary_rr.to_value(u.km))
-        self._R = self._attractor.R.to_value(u.km)
-
-        _R = self._R
-        _secondary_hf = self._secondary_hf
+        secondary_hf = interp_hb(tofs.to_value(u.s), secondary_rr.to_value(u.km))
+        R = attractor.R.to_value(u.km)
 
         @hjit("f(f,V,V,f)", cache=False)
         def impl_hf(t, rr, vv, k):
             # Can currently not warn due to: https://github.com/numba/numba/issues/1243
             # TODO Matching test deactivated ...
-            # if norm_V_hf(rr) < _R:
+            # if norm_V_hf(rr) < R:
             #     warn(
             #         "The norm of the position vector of the primary body is less than the radius of the attractor."
             #     )
             delta_angle = line_of_sight_hf(
                 rr,
-                _secondary_hf(t),
-                _R,
+                secondary_hf(t),
+                R,
             )
             return delta_angle
 

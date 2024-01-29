@@ -24,7 +24,7 @@ D03 = tuple(float_(number) for number in _D[3, :])
 
 
 @hjit(f"Tuple([f,f,V,V,{FSIG:s}])(F({DSIG:s}),f,f,f,f,V,V,V,V,V,V,{KSIG:s})")
-def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
+def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K):
     """Compute a local interpolant over the last successful step.
 
     Returns
@@ -36,7 +36,7 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
     assert t_old is not None
     assert t != t_old
 
-    K00, K01, K02, K03, K04, K05, K06, K07, K08, K09, K10, K11, K12 = K_
+    K00, K01, K02, K03, K04, K05, K06, K07, K08, K09, K10, K11, K12 = K
 
     dr = (
         (

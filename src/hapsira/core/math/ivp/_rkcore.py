@@ -47,27 +47,6 @@ DOP853_T_OLD = 12
 DOP853_VV = 2
 DOP853_VV_OLD = 11
 
-_ = """
-        t0,  # 0 -> t
-        rr,  # 1
-        vv,  # 2
-        t_bound,  # 3
-        fun,  # 4
-        argk,  # 5
-        rtol,  # 6
-        atol,  # 7
-        direction,  # 8
-        K,  # 9
-        rr_old,  # 10
-        vv_old,  # 11
-        t_old,  # 12
-        h_previous,  # 13
-        status,  # 14
-        fr,  # 15
-        fv,  # 16
-        h_abs,  # 17
-"""
-
 DOP853_SIG = f"f,V,V,f,F({DSIG}),f,f,f,f,{KSIG:s},V,V,f,f,f,V,V,f"
 
 

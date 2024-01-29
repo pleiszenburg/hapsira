@@ -1,10 +1,4 @@
-import numpy as np
-
-from ._const import (
-    N_RV,
-    N_STAGES,
-    N_STAGES_EXTENDED,
-)
+from ._const import N_STAGES
 from ._dop853_coefficients import A as _A, C as _C, D as _D
 from ..ieee754 import float_
 from ..linalg import (
@@ -12,7 +6,8 @@ from ..linalg import (
     mul_Vs_hf,
     sub_VV_hf,
 )
-from ...jit import array_to_V_hf
+
+# from ...jit import hjit
 
 __all__ = [
     "dense_output_hf",
@@ -41,9 +36,6 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
 
     assert t_old is not None
     assert t != t_old
-
-    Ke = np.empty((N_STAGES_EXTENDED, N_RV), dtype=float)
-    Ke[: N_STAGES + 1, :] = np.array(K_)
 
     K00, K01, K02, K03, K04, K05, K06, K07, K08, K09, K10, K11, K12 = K_
 
@@ -156,7 +148,6 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
         argk,
     )
     K13 = *rr_, *vv_
-    Ke[13, :] = np.array(K13)  # TODO rm
 
     dr = (
         (
@@ -273,7 +264,6 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
         argk,
     )
     K14 = *rr_, *vv_
-    Ke[14, :] = np.array(K14)  # TODO rm
 
     dr = (
         (
@@ -396,10 +386,9 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
         argk,
     )
     K15 = *rr_, *vv_
-    Ke[15, :] = np.array(K15)  # TODO rm
 
-    fr_old = array_to_V_hf(Ke[0, :3])
-    fv_old = array_to_V_hf(Ke[0, 3:])
+    fr_old = K00[:3]
+    fv_old = K00[3:]
 
     delta_rr = sub_VV_hf(rr, rr_old)
     delta_vv = sub_VV_hf(vv, vv_old)

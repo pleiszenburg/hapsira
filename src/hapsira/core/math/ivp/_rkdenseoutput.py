@@ -45,19 +45,7 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
     Ke = np.empty((N_STAGES_EXTENDED, N_RV), dtype=float)
     Ke[: N_STAGES + 1, :] = np.array(K_)
 
-    K00 = tuple(float_(number) for number in Ke[0, :])
-    K01 = tuple(float_(number) for number in Ke[1, :])
-    K02 = tuple(float_(number) for number in Ke[2, :])
-    K03 = tuple(float_(number) for number in Ke[3, :])
-    K04 = tuple(float_(number) for number in Ke[4, :])
-    K05 = tuple(float_(number) for number in Ke[5, :])
-    K06 = tuple(float_(number) for number in Ke[6, :])
-    K07 = tuple(float_(number) for number in Ke[7, :])
-    K08 = tuple(float_(number) for number in Ke[8, :])
-    K09 = tuple(float_(number) for number in Ke[9, :])
-    K10 = tuple(float_(number) for number in Ke[10, :])
-    K11 = tuple(float_(number) for number in Ke[11, :])
-    K12 = tuple(float_(number) for number in Ke[12, :])
+    K00, K01, K02, K03, K04, K05, K06, K07, K08, K09, K10, K11, K12 = K_
 
     dy = np.dot(Ke[:13].T, np.array(A00)) * h
     rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))

@@ -4,7 +4,8 @@ import numpy as np
 
 from ._brentq import brentq_dense_hf, BRENTQ_CONVERGED, BRENTQ_MAXITER
 from ._solution import OdeSolution
-from ._rk import DOP853, dense_output_hf
+from ._rk import DOP853
+from ._rkdenseoutput import dense_output_hf
 from ..ieee754 import EPS
 
 

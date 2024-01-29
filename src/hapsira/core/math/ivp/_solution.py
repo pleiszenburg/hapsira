@@ -1,5 +1,7 @@
 import numpy as np
 
+from ._rkdenseinterp import dense_interp_hf
+
 
 class OdeSolution:
     """Continuous ODE solution.
@@ -65,10 +67,10 @@ class OdeSolution:
             Computed values. Shape depends on whether `t` is a scalar or a
             1-D array.
         """
-        t = np.asarray(t)
+        # t = np.asarray(t)
 
-        assert t.ndim == 0
+        # assert t.ndim == 0
 
         ind = np.searchsorted(self.ts_sorted, t, side="left")
         segment = min(max(ind - 1, 0), self.n_segments - 1)
-        return self.interpolants[segment](t)
+        return dense_interp_hf(t, *self.interpolants[segment])

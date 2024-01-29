@@ -116,10 +116,8 @@ class DOP853:
 
         self.direction = np.sign(t_bound - t0) if t_bound != t0 else 1
 
-        self.K_extended = np.empty(
-            (N_STAGES_EXTENDED, N_RV), dtype=float
-        )  # TODO set type
-        self.K = self.K_extended[: N_STAGES + 1, :]
+        self.K = np.empty((N_STAGES + 1, N_RV), dtype=float)
+
         self.rr_old = None
         self.vv_old = None
         self.t_old = None
@@ -218,7 +216,9 @@ class DOP853:
         assert self.t_old is not None
         assert self.t != self.t_old
 
-        K = self.K_extended
+        K = np.empty((N_STAGES_EXTENDED, N_RV), dtype=float)
+        K[: N_STAGES + 1, :] = self.K
+
         h = self.h_previous
 
         for s, (a, c) in enumerate(zip(self.A_EXTRA, self.C_EXTRA), start=N_STAGES + 1):

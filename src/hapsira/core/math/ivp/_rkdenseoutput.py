@@ -47,16 +47,116 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
 
     K00, K01, K02, K03, K04, K05, K06, K07, K08, K09, K10, K11, K12 = K_
 
-    dy = np.dot(Ke[:13].T, np.array(A00)) * h
-    rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))
-    vv_ = add_VV_hf(vv_old, array_to_V_hf(dy[3:]))
+    dr = (
+        (
+            K00[0] * A00[0]
+            + K01[0] * A00[1]
+            + K02[0] * A00[2]
+            + K03[0] * A00[3]
+            + K04[0] * A00[4]
+            + K05[0] * A00[5]
+            + K06[0] * A00[6]
+            + K07[0] * A00[7]
+            + K08[0] * A00[8]
+            + K09[0] * A00[9]
+            + K10[0] * A00[10]
+            + K11[0] * A00[11]
+            + K12[0] * A00[12]
+        )
+        * h,
+        (
+            K00[1] * A00[0]
+            + K01[1] * A00[1]
+            + K02[1] * A00[2]
+            + K03[1] * A00[3]
+            + K04[1] * A00[4]
+            + K05[1] * A00[5]
+            + K06[1] * A00[6]
+            + K07[1] * A00[7]
+            + K08[1] * A00[8]
+            + K09[1] * A00[9]
+            + K10[1] * A00[10]
+            + K11[1] * A00[11]
+            + K12[1] * A00[12]
+        )
+        * h,
+        (
+            K00[2] * A00[0]
+            + K01[2] * A00[1]
+            + K02[2] * A00[2]
+            + K03[2] * A00[3]
+            + K04[2] * A00[4]
+            + K05[2] * A00[5]
+            + K06[2] * A00[6]
+            + K07[2] * A00[7]
+            + K08[2] * A00[8]
+            + K09[2] * A00[9]
+            + K10[2] * A00[10]
+            + K11[2] * A00[11]
+            + K12[2] * A00[12]
+        )
+        * h,
+    )
+    dv = (
+        (
+            K00[3] * A00[0]
+            + K01[3] * A00[1]
+            + K02[3] * A00[2]
+            + K03[3] * A00[3]
+            + K04[3] * A00[4]
+            + K05[3] * A00[5]
+            + K06[3] * A00[6]
+            + K07[3] * A00[7]
+            + K08[3] * A00[8]
+            + K09[3] * A00[9]
+            + K10[3] * A00[10]
+            + K11[3] * A00[11]
+            + K12[3] * A00[12]
+        )
+        * h,
+        (
+            K00[4] * A00[0]
+            + K01[4] * A00[1]
+            + K02[4] * A00[2]
+            + K03[4] * A00[3]
+            + K04[4] * A00[4]
+            + K05[4] * A00[5]
+            + K06[4] * A00[6]
+            + K07[4] * A00[7]
+            + K08[4] * A00[8]
+            + K09[4] * A00[9]
+            + K10[4] * A00[10]
+            + K11[4] * A00[11]
+            + K12[4] * A00[12]
+        )
+        * h,
+        (
+            K00[5] * A00[0]
+            + K01[5] * A00[1]
+            + K02[5] * A00[2]
+            + K03[5] * A00[3]
+            + K04[5] * A00[4]
+            + K05[5] * A00[5]
+            + K06[5] * A00[6]
+            + K07[5] * A00[7]
+            + K08[5] * A00[8]
+            + K09[5] * A00[9]
+            + K10[5] * A00[10]
+            + K11[5] * A00[11]
+            + K12[5] * A00[12]
+        )
+        * h,
+    )
+    rr_ = add_VV_hf(rr_old, dr)
+    vv_ = add_VV_hf(vv_old, dv)
     rr_, vv_ = fun(
         t_old + C_EXTRA[0] * h,
         rr_,
         vv_,
         argk,
     )
-    Ke[13] = np.array([*rr_, *vv_])
+    K13 = *rr_, *vv_
+    Ke[13, :] = np.array(K13)  # TODO rm
 
     dy = np.dot(Ke[:14].T, np.array(A01)) * h
     rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))
@@ -94,7 +194,6 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
         mul_Vs_hf(delta_rr, 2), mul_Vs_hf(add_VV_hf(fr, fr_old), h)
     ), *sub_VV_hf(mul_Vs_hf(delta_vv, 2), mul_Vs_hf(add_VV_hf(fv, fv_old), h))
 
-    K13 = tuple(float_(number) for number in Ke[13, :])
     K14 = tuple(float_(number) for number in Ke[14, :])
     K15 = tuple(float_(number) for number in Ke[15, :])
 

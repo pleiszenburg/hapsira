@@ -116,7 +116,21 @@ class DOP853:
 
         self.direction = np.sign(t_bound - t0) if t_bound != t0 else 1
 
-        self.K = np.empty((N_STAGES + 1, N_RV), dtype=float)
+        self.K = (
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 0
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 1
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 2
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 3
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 4
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 5
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 6
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 7
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 8
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 9
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 10
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 11
+            (0.0, 0.0, 0.0, 0.0, 0.0, 0.0),  # 12
+        )
 
         self.rr_old = None
         self.vv_old = None
@@ -180,7 +194,7 @@ class DOP853:
             self.direction,
             self.h_abs,
             self.t_bound,
-            tuple(tuple(line) for line in self.K),
+            self.K,
         )
 
         if success:
@@ -191,7 +205,7 @@ class DOP853:
             self.rr, self.vv = rets[2], rets[3]
             self.h_abs = rets[4]
             self.fr, self.fv = rets[5], rets[6]
-            self.K[:, :] = np.array(rets[7])
+            self.K = rets[7]
 
         if not success:
             self.status = "failed"
@@ -216,7 +230,7 @@ class DOP853:
         assert self.t != self.t_old
 
         K = np.empty((N_STAGES_EXTENDED, N_RV), dtype=float)
-        K[: N_STAGES + 1, :] = self.K
+        K[: N_STAGES + 1, :] = np.array(self.K)
 
         h = self.h_previous
 

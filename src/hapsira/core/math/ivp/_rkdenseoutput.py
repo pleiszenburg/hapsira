@@ -22,7 +22,7 @@ __all__ = [
 A00 = tuple(float_(number) for number in _A[N_STAGES + 1, :13])
 A01 = tuple(float_(number) for number in _A[N_STAGES + 2, :14])
 A02 = tuple(float_(number) for number in _A[N_STAGES + 3, :15])
-C_EXTRA = _C[N_STAGES + 1 :]
+C_EXTRA = tuple(float_(number) for number in _C[N_STAGES + 1 :])
 D = _D
 
 

@@ -26,60 +26,6 @@ __all__ = [
 ]
 
 
-class Dop853DenseOutput:
-    """local interpolant over step made by an ODE solver.
-
-    Attributes
-    ----------
-    t_min, t_max : float
-        Time range of the interpolation.
-    """
-
-    def __init__(self, t_old, h, rr_old, vv_old, F):
-        self.t_old = t_old
-        self.h = h
-        self._F = F
-        self.rr_old = rr_old
-        self.vv_old = vv_old
-
-    def __call__(self, t: float):
-        """Evaluate the interpolant.
-
-        Parameters
-        ----------
-        t : float or array_like with shape (n_points,)
-            Points to evaluate the solution at.
-
-        Returns
-        -------
-        y : ndarray, shape (n,) or (n, n_points)
-            Computed values. Shape depends on whether `t` was a scalar or a
-            1-D array.
-        """
-
-        F00, F01, F02, F03, F04, F05, F06 = self._F
-
-        x = (t - self.t_old) / self.h
-        rr_new = (0.0, 0.0, 0.0)
-        vv_new = (0.0, 0.0, 0.0)
-
-        for idx, f in enumerate((F06, F05, F04, F03, F02, F01, F00)):
-            rr_new = add_VV_hf(rr_new, f[:3])
-            vv_new = add_VV_hf(vv_new, f[3:])
-
-            if idx % 2 == 0:
-                rr_new = mul_Vs_hf(rr_new, x)
-                vv_new = mul_Vs_hf(vv_new, x)
-            else:
-                rr_new = mul_Vs_hf(rr_new, 1 - x)
-                vv_new = mul_Vs_hf(vv_new, 1 - x)
-
-        rr_new = add_VV_hf(rr_new, self.rr_old)
-        vv_new = add_VV_hf(vv_new, self.vv_old)
-
-        return rr_new, vv_new
-
-
 class DOP853:
     """
     Explicit Runge-Kutta method of order 8.
@@ -268,7 +214,7 @@ class DOP853:
             tuple(float(number) for number in line) for line in (h * np.dot(self.D, K))
         )  # TODO
 
-        return Dop853DenseOutput(
+        return (
             self.t_old,
             self.t - self.t_old,  # h
             self.rr_old,

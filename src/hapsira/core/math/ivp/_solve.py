@@ -192,32 +192,8 @@ def solve_ivp(
     atol: float,
     events: Optional[List[Callable]] = None,
 ) -> Tuple[OdeSolution, bool]:
-    """Solve an initial value problem for a system of ODEs.
-
-    Parameters
-    ----------
-    fun : callable
-        Right-hand side of the system: the time derivative of the state ``y``
-        at time ``t``. The calling signature is ``fun(t, y)``, where ``t`` is a
-        scalar and ``y`` is an ndarray with ``len(y) = len(y0)``. ``fun`` must
-        return an array of the same shape as ``y``. See `vectorized` for more
-        information.
-    t_span : 2-member sequence
-        Interval of integration (t0, tf). The solver starts with t=t0 and
-        integrates until it reaches t=tf. Both t0 and tf must be floats
-        or values interpretable by the float conversion function.
-    y0 : array_like, shape (n,)
-        Initial state. For problems in the complex domain, pass `y0` with a
-        complex data type (even if the initial value is purely real).
-    events : callable, or list of callables, optional
-        Events to track. If None (default), no events will be tracked.
-        Each event occurs at the zeros of a continuous function of time and
-        state. Each function must have the signature ``event(t, y)`` and return
-        a float. The solver will find an accurate value of `t` at which
-        ``event(t, y(t)) = 0`` using a root-finding algorithm. By default, all
-        zeros will be found. The solver looks for a sign change over each step,
-        so if multiple zero crossings occur within one step, events may be
-        missed.
+    """
+    Solve an initial value problem for a system of ODEs.
     """
 
     solver = dop853_init_hf(fun, t0, rr, vv, tf, argk, rtol, atol)

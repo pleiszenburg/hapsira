@@ -180,19 +180,18 @@ class DOP853:
             self.direction,
             self.h_abs,
             self.t_bound,
-            tuple(tuple(line) for line in self.K[: N_STAGES + 1, :N_RV]),
+            tuple(tuple(line) for line in self.K),
         )
 
         if success:
             self.h_previous = rets[0]
-            # self.y_old = np.array([*rets[1], *rets[2]])
             self.rr_old = self.rr
             self.vv_old = self.vv
             self.t = rets[1]
             self.rr, self.vv = rets[2], rets[3]
             self.h_abs = rets[4]
             self.fr, self.fv = rets[5], rets[6]
-            self.K[: N_STAGES + 1, :N_RV] = np.array(rets[7])
+            self.K[:, :] = np.array(rets[7])
 
         if not success:
             self.status = "failed"

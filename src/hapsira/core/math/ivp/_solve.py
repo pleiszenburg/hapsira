@@ -127,13 +127,12 @@ def _handle_events(
         active_events = active_events[order]
         roots = roots[order]
         t = np.nonzero(terminals[active_events])[0][0]
-        active_events = active_events[: t + 1]
         roots = roots[: t + 1]
         terminate = True
     else:
         terminate = False
 
-    return active_events, roots, terminate
+    return roots, terminate
 
 
 def _find_active_events(g, g_new, directions):
@@ -226,7 +225,7 @@ def solve_ivp(
                 event.last_t_raw = t
             active_events = _find_active_events(g, g_new, directions)
             if active_events.size > 0:
-                _, roots, terminate = _handle_events(
+                roots, terminate = _handle_events(
                     interpolant,
                     events,
                     active_events,

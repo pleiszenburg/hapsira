@@ -1,11 +1,11 @@
 from math import nan
-from typing import Callable
 
-from ._const import ERROR_ESTIMATOR_ORDER
+from ._const import ERROR_ESTIMATOR_ORDER, KSIG
 from ._rkstepinit import select_initial_step_hf
 from ._rkstepimpl import step_impl_hf
 from ..ieee754 import EPS
 from ..linalg import sign_hf
+from ...jit import hjit, DSIG
 
 __all__ = [
     "dop853_init_hf",
@@ -47,18 +47,32 @@ DOP853_T_OLD = 12
 DOP853_VV = 2
 DOP853_VV_OLD = 11
 
+_ = """
+        t0,  # 0 -> t
+        rr,  # 1
+        vv,  # 2
+        t_bound,  # 3
+        fun,  # 4
+        argk,  # 5
+        rtol,  # 6
+        atol,  # 7
+        direction,  # 8
+        K,  # 9
+        rr_old,  # 10
+        vv_old,  # 11
+        t_old,  # 12
+        h_previous,  # 13
+        status,  # 14
+        fr,  # 15
+        fv,  # 16
+        h_abs,  # 17
+"""
 
-# TODO compile
-def dop853_init_hf(
-    fun: Callable,
-    t0: float,
-    rr: tuple,
-    vv: tuple,
-    t_bound: float,
-    argk: float,
-    rtol: float,
-    atol: float,
-):
+DOP853_SIG = f"f,V,V,f,F({DSIG}),f,f,f,f,{KSIG:s},V,V,f,f,f,V,V,f"
+
+
+@hjit(f"Tuple([{DOP853_SIG:s}])(F({DSIG}),f,V,V,f,f,f,f)")
+def dop853_init_hf(fun, t0, rr, vv, t_bound, argk, rtol, atol):
     """
     Explicit Runge-Kutta method of order 8.
     """
@@ -136,7 +150,7 @@ def dop853_init_hf(
     )
 
 
-# TODO compile
+@hjit(f"Tuple([{DOP853_SIG:s}])({DOP853_SIG:s})")
 def dop853_step_hf(
     t,
     rr,
@@ -197,7 +211,7 @@ def dop853_step_hf(
         )
 
     t_tmp = t
-    success, *rets = step_impl_hf(
+    rets = step_impl_hf(
         fun,
         argk,
         t,
@@ -212,6 +226,7 @@ def dop853_step_hf(
         t_bound,
         K,
     )
+    success = rets[0]
 
     if success:
         rr_old = rr
@@ -225,7 +240,7 @@ def dop853_step_hf(
             fr,
             fv,
             K,
-        ) = rets
+        ) = rets[1:]
 
     if not success:
         status = DOP853_FAILED

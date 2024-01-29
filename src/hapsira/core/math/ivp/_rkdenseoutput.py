@@ -6,6 +6,7 @@ from ._const import (
     N_STAGES_EXTENDED,
 )
 from ._dop853_coefficients import A as _A, C as _C, D as _D
+from ..ieee754 import float_
 from ..linalg import (
     add_VV_hf,
     mul_Vs_hf,
@@ -18,7 +19,9 @@ __all__ = [
 ]
 
 
-A_EXTRA = _A[N_STAGES + 1 :]
+A00 = tuple(float_(number) for number in _A[N_STAGES + 1, :13])
+A01 = tuple(float_(number) for number in _A[N_STAGES + 2, :14])
+A02 = tuple(float_(number) for number in _A[N_STAGES + 3, :15])
 C_EXTRA = _C[N_STAGES + 1 :]
 D = _D
 
@@ -39,7 +42,7 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
     Ke = np.empty((N_STAGES_EXTENDED, N_RV), dtype=float)
     Ke[: N_STAGES + 1, :] = np.array(K_)
 
-    dy = np.dot(Ke[:13].T, A_EXTRA[0, :13]) * h
+    dy = np.dot(Ke[:13].T, np.array(A00)) * h
     rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))
     vv_ = add_VV_hf(vv_old, array_to_V_hf(dy[3:]))
     rr_, vv_ = fun(
@@ -50,7 +53,7 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
     )
     Ke[13] = np.array([*rr_, *vv_])
 
-    dy = np.dot(Ke[:14].T, A_EXTRA[1, :14]) * h
+    dy = np.dot(Ke[:14].T, np.array(A01)) * h
     rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))
     vv_ = add_VV_hf(vv_old, array_to_V_hf(dy[3:]))
     rr_, vv_ = fun(
@@ -61,7 +64,7 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
     )
     Ke[14] = np.array([*rr_, *vv_])
 
-    dy = np.dot(Ke[:15].T, A_EXTRA[2, :15]) * h
+    dy = np.dot(Ke[:15].T, np.array(A02)) * h
     rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))
     vv_ = add_VV_hf(vv_old, array_to_V_hf(dy[3:]))
     rr_, vv_ = fun(

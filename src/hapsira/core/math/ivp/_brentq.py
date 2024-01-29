@@ -1,5 +1,6 @@
-from math import fabs, isnan
+from math import fabs, isnan, nan
 
+from ._rkdenseinterp import DENSE_SIG
 from ..ieee754 import EPS
 from ...jit import hjit
 
@@ -13,6 +14,7 @@ __all__ = [
     "BRENTQ_RTOL",
     "BRENTQ_MAXITER",
     "brentq_hf",
+    "brentq_dense_hf",
 ]
 
 
@@ -128,3 +130,103 @@ def brentq_hf(
             return 0.0, BRENTQ_ERROR
 
     return xcur, BRENTQ_CONVERR
+
+
+@hjit(f"Tuple([f,f,i8])(F(f(f,{DENSE_SIG:s},f)),f,f,f,f,f,{DENSE_SIG:s},f)")
+def brentq_dense_hf(
+    func,  # callback_type
+    xa,  # double
+    xb,  # double
+    xtol,  # double
+    rtol,  # double
+    maxiter,  # int
+    sol1,
+    sol2,
+    sol3,
+    sol4,
+    sol5,
+    argk,
+):
+    """
+    Loosely adapted from
+    https://github.com/scipy/scipy/blob/d23363809572e9a44074a3f06f66137083446b48/scipy/optimize/_zeros_py.py#L682
+    """
+
+    if not xtol + 0.0 > 0:
+        return nan, 0.0, BRENTQ_ERROR
+    if not rtol + 0.0 >= BRENTQ_RTOL:
+        return nan, 0.0, BRENTQ_ERROR
+    if not maxiter + 0 >= 0:
+        return nan, 0.0, BRENTQ_ERROR
+
+    xpre, xcur = xa, xb
+    xblk = 0.0
+    fpre, fcur, fblk = 0.0, 0.0, 0.0
+    spre, scur = 0.0, 0.0
+
+    fpre = func(xpre, sol1, sol2, sol3, sol4, sol5, argk)
+    if isnan(fpre):
+        return xpre, 0.0, BRENTQ_ERROR
+
+    fcur = func(xcur, sol1, sol2, sol3, sol4, sol5, argk)
+    if isnan(fcur):
+        return xcur, 0.0, BRENTQ_ERROR
+
+    if fpre == 0:
+        return xcur, xpre, BRENTQ_CONVERGED
+    if fcur == 0:
+        return xcur, xcur, BRENTQ_CONVERGED
+    if _signbit_s_hf(fpre) == _signbit_s_hf(fcur):
+        return xcur, 0.0, BRENTQ_SIGNERR
+
+    for _ in range(0, maxiter):
+        if fpre != 0 and fcur != 0 and _signbit_s_hf(fpre) != _signbit_s_hf(fcur):
+            xblk = xpre
+            fblk = fpre
+            scur = xcur - xpre
+            spre = scur
+        if fabs(fblk) < fabs(fcur):
+            xpre = xcur
+            xcur = xblk
+            xblk = xpre
+
+            fpre = fcur
+            fcur = fblk
+            fblk = fpre
+
+        delta = (xtol + rtol * fabs(xcur)) / 2
+        sbis = (xblk - xcur) / 2
+        if fcur == 0 or fabs(sbis) < delta:
+            return xcur, xcur, BRENTQ_CONVERGED
+
+        if fabs(spre) > delta and fabs(fcur) < fabs(fpre):
+            if xpre == xblk:
+                stry = -fcur * (xcur - xpre) / (fcur - fpre)
+            else:
+                dpre = (fpre - fcur) / (xpre - xcur)
+                dblk = (fblk - fcur) / (xblk - xcur)
+                stry = (
+                    -fcur * (fblk * dblk - fpre * dpre) / (dblk * dpre * (fblk - fpre))
+                )
+            if 2 * fabs(stry) < _min_ss_hf(fabs(spre), 3 * fabs(sbis) - delta):
+                spre = scur
+                scur = stry
+            else:
+                spre = sbis
+                scur = sbis
+        else:
+            spre = sbis
+            scur = sbis
+
+        xpre = xcur
+        fpre = fcur
+        if fabs(scur) > delta:
+            xcur += scur
+        else:
+            xcur += delta if sbis > 0 else -delta
+
+        fcur = func(xcur, sol1, sol2, sol3, sol4, sol5, argk)
+        if isnan(fcur):
+            return xcur, 0.0, BRENTQ_ERROR
+
+    return xcur, xcur, BRENTQ_CONVERR

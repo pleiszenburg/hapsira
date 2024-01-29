@@ -6,6 +6,7 @@ from astropy import units as u
 from astropy.coordinates import get_body_barycentric_posvel
 
 from hapsira.core.jit import hjit
+from hapsira.core.math.ivp import dense_interp_brentq_hb
 from hapsira.core.math.linalg import mul_Vs_hf, norm_V_hf
 from hapsira.core.events import (
     eclipse_function_hf,
@@ -46,6 +47,7 @@ class BaseEvent(ABC):
         self._terminal, self._direction = terminal, direction
         self._last_t = None
         self._impl_hf = None
+        self._impl_dense_hf = None
 
     @property
     def terminal(self):
@@ -71,9 +73,17 @@ class BaseEvent(ABC):
     def impl_hf(self) -> Callable:
         return self._impl_hf
 
+    @property
+    def impl_dense_hf(self) -> Callable:
+        return self._impl_dense_hf
+
     def __call__(self, t, rr, vv, k):
+        raise NotImplementedError()  # HACK
         self._last_t = t
         return self._impl_hf(t, rr, vv, k)
+
+    def _wrap(self):
+        self._impl_dense_hf = dense_interp_brentq_hb(self._impl_hf)
 
 
 class AltitudeCrossEvent(BaseEvent):
@@ -105,6 +115,7 @@ class AltitudeCrossEvent(BaseEvent):
             )  # If this goes from +ve to -ve, altitude is decreasing.
 
         self._impl_hf = impl_hf
+        self._wrap()
 
 
 class LithobrakeEvent(AltitudeCrossEvent):
@@ -154,6 +165,7 @@ class LatitudeCrossEvent(BaseEvent):
             return rad2deg(lat_) - lat
 
         self._impl_hf = impl_hf
+        self._wrap()
 
 
 class BaseEclipseEvent(BaseEvent):
@@ -231,6 +243,7 @@ class PenumbraEvent(BaseEclipseEvent):
             return shadow_function
 
         self._impl_hf = impl_hf
+        self._wrap()
 
 
 class UmbraEvent(BaseEclipseEvent):
@@ -270,6 +283,7 @@ class UmbraEvent(BaseEclipseEvent):
             return shadow_function
 
         self._impl_hf = impl_hf
+        self._wrap()
 
 
 class NodeCrossEvent(BaseEvent):
@@ -295,6 +309,7 @@ class NodeCrossEvent(BaseEvent):
             return rr[2]
 
         self._impl_hf = impl_hf
+        self._wrap()
 
 
 class LosEvent(BaseEvent):
@@ -331,3 +346,4 @@ class LosEvent(BaseEvent):
             return delta_angle
 
         self._impl_hf = impl_hf
+        self._wrap()

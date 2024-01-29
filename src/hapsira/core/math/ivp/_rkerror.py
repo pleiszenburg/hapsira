@@ -2,17 +2,8 @@ from math import sqrt
 
 from ._const import N_RV, KSIG
 from ._dop853_coefficients import E3 as _E3, E5 as _E5
+from ..ieee754 import float_
 from ...jit import hjit
-from ....settings import settings
-
-if settings["PRECISION"].value == "f8":
-    from numpy import float64 as float_
-elif settings["PRECISION"].value == "f4":
-    from numpy import float32 as float_
-elif settings["PRECISION"].value == "f2":
-    from numpy import float16 as float_
-else:
-    raise ValueError("unsupported precision")
 
 
 __all__ = [

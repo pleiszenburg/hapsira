@@ -1,22 +1,14 @@
 from ._const import N_STAGES, KSIG
 from ._dop853_coefficients import A as _A, B as _B, C as _C
+from ..ieee754 import float_
 from ..linalg import add_VV_hf
 from ...jit import hjit, DSIG
-from ....settings import settings
-
-if settings["PRECISION"].value == "f8":
-    from numpy import float64 as float_
-elif settings["PRECISION"].value == "f4":
-    from numpy import float32 as float_
-elif settings["PRECISION"].value == "f2":
-    from numpy import float16 as float_
-else:
-    raise ValueError("unsupported precision")
 
 
 __all__ = [
     "rk_step_hf",
 ]
+
 
 A01 = tuple(float_(number) for number in _A[1, :N_STAGES])
 A02 = tuple(float_(number) for number in _A[2, :N_STAGES])

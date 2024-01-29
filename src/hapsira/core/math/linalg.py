@@ -1,8 +1,7 @@
 from math import inf, sqrt
-from numpy import finfo
 
+from .ieee754 import EPS
 from ..jit import hjit, vjit
-from ...settings import settings
 
 __all__ = [
     "abs_V_hf",
@@ -24,21 +23,7 @@ __all__ = [
     "sign_hf",
     "sub_VV_hf",
     "transpose_M_hf",
-    "EPS",
 ]
-
-
-if settings["PRECISION"].value == "f8":
-    from numpy import float64 as float_
-elif settings["PRECISION"].value == "f4":
-    from numpy import float32 as float_
-elif settings["PRECISION"].value == "f2":
-    from numpy import float16 as float_
-else:
-    raise ValueError("unsupported precision")
-
-
-EPS = finfo(float_).eps
 
 
 @hjit("V(V)")

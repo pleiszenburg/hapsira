@@ -5,7 +5,7 @@ import numpy as np
 from ._brentq import brentq_hf, BRENTQ_CONVERGED, BRENTQ_MAXITER
 from ._solution import OdeSolution
 from ._rk import DOP853
-from ...math.linalg import EPS
+from ..ieee754 import EPS
 
 
 __all__ = [

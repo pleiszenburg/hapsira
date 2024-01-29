@@ -1,6 +1,6 @@
 from math import fabs, isnan
 
-from ..linalg import EPS
+from ..ieee754 import EPS
 from ...jit import hjit
 
 

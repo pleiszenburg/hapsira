@@ -1,4 +1,3 @@
-from ._solve import solve_ivp
 from ._brentq import (
     BRENTQ_CONVERGED,
     BRENTQ_SIGNERR,
@@ -9,9 +8,10 @@ from ._brentq import (
     BRENTQ_MAXITER,
     brentq_hf,
 )
+from ._rkdenseinterp import dense_interp_brentq_hb, dense_interp_hf
+from ._solve import solve_ivp
 
 __all__ = [
-    "solve_ivp",
     "BRENTQ_CONVERGED",
     "BRENTQ_SIGNERR",
     "BRENTQ_CONVERR",
@@ -20,4 +20,7 @@ __all__ = [
     "BRENTQ_RTOL",
     "BRENTQ_MAXITER",
     "brentq_hf",
+    "dense_interp_brentq_hb",
+    "dense_interp_hf",
+    "solve_ivp",
 ]

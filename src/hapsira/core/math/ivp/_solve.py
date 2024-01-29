@@ -3,7 +3,25 @@ from typing import Callable, List, Optional, Tuple
 import numpy as np
 
 from ._brentq import brentq_dense_hf, BRENTQ_CONVERGED, BRENTQ_MAXITER
-from ._rkcore import DOP853
+from ._rkcore import (
+    dop853_init_hf,
+    dop853_step_hf,
+    DOP853_FINISHED,
+    DOP853_FAILED,
+    DOP853_ARGK,
+    DOP853_FR,
+    DOP853_FUN,
+    DOP853_FV,
+    DOP853_H_PREVIOUS,
+    DOP853_K,
+    DOP853_RR,
+    DOP853_RR_OLD,
+    DOP853_STATUS,
+    DOP853_T,
+    DOP853_T_OLD,
+    DOP853_VV,
+    DOP853_VV_OLD,
+)
 from ._rkdenseoutput import dense_output_hf
 from ._solution import OdeSolution
 from ..ieee754 import EPS
@@ -202,7 +220,7 @@ def solve_ivp(
         missed.
     """
 
-    solver = DOP853(fun, t0, rr, vv, tf, argk, rtol, atol)
+    solver = dop853_init_hf(fun, t0, rr, vv, tf, argk, rtol, atol)
 
     ts = [t0]
 
@@ -218,37 +236,39 @@ def solve_ivp(
 
     status = None
     while status is None:
-        solver.step()
+        solver = dop853_step_hf(*solver)
 
-        if solver.status == "finished":
+        if solver[DOP853_STATUS] == DOP853_FINISHED:
             status = 0
-        elif solver.status == "failed":
+        elif solver[DOP853_STATUS] == DOP853_FAILED:
             status = -1
             break
 
-        t_old = solver.t_old
-        t = solver.t
+        t_old = solver[DOP853_T_OLD]
+        t = solver[DOP853_T]
 
         sol = dense_output_hf(
-            solver.fun,
-            solver.argk,
-            solver.t_old,
-            solver.t,
-            solver.h_previous,
-            solver.rr,
-            solver.vv,
-            solver.rr_old,
-            solver.vv_old,
-            solver.fr,
-            solver.fv,
-            solver.K,
+            solver[DOP853_FUN],
+            solver[DOP853_ARGK],
+            solver[DOP853_T_OLD],
+            solver[DOP853_T],
+            solver[DOP853_H_PREVIOUS],
+            solver[DOP853_RR],
+            solver[DOP853_VV],
+            solver[DOP853_RR_OLD],
+            solver[DOP853_VV_OLD],
+            solver[DOP853_FR],
+            solver[DOP853_FV],
+            solver[DOP853_K],
         )
         interpolants.append(sol)
 
         if events is not None:
             g_new = []
             for event in events:
-                g_new.append(event.impl_hf(t, solver.rr, solver.vv, argk))
+                g_new.append(
+                    event.impl_hf(t, solver[DOP853_RR], solver[DOP853_VV], argk)
+                )
                 event.last_t_raw = t
             active_events = _find_active_events(g, g_new, event_dir)
             if active_events.size > 0:

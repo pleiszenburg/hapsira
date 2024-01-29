@@ -47,7 +47,7 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
         rr_,
         vv_,
         argk,
-    )  # TODO call into hf
+    )
     Ke[13] = np.array([*rr_, *vv_])
 
     dy = np.dot(Ke[:14].T, A_EXTRA[1, :14]) * h
@@ -58,7 +58,7 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
         rr_,
         vv_,
         argk,
-    )  # TODO call into hf
+    )
     Ke[14] = np.array([*rr_, *vv_])
 
     dy = np.dot(Ke[:15].T, A_EXTRA[2, :15]) * h
@@ -69,7 +69,7 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
         rr_,
         vv_,
         argk,
-    )  # TODO call into hf
+    )
     Ke[15] = np.array([*rr_, *vv_])
 
     fr_old = array_to_V_hf(Ke[0, :3])

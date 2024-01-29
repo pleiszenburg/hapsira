@@ -34,19 +34,39 @@ def dense_interp_hf(t, t_old, h, rr_old, vv_old, F):
     F00, F01, F02, F03, F04, F05, F06 = F
 
     x = (t - t_old) / h
-    rr_new = (0.0, 0.0, 0.0)
-    vv_new = (0.0, 0.0, 0.0)
 
-    for idx, f in enumerate((F06, F05, F04, F03, F02, F01, F00)):
-        rr_new = add_VV_hf(rr_new, f[:3])
-        vv_new = add_VV_hf(vv_new, f[3:])
+    rr_new = mul_Vs_hf(F06[:3], x)
+    vv_new = mul_Vs_hf(F06[3:], x)
 
-        if idx % 2 == 0:
-            rr_new = mul_Vs_hf(rr_new, x)
-            vv_new = mul_Vs_hf(vv_new, x)
-        else:
-            rr_new = mul_Vs_hf(rr_new, 1 - x)
-            vv_new = mul_Vs_hf(vv_new, 1 - x)
+    rr_new = add_VV_hf(rr_new, F05[:3])
+    vv_new = add_VV_hf(vv_new, F05[3:])
+    rr_new = mul_Vs_hf(rr_new, 1 - x)
+    vv_new = mul_Vs_hf(vv_new, 1 - x)
+
+    rr_new = add_VV_hf(rr_new, F04[:3])
+    vv_new = add_VV_hf(vv_new, F04[3:])
+    rr_new = mul_Vs_hf(rr_new, x)
+    vv_new = mul_Vs_hf(vv_new, x)
+
+    rr_new = add_VV_hf(rr_new, F03[:3])
+    vv_new = add_VV_hf(vv_new, F03[3:])
+    rr_new = mul_Vs_hf(rr_new, 1 - x)
+    vv_new = mul_Vs_hf(vv_new, 1 - x)
+
+    rr_new = add_VV_hf(rr_new, F02[:3])
+    vv_new = add_VV_hf(vv_new, F02[3:])
+    rr_new = mul_Vs_hf(rr_new, x)
+    vv_new = mul_Vs_hf(vv_new, x)
+
+    rr_new = add_VV_hf(rr_new, F01[:3])
+    vv_new = add_VV_hf(vv_new, F01[3:])
+    rr_new = mul_Vs_hf(rr_new, 1 - x)
+    vv_new = mul_Vs_hf(vv_new, 1 - x)
+
+    rr_new = add_VV_hf(rr_new, F00[:3])
+    vv_new = add_VV_hf(vv_new, F00[3:])
+    rr_new = mul_Vs_hf(rr_new, x)
+    vv_new = mul_Vs_hf(vv_new, x)
 
     rr_new = add_VV_hf(rr_new, rr_old)
     vv_new = add_VV_hf(vv_new, vv_old)

@@ -39,17 +39,38 @@ def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
     Ke = np.empty((N_STAGES_EXTENDED, N_RV), dtype=float)
     Ke[: N_STAGES + 1, :] = np.array(K_)
 
-    for s, (a, c) in enumerate(zip(A_EXTRA, C_EXTRA), start=N_STAGES + 1):
-        dy = np.dot(Ke[:s].T, a[:s]) * h
-        rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))
-        vv_ = add_VV_hf(vv_old, array_to_V_hf(dy[3:]))
-        rr_, vv_ = fun(
-            t_old + c * h,
-            rr_,
-            vv_,
-            argk,
-        )  # TODO call into hf
-        Ke[s] = np.array([*rr_, *vv_])
+    dy = np.dot(Ke[:13].T, A_EXTRA[0, :13]) * h
+    rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))
+    vv_ = add_VV_hf(vv_old, array_to_V_hf(dy[3:]))
+    rr_, vv_ = fun(
+        t_old + C_EXTRA[0] * h,
+        rr_,
+        vv_,
+        argk,
+    )  # TODO call into hf
+    Ke[13] = np.array([*rr_, *vv_])
+
+    dy = np.dot(Ke[:14].T, A_EXTRA[1, :14]) * h
+    rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))
+    vv_ = add_VV_hf(vv_old, array_to_V_hf(dy[3:]))
+    rr_, vv_ = fun(
+        t_old + C_EXTRA[1] * h,
+        rr_,
+        vv_,
+        argk,
+    )  # TODO call into hf
+    Ke[14] = np.array([*rr_, *vv_])
+
+    dy = np.dot(Ke[:15].T, A_EXTRA[2, :15]) * h
+    rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))
+    vv_ = add_VV_hf(vv_old, array_to_V_hf(dy[3:]))
+    rr_, vv_ = fun(
+        t_old + C_EXTRA[2] * h,
+        rr_,
+        vv_,
+        argk,
+    )  # TODO call into hf
+    Ke[15] = np.array([*rr_, *vv_])
 
     fr_old = array_to_V_hf(Ke[0, :3])
     fv_old = array_to_V_hf(Ke[0, 3:])

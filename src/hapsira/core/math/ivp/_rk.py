@@ -1,4 +1,3 @@
-from math import inf, sqrt
 from typing import Callable
 
 import numpy as np
@@ -6,28 +5,18 @@ import numpy as np
 from ._const import (
     N_RV,
     N_STAGES,
-    KSIG,
-    SAFETY,
-    MIN_FACTOR,
-    MAX_FACTOR,
     N_STAGES_EXTENDED,
     ERROR_ESTIMATOR_ORDER,
-    ERROR_EXPONENT,
 )
 from ._dop853_coefficients import A as _A, C as _C, D as _D
-from ._rkstep import rk_step_hf
-from ._rkerror import estimate_error_norm_V_hf
+from ._rkstepinit import select_initial_step_hf
+from ._rkstepimpl import step_impl_hf
 
-from ...jit import array_to_V_hf, hjit, DSIG
+
+from ...jit import array_to_V_hf
 from ...math.linalg import (
-    abs_V_hf,
-    add_Vs_hf,
     add_VV_hf,
-    div_VV_hf,
-    max_VV_hf,
     mul_Vs_hf,
-    nextafter_hf,
-    norm_VV_hf,
     sub_VV_hf,
     EPS,
 )
@@ -35,151 +24,6 @@ from ...math.linalg import (
 __all__ = [
     "DOP853",
 ]
-
-
-@hjit(f"f(F({DSIG:s}),f,V,V,f,V,V,f,f,f,f)")
-def _select_initial_step_hf(
-    fun, t0, rr, vv, argk, fr, fv, direction, order, rtol, atol
-):
-    scale_r = (
-        atol + abs(rr[0]) * rtol,
-        atol + abs(rr[1]) * rtol,
-        atol + abs(rr[2]) * rtol,
-    )
-    scale_v = (
-        atol + abs(vv[0]) * rtol,
-        atol + abs(vv[1]) * rtol,
-        atol + abs(vv[2]) * rtol,
-    )
-
-    factor = 1 / sqrt(6)
-    d0 = norm_VV_hf(div_VV_hf(rr, scale_r), div_VV_hf(vv, scale_v)) * factor
-    d1 = norm_VV_hf(div_VV_hf(fr, scale_r), div_VV_hf(fv, scale_v)) * factor
-
-    if d0 < 1e-5 or d1 < 1e-5:
-        h0 = 1e-6
-    else:
-        h0 = 0.01 * d0 / d1
-
-    yr1 = add_VV_hf(rr, mul_Vs_hf(fr, h0 * direction))
-    yv1 = add_VV_hf(vv, mul_Vs_hf(fv, h0 * direction))
-
-    fr1, fv1 = fun(
-        t0 + h0 * direction,
-        yr1,
-        yv1,
-        argk,
-    )
-
-    d2 = (
-        norm_VV_hf(
-            div_VV_hf(sub_VV_hf(fr1, fr), scale_r),
-            div_VV_hf(sub_VV_hf(fv1, fv), scale_v),
-        )
-        / h0
-    )
-
-    if d1 <= 1e-15 and d2 <= 1e-15:
-        h1 = max(1e-6, h0 * 1e-3)
-    else:
-        h1 = (0.01 / max(d1, d2)) ** (1 / (order + 1))
-
-    return min(100 * h0, h1)
-
-
-@hjit(
-    f"Tuple([b1,f,f,V,V,f,V,V,{KSIG:s}])"
-    f"(F({DSIG:s}),f,f,V,V,V,V,f,f,f,f,f,{KSIG:s})"
-)
-def _step_impl_hf(
-    fun, argk, t, rr, vv, fr, fv, rtol, atol, direction, h_abs, t_bound, K
-):
-    min_step = 10 * abs(nextafter_hf(t, direction * inf) - t)
-
-    if h_abs < min_step:
-        h_abs = min_step
-
-    step_accepted = False
-    step_rejected = False
-
-    while not step_accepted:
-        if h_abs < min_step:
-            return (
-                False,
-                0.0,
-                0.0,
-                (0.0, 0.0, 0.0),
-                (0.0, 0.0, 0.0),
-                0.0,
-                (0.0, 0.0, 0.0),
-                (0.0, 0.0, 0.0),
-                K,
-            )
-
-        h = h_abs * direction
-        t_new = t + h
-
-        if direction * (t_new - t_bound) > 0:
-            t_new = t_bound
-
-        h = t_new - t
-        h_abs = abs(h)
-
-        rr_new, vv_new, fr_new, fv_new, K_new = rk_step_hf(
-            fun,
-            t,
-            rr,
-            vv,
-            fr,
-            fv,
-            h,
-            argk,
-        )
-
-        scale_r = add_Vs_hf(
-            mul_Vs_hf(
-                max_VV_hf(
-                    abs_V_hf(rr),
-                    abs_V_hf(rr_new),
-                ),
-                rtol,
-            ),
-            atol,
-        )
-        scale_v = add_Vs_hf(
-            mul_Vs_hf(
-                max_VV_hf(
-                    abs_V_hf(vv),
-                    abs_V_hf(vv_new),
-                ),
-                rtol,
-            ),
-            atol,
-        )
-        error_norm = estimate_error_norm_V_hf(
-            K_new,
-            h,
-            scale_r,
-            scale_v,
-        )
-
-        if error_norm < 1:
-            if error_norm == 0:
-                factor = MAX_FACTOR
-            else:
-                factor = min(MAX_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
-
-            if step_rejected:
-                factor = min(1, factor)
-
-            h_abs *= factor
-
-            step_accepted = True
-        else:
-            h_abs *= max(MIN_FACTOR, SAFETY * error_norm**ERROR_EXPONENT)
-            step_rejected = True
-
-    return True, h, t_new, rr_new, vv_new, h_abs, fr_new, fv_new, K_new
 
 
 class Dop853DenseOutput:
@@ -290,7 +134,7 @@ class DOP853:
             self.argk,
         )  # TODO call into hf
 
-        self.h_abs = _select_initial_step_hf(
+        self.h_abs = select_initial_step_hf(
             self.fun,
             self.t,
             self.rr,
@@ -325,7 +169,7 @@ class DOP853:
             return
 
         t = self.t
-        success, *rets = _step_impl_hf(
+        success, *rets = step_impl_hf(
             self.fun,
             self.argk,
             self.t,

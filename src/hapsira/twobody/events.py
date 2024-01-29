@@ -77,11 +77,6 @@ class BaseEvent(ABC):
     def impl_dense_hf(self) -> Callable:
         return self._impl_dense_hf
 
-    def __call__(self, t, rr, vv, k):
-        raise NotImplementedError()  # HACK
-        self._last_t = t
-        return self._impl_hf(t, rr, vv, k)
-
     def _wrap(self):
         self._impl_dense_hf = dense_interp_brentq_hb(self._impl_hf)
 

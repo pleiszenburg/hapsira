@@ -198,14 +198,18 @@ class DOP853:
         )
 
         if success:
-            self.h_previous = rets[0]
             self.rr_old = self.rr
             self.vv_old = self.vv
-            self.t = rets[1]
-            self.rr, self.vv = rets[2], rets[3]
-            self.h_abs = rets[4]
-            self.fr, self.fv = rets[5], rets[6]
-            self.K = rets[7]
+            (
+                self.h_previous,
+                self.t,
+                self.rr,
+                self.vv,
+                self.h_abs,
+                self.fr,
+                self.fv,
+                self.K,
+            ) = rets
 
         if not success:
             self.status = "failed"

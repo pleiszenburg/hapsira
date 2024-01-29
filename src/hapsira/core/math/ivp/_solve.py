@@ -2,7 +2,7 @@ from typing import Callable, List, Optional, Tuple
 
 import numpy as np
 
-from ._brentq import brentq_hf, BRENTQ_CONVERGED, BRENTQ_MAXITER
+from ._brentq import brentq_dense_hf, BRENTQ_CONVERGED, BRENTQ_MAXITER
 from ._solution import OdeSolution
 from ._rk import DOP853
 from ..ieee754 import EPS
@@ -39,18 +39,17 @@ def _solve_event_equation(
         Found solution.
     """
 
-    def wrapper(t):
-        rr, vv = sol(t)
-        return event(t, rr, vv, argk)
-
-    value, status = brentq_hf(
-        wrapper,
+    last_t, value, status = brentq_dense_hf(
+        event.impl_dense_hf,
         t_old,
         t,
         4 * EPS,
         4 * EPS,
         BRENTQ_MAXITER,
+        *sol,
+        argk,
     )
+    event.last_t_raw = last_t
     assert BRENTQ_CONVERGED == status
     return value
 
@@ -211,7 +210,10 @@ def solve_ivp(
     events, is_terminal, event_dir = _prepare_events(events)
 
     if events is not None:
-        g = [event(t0, rr, vv, argk) for event in events]
+        g = []
+        for event in events:
+            g.append(event.impl_hf(t0, rr, vv, argk))
+            event.last_t_raw = t0
 
     status = None
     while status is None:
@@ -230,7 +232,10 @@ def solve_ivp(
         interpolants.append(sol)
 
         if events is not None:
-            g_new = [event(t, solver.rr, solver.vv, argk) for event in events]
+            g_new = []
+            for event in events:
+                g_new.append(event.impl_hf(t, solver.rr, solver.vv, argk))
+                event.last_t_raw = t
             active_events = _find_active_events(g, g_new, event_dir)
             if active_events.size > 0:
                 _, roots, terminate = _handle_events(

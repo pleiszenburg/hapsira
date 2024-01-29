@@ -1,4 +1,4 @@
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Tuple
 
 import numpy as np
 
@@ -33,7 +33,11 @@ __all__ = [
 
 
 def _solve_event_equation(
-    event: Callable, sol: Callable, t_old: float, t: float, argk: float
+    event: Callable,
+    interpolant: Callable,
+    t_old: float,
+    t: float,
+    argk: float,
 ) -> float:
     """Solve an equation corresponding to an ODE event.
 
@@ -65,7 +69,7 @@ def _solve_event_equation(
         4 * EPS,
         4 * EPS,
         BRENTQ_MAXITER,
-        *sol,
+        *interpolant,
         argk,
     )
     event.last_t_raw = last_t
@@ -74,10 +78,10 @@ def _solve_event_equation(
 
 
 def _handle_events(
-    sol,
+    interpolant,
     events: List[Callable],
     active_events,
-    is_terminal,
+    terminals,
     t_old: float,
     t: float,
     argk: float,
@@ -93,7 +97,7 @@ def _handle_events(
         Event functions with signatures ``event(t, y)``.
     active_events : ndarray
         Indices of events which occurred.
-    is_terminal : ndarray, shape (n_events,)
+    terminals : ndarray, shape (n_events,)
         Which events are terminal.
     t_old, t : float
         Previous and new values of time.
@@ -109,20 +113,20 @@ def _handle_events(
         Whether a terminal event occurred.
     """
     roots = [
-        _solve_event_equation(events[event_index], sol, t_old, t, argk)
+        _solve_event_equation(events[event_index], interpolant, t_old, t, argk)
         for event_index in active_events
     ]
 
     roots = np.asarray(roots)
 
-    if np.any(is_terminal[active_events]):
+    if np.any(terminals[active_events]):
         if t > t_old:
             order = np.argsort(roots)
         else:
             order = np.argsort(-roots)
         active_events = active_events[order]
         roots = roots[order]
-        t = np.nonzero(is_terminal[active_events])[0][0]
+        t = np.nonzero(terminals[active_events])[0][0]
         active_events = active_events[: t + 1]
         roots = roots[: t + 1]
         terminate = True
@@ -132,39 +136,14 @@ def _handle_events(
     return active_events, roots, terminate
 
 
-def _prepare_events(events):
-    """Standardize event functions and extract is_terminal and direction."""
-    if callable(events):
-        events = (events,)
-
-    if events is not None:
-        is_terminal = np.empty(len(events), dtype=bool)
-        direction = np.empty(len(events))
-        for i, event in enumerate(events):
-            try:
-                is_terminal[i] = event.terminal
-            except AttributeError:
-                is_terminal[i] = False
-
-            try:
-                direction[i] = event.direction
-            except AttributeError:
-                direction[i] = 0
-    else:
-        is_terminal = None
-        direction = None
-
-    return events, is_terminal, direction
-
-
-def _find_active_events(g, g_new, direction):
+def _find_active_events(g, g_new, directions):
     """Find which event occurred during an integration step.
 
     Parameters
     ----------
     g, g_new : array_like, shape (n_events,)
         Values of event functions at a current and next points.
-    direction : ndarray, shape (n_events,)
+    directions : ndarray, shape (n_events,)
         Event "direction" according to the definition in `solve_ivp`.
 
     Returns
@@ -176,7 +155,7 @@ def _find_active_events(g, g_new, direction):
     up = (g <= 0) & (g_new >= 0)
     down = (g >= 0) & (g_new <= 0)
     either = up | down
-    mask = up & (direction > 0) | down & (direction < 0) | either & (direction == 0)
+    mask = up & (directions > 0) | down & (directions < 0) | either & (directions == 0)
 
     return np.nonzero(mask)[0]
 
@@ -190,21 +169,20 @@ def solve_ivp(
     argk: float,
     rtol: float,
     atol: float,
-    events: Optional[List[Callable]] = None,
+    events: Tuple[Callable],
 ) -> Tuple[OdeSolution, bool]:
     """
     Solve an initial value problem for a system of ODEs.
     """
 
     solver = dop853_init_hf(fun, t0, rr, vv, tf, argk, rtol, atol)
-
     ts = [t0]
-
     interpolants = []
 
-    events, is_terminal, event_dir = _prepare_events(events)
+    terminals = np.array([event.terminal for event in events])
+    directions = np.array([event.direction for event in events])
 
-    if events is not None:
+    if len(events) > 0:
         g = []
         for event in events:
             g.append(event.impl_hf(t0, rr, vv, argk))
@@ -223,7 +201,7 @@ def solve_ivp(
         t_old = solver[DOP853_T_OLD]
         t = solver[DOP853_T]
 
-        sol = dense_output_hf(
+        interpolant = dense_output_hf(
             solver[DOP853_FUN],
             solver[DOP853_ARGK],
             solver[DOP853_T_OLD],
@@ -237,22 +215,22 @@ def solve_ivp(
             solver[DOP853_FV],
             solver[DOP853_K],
         )
-        interpolants.append(sol)
+        interpolants.append(interpolant)
 
-        if events is not None:
+        if len(events) > 0:
             g_new = []
             for event in events:
                 g_new.append(
                     event.impl_hf(t, solver[DOP853_RR], solver[DOP853_VV], argk)
                 )
                 event.last_t_raw = t
-            active_events = _find_active_events(g, g_new, event_dir)
+            active_events = _find_active_events(g, g_new, directions)
             if active_events.size > 0:
                 _, roots, terminate = _handle_events(
-                    sol,
+                    interpolant,
                     events,
                     active_events,
-                    is_terminal,
+                    terminals,
                     t_old,
                     t,
                     argk,

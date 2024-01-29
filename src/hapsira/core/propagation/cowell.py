@@ -8,7 +8,7 @@ __all__ = [
 ]
 
 
-def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=None, f=func_twobody_hf):
+def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), f=func_twobody_hf):
     """
     Scalar cowell
 
@@ -34,21 +34,20 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=None, f=func_twobody_hf
         argk=k,
         rtol=rtol,
         atol=atol,
-        events=events,
+        events=tuple(events),
     )
     if not success:
         raise RuntimeError("Integration failed")
 
-    if events is not None:
+    if len(events) > 0:
         # Collect only the terminal events
         terminal_events = [event for event in events if event.terminal]
 
         # If there are no terminal events, then the last time of integration is the
         # greatest one from the original array of propagation times
-        if terminal_events:
+        if len(terminal_events) > 0:
             # Filter the event which triggered first
-            last_t = min(event._last_t for event in terminal_events)
-            # FIXME: Here last_t has units, but tofs don't
+            last_t = min(event.last_t_raw for event in terminal_events)
             tofs = [tof for tof in tofs if tof < last_t]
             tofs.append(last_t)
 

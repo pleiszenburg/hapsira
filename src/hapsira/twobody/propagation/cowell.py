@@ -27,7 +27,7 @@ class CowellPropagator:
         PropagatorKind.ELLIPTIC | PropagatorKind.PARABOLIC | PropagatorKind.HYPERBOLIC
     )
 
-    def __init__(self, rtol=1e-11, events=None, f=func_twobody_hf):
+    def __init__(self, rtol=1e-11, events=tuple(), f=func_twobody_hf):
         self._rtol = rtol
         self._events = events
         self._f = f

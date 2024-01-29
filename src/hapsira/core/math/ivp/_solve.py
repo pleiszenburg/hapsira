@@ -4,7 +4,7 @@ import numpy as np
 
 from ._brentq import brentq_dense_hf, BRENTQ_CONVERGED, BRENTQ_MAXITER
 from ._solution import OdeSolution
-from ._rk import DOP853
+from ._rk import DOP853, dense_output_hf
 from ..ieee754 import EPS
 
 
@@ -228,7 +228,20 @@ def solve_ivp(
         t_old = solver.t_old
         t = solver.t
 
-        sol = solver.dense_output()
+        sol = dense_output_hf(
+            solver.fun,
+            solver.argk,
+            solver.t_old,
+            solver.t,
+            solver.h_previous,
+            solver.rr,
+            solver.vv,
+            solver.rr_old,
+            solver.vv_old,
+            solver.fr,
+            solver.fv,
+            solver.K,
+        )
         interpolants.append(sol)
 
         if events is not None:

@@ -23,17 +23,19 @@ from ...math.linalg import (
 
 __all__ = [
     "DOP853",
+    "dense_output_hf",
 ]
+
+
+A_EXTRA = _A[N_STAGES + 1 :]
+C_EXTRA = _C[N_STAGES + 1 :]
+D = _D
 
 
 class DOP853:
     """
     Explicit Runge-Kutta method of order 8.
     """
-
-    A_EXTRA = _A[N_STAGES + 1 :]
-    C_EXTRA = _C[N_STAGES + 1 :]
-    D = _D
 
     def __init__(
         self,
@@ -167,57 +169,61 @@ class DOP853:
 
         self.status = "finished"
 
-    def dense_output(self):
-        """Compute a local interpolant over the last successful step.
 
-        Returns
-        -------
-        sol : `DenseOutput`
-            Local interpolant over the last successful step.
-        """
+# TODO compile
+def dense_output_hf(
+    fun, argk, t_old, t, h_previous, rr, vv, rr_old, vv_old, fr, fv, K_
+):
+    """Compute a local interpolant over the last successful step.
 
-        assert self.t_old is not None
-        assert self.t != self.t_old
+    Returns
+    -------
+    sol : `DenseOutput`
+        Local interpolant over the last successful step.
+    """
 
-        K = np.empty((N_STAGES_EXTENDED, N_RV), dtype=float)
-        K[: N_STAGES + 1, :] = np.array(self.K)
+    assert t_old is not None
+    assert t != t_old
 
-        h = self.h_previous
+    Ke = np.empty((N_STAGES_EXTENDED, N_RV), dtype=float)
+    Ke[: N_STAGES + 1, :] = np.array(K_)
 
-        for s, (a, c) in enumerate(zip(self.A_EXTRA, self.C_EXTRA), start=N_STAGES + 1):
-            dy = np.dot(K[:s].T, a[:s]) * h
-            rr_ = add_VV_hf(self.rr_old, array_to_V_hf(dy[:3]))
-            vv_ = add_VV_hf(self.vv_old, array_to_V_hf(dy[3:]))
-            rr, vv = self.fun(
-                self.t_old + c * h,
-                rr_,
-                vv_,
-                self.argk,
-            )  # TODO call into hf
-            K[s] = np.array([*rr, *vv])
+    h = h_previous
 
-        fr_old = array_to_V_hf(K[0, :3])
-        fv_old = array_to_V_hf(K[0, 3:])
+    for s, (a, c) in enumerate(zip(A_EXTRA, C_EXTRA), start=N_STAGES + 1):
+        dy = np.dot(Ke[:s].T, a[:s]) * h
+        rr_ = add_VV_hf(rr_old, array_to_V_hf(dy[:3]))
+        vv_ = add_VV_hf(vv_old, array_to_V_hf(dy[3:]))
+        rr_, vv_ = fun(
+            t_old + c * h,
+            rr_,
+            vv_,
+            argk,
+        )  # TODO call into hf
+        Ke[s] = np.array([*rr_, *vv_])
 
-        delta_rr = sub_VV_hf(self.rr, self.rr_old)
-        delta_vv = sub_VV_hf(self.vv, self.vv_old)
+    fr_old = array_to_V_hf(Ke[0, :3])
+    fv_old = array_to_V_hf(Ke[0, 3:])
 
-        F00 = *delta_rr, *delta_vv
-        F01 = *sub_VV_hf(mul_Vs_hf(fr_old, h), delta_rr), *sub_VV_hf(
-            mul_Vs_hf(fv_old, h), delta_vv
-        )
-        F02 = *sub_VV_hf(
-            mul_Vs_hf(delta_rr, 2), mul_Vs_hf(add_VV_hf(self.fr, fr_old), h)
-        ), *sub_VV_hf(mul_Vs_hf(delta_vv, 2), mul_Vs_hf(add_VV_hf(self.fv, fv_old), h))
+    delta_rr = sub_VV_hf(rr, rr_old)
+    delta_vv = sub_VV_hf(vv, vv_old)
 
-        F03, F04, F05, F06 = tuple(
-            tuple(float(number) for number in line) for line in (h * np.dot(self.D, K))
-        )  # TODO
+    F00 = *delta_rr, *delta_vv
+    F01 = *sub_VV_hf(mul_Vs_hf(fr_old, h), delta_rr), *sub_VV_hf(
+        mul_Vs_hf(fv_old, h), delta_vv
+    )
+    F02 = *sub_VV_hf(
+        mul_Vs_hf(delta_rr, 2), mul_Vs_hf(add_VV_hf(fr, fr_old), h)
+    ), *sub_VV_hf(mul_Vs_hf(delta_vv, 2), mul_Vs_hf(add_VV_hf(fv, fv_old), h))
 
-        return (
-            self.t_old,
-            self.t - self.t_old,  # h
-            self.rr_old,
-            self.vv_old,
-            (F00, F01, F02, F03, F04, F05, F06),
-        )
+    F03, F04, F05, F06 = tuple(
+        tuple(float(number) for number in line) for line in (h * np.dot(D, Ke))
+    )  # TODO
+
+    return (
+        t_old,
+        t - t_old,  # h
+        rr_old,
+        vv_old,
+        (F00, F01, F02, F03, F04, F05, F06),
+    )

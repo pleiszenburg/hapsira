@@ -6,12 +6,12 @@ from ._const import (
     N_STAGES_EXTENDED,
 )
 from ._dop853_coefficients import A as _A, C as _C, D as _D
-from ...jit import array_to_V_hf
-from ...math.linalg import (
+from ..linalg import (
     add_VV_hf,
     mul_Vs_hf,
     sub_VV_hf,
 )
+from ...jit import array_to_V_hf
 
 __all__ = [
     "dense_output_hf",
@@ -24,9 +24,7 @@ D = _D
 
 
 # TODO compile
-def dense_output_hf(
-    fun, argk, t_old, t, h_previous, rr, vv, rr_old, vv_old, fr, fv, K_
-):
+def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
     """Compute a local interpolant over the last successful step.
 
     Returns
@@ -40,8 +38,6 @@ def dense_output_hf(
 
     Ke = np.empty((N_STAGES_EXTENDED, N_RV), dtype=float)
     Ke[: N_STAGES + 1, :] = np.array(K_)
-
-    h = h_previous
 
     for s, (a, c) in enumerate(zip(A_EXTRA, C_EXTRA), start=N_STAGES + 1):
         dy = np.dot(Ke[:s].T, a[:s]) * h

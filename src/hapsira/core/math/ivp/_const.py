@@ -30,3 +30,9 @@ KSIG = (
     + ",".join(["Tuple([" + ",".join(["f"] * N_RV) + "])"] * (N_STAGES + 1))
     + "])"
 )
+
+FSIG = (
+    "Tuple(["
+    + ",".join(["Tuple([" + ",".join(["f"] * N_RV) + "])"] * INTERPOLATOR_POWER)
+    + "])"
+)

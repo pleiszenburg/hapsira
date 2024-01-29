@@ -1,4 +1,4 @@
-from ._const import N_STAGES
+from ._const import FSIG, KSIG, N_STAGES
 from ._dop853_coefficients import A as _A, C as _C, D as _D
 from ..ieee754 import float_
 from ..linalg import (
@@ -6,8 +6,7 @@ from ..linalg import (
     mul_Vs_hf,
     sub_VV_hf,
 )
-
-# from ...jit import hjit
+from ...jit import hjit, DSIG
 
 __all__ = [
     "dense_output_hf",
@@ -24,7 +23,7 @@ D02 = tuple(float_(number) for number in _D[2, :])
 D03 = tuple(float_(number) for number in _D[3, :])
 
 
-# TODO compile
+@hjit(f"Tuple([f,f,V,V,{FSIG:s}])(F({DSIG:s}),f,f,f,f,V,V,V,V,V,V,{KSIG:s})")
 def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K_):
     """Compute a local interpolant over the last successful step.
 

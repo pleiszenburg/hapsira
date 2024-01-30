@@ -140,7 +140,7 @@ def _handle_events(
 
 
 @hjit("b1(f,f,f)")
-def _is_active_hf(g_old, g_new, direction):
+def _event_is_active_hf(g_old, g_new, direction):
     """Find which event occurred during an integration step.
 
     Parameters
@@ -227,7 +227,7 @@ def solve_ivp(
                 event.last_t_raw = t
 
             actives = [
-                _is_active_hf(g_old, g_new, event.direction)
+                _event_is_active_hf(g_old, g_new, event.direction)
                 for g_old, g_new, event in zip(gs_old, gs_new, events)
             ]
             actives = [idx for idx, active in enumerate(actives) if active]

@@ -54,7 +54,7 @@ __all__ = [
 ]
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def E_to_M_hf(E, ecc):
     r"""Mean anomaly from eccentric anomaly.
 
@@ -99,7 +99,7 @@ def E_to_M_vf(E, ecc):
     return E_to_M_hf(E, ecc)
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def F_to_M_hf(F, ecc):
     r"""Mean anomaly from hyperbolic anomaly.
 
@@ -140,27 +140,27 @@ def F_to_M_vf(F, ecc):
     return F_to_M_hf(F, ecc)
 
 
-@hjit("f(f,f,f)")
+@hjit("f(f,f,f)", inline=True)
 def kepler_equation_hf(E, M, ecc):
     return E_to_M_hf(E, ecc) - M
 
 
-@hjit("f(f,f,f)")
+@hjit("f(f,f,f)", inline=True)
 def kepler_equation_prime_hf(E, M, ecc):
     return 1 - ecc * cos(E)
 
 
-@hjit("f(f,f,f)")
+@hjit("f(f,f,f)", inline=True)
 def kepler_equation_hyper_hf(F, M, ecc):
     return F_to_M_hf(F, ecc) - M
 
 
-@hjit("f(f,f,f)")
+@hjit("f(f,f,f)", inline=True)
 def kepler_equation_prime_hyper_hf(F, M, ecc):
     return ecc * cosh(F) - 1
 
 
-@hjit("f(f,f,f,f,i8)")
+@hjit("f(f,f,f,f,i8)", inline=True)
 def _newton_elliptic_hf(p0, M, ecc, tol, maxiter):
     for _ in range(maxiter):
         fval = kepler_equation_hf(p0, M, ecc)
@@ -173,7 +173,7 @@ def _newton_elliptic_hf(p0, M, ecc, tol, maxiter):
     return nan
 
 
-@hjit("f(f,f,f,f,i8)")
+@hjit("f(f,f,f,f,i8)", inline=True)
 def _newton_hyperbolic_hf(p0, M, ecc, tol, maxiter):
     for _ in range(maxiter):
         fval = kepler_equation_hyper_hf(p0, M, ecc)
@@ -186,7 +186,7 @@ def _newton_hyperbolic_hf(p0, M, ecc, tol, maxiter):
     return nan
 
 
-@hjit("f(f)")
+@hjit("f(f)", inline=True)
 def D_to_nu_hf(D):
     r"""True anomaly from parabolic anomaly.
 
@@ -221,7 +221,7 @@ def D_to_nu_vf(D):
     return D_to_nu_hf(D)
 
 
-@hjit("f(f)")
+@hjit("f(f)", inline=True)
 def nu_to_D_hf(nu):
     r"""Parabolic anomaly from true anomaly.
 
@@ -282,7 +282,7 @@ def nu_to_D_vf(nu):
     return nu_to_D_hf(nu)
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def nu_to_E_hf(nu, ecc):
     r"""Eccentric anomaly from true anomaly.
 
@@ -327,7 +327,7 @@ def nu_to_E_vf(nu, ecc):
     return nu_to_E_hf(nu, ecc)
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def nu_to_F_hf(nu, ecc):
     r"""Hyperbolic anomaly from true anomaly.
 
@@ -372,7 +372,7 @@ def nu_to_F_vf(nu, ecc):
     return nu_to_F_hf(nu, ecc)
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def E_to_nu_hf(E, ecc):
     r"""True anomaly from eccentric anomaly.
 
@@ -417,7 +417,7 @@ def E_to_nu_vf(E, ecc):
     return E_to_nu_hf(E, ecc)
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def F_to_nu_hf(F, ecc):
     r"""True anomaly from hyperbolic anomaly.
 
@@ -455,7 +455,7 @@ def F_to_nu_vf(F, ecc):
     return F_to_nu_hf(F, ecc)
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def M_to_E_hf(M, ecc):
     """Eccentric anomaly from mean anomaly.
 
@@ -495,7 +495,7 @@ def M_to_E_vf(M, ecc):
     return M_to_E_hf(M, ecc)
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def M_to_F_hf(M, ecc):
     """Hyperbolic anomaly from mean anomaly.
 
@@ -530,7 +530,7 @@ def M_to_F_vf(M, ecc):
     return M_to_F_hf(M, ecc)
 
 
-@hjit("f(f)")
+@hjit("f(f)", inline=True)
 def M_to_D_hf(M):
     """Parabolic anomaly from mean anomaly.
 
@@ -564,7 +564,7 @@ def M_to_D_vf(M):
     return M_to_D_hf(M)
 
 
-@hjit("f(f)")
+@hjit("f(f)", inline=True)
 def D_to_M_hf(D):
     r"""Mean anomaly from parabolic anomaly.
 
@@ -606,7 +606,7 @@ def D_to_M_vf(D):
     return D_to_M_hf(D)
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def fp_angle_hf(nu, ecc):
     r"""Returns the flight path angle.
 

@@ -26,22 +26,22 @@ __all__ = [
 ]
 
 
-@hjit("V(V)")
+@hjit("V(V)", inline=True)
 def abs_V_hf(x):
     return abs(x[0]), abs(x[1]), abs(x[2])
 
 
-@hjit("V(V,f)")
+@hjit("V(V,f)", inline=True)
 def add_Vs_hf(a, b):
     return a[0] + b, a[1] + b, a[2] + b
 
 
-@hjit("V(V,V)")
+@hjit("V(V,V)", inline=True)
 def add_VV_hf(a, b):
     return a[0] + b[0], a[1] + b[1], a[2] + b[2]
 
 
-@hjit("V(V,V)")
+@hjit("V(V,V)", inline=True)
 def cross_VV_hf(a, b):
     return (
         a[1] * b[2] - a[2] * b[1],
@@ -50,7 +50,7 @@ def cross_VV_hf(a, b):
     )
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def div_ss_hf(a, b):
     """
     Similar to np.divide
@@ -60,17 +60,17 @@ def div_ss_hf(a, b):
     return a / b
 
 
-@hjit("V(V,V)")
+@hjit("V(V,V)", inline=True)
 def div_VV_hf(x, y):
     return x[0] / y[0], x[1] / y[1], x[2] / y[2]
 
 
-@hjit("V(V,f)")
+@hjit("V(V,f)", inline=True)
 def div_Vs_hf(v, s):
     return v[0] / s, v[1] / s, v[2] / s
 
 
-@hjit("M(M,M)")
+@hjit("M(M,M)", inline=True)
 def matmul_MM_hf(a, b):
     return (
         (
@@ -91,7 +91,7 @@ def matmul_MM_hf(a, b):
     )
 
 
-@hjit("V(V,M)")
+@hjit("V(V,M)", inline=True)
 def matmul_VM_hf(a, b):
     return (
         a[0] * b[0][0] + a[1] * b[1][0] + a[2] * b[2][0],
@@ -100,12 +100,12 @@ def matmul_VM_hf(a, b):
     )
 
 
-@hjit("f(V,V)")
+@hjit("f(V,V)", inline=True)
 def matmul_VV_hf(a, b):
     return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 
 
-@hjit("V(V,V)")
+@hjit("V(V,V)", inline=True)
 def max_VV_hf(x, y):
     return (
         x[0] if x[0] > y[0] else y[0],
@@ -114,12 +114,12 @@ def max_VV_hf(x, y):
     )
 
 
-@hjit("V(V,f)")
+@hjit("V(V,f)", inline=True)
 def mul_Vs_hf(v, s):
     return v[0] * s, v[1] * s, v[2] * s
 
 
-@hjit("V(V,V)")
+@hjit("V(V,V)", inline=True)
 def mul_VV_hf(a, b):
     return a[0] * b[0], a[1] * b[1], a[2] * b[2]
 
@@ -131,7 +131,7 @@ def nextafter_hf(x, direction):
     return x - EPS
 
 
-@hjit("f(V)")
+@hjit("f(V)", inline=True)
 def norm_V_hf(a):
     return sqrt(matmul_VV_hf(a, a))
 
@@ -142,12 +142,12 @@ def norm_V_vf(a, b, c):
     return norm_V_hf((a, b, c))
 
 
-@hjit("f(V,V)")
+@hjit("f(V,V)", inline=True)
 def norm_VV_hf(x, y):
     return sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + y[0] ** 2 + y[1] ** 2 + y[2] ** 2)
 
 
-@hjit("f(f)")
+@hjit("f(f)", inline=True)
 def sign_hf(x):
     if x < 0.0:
         return -1.0
@@ -156,12 +156,12 @@ def sign_hf(x):
     return 1.0  # if x > 0
 
 
-@hjit("V(V,V)")
+@hjit("V(V,V)", inline=True)
 def sub_VV_hf(va, vb):
     return va[0] - vb[0], va[1] - vb[1], va[2] - vb[2]
 
 
-@hjit("M(M)")
+@hjit("M(M)", inline=True)
 def transpose_M_hf(a):
     return (
         (a[0][0], a[1][0], a[2][0]),

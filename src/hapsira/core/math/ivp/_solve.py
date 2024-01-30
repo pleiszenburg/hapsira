@@ -136,7 +136,7 @@ def _handle_events(
     else:
         terminate = False
 
-    return roots, terminate
+    return roots[-1], terminate
 
 
 @hjit("b1(f,f,f)")
@@ -233,7 +233,7 @@ def solve_ivp(
             actives = [idx for idx, active in enumerate(actives) if active]
 
             if len(actives) > 0:
-                roots, terminate = _handle_events(
+                root, terminate = _handle_events(
                     interpolant,
                     events,
                     actives,
@@ -244,7 +244,7 @@ def solve_ivp(
                 )
                 if terminate:
                     status = 1
-                    t = roots[-1]
+                    t = root
             gs_old = gs_new
 
         ts.append(t)

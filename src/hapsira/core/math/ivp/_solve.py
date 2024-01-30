@@ -25,6 +25,7 @@ from ._rkcore import (
 from ._rkdenseoutput import dense_output_hf
 from ._solution import OdeSolution
 from ..ieee754 import EPS
+from ...jit import hjit
 
 
 __all__ = [
@@ -112,6 +113,9 @@ def _handle_events(
     terminate : bool
         Whether a terminal event occurred.
     """
+
+    active_events = np.array(active_events)
+
     roots = [
         _solve_event_equation(events[event_index], interpolant, t_old, t, argk)
         for event_index in active_events
@@ -135,7 +139,8 @@ def _handle_events(
     return roots, terminate
 
 
-def _find_active_events(g, g_new, directions):
+@hjit("b1(f,f,f)")
+def _is_active_hf(g_old, g_new, direction):
     """Find which event occurred during an integration step.
 
     Parameters
@@ -150,13 +155,11 @@ def _find_active_events(g, g_new, directions):
     active_events : ndarray
         Indices of events which occurred during the step.
     """
-    g, g_new = np.asarray(g), np.asarray(g_new)
-    up = (g <= 0) & (g_new >= 0)
-    down = (g >= 0) & (g_new <= 0)
+    up = (g_old <= 0) & (g_new >= 0)
+    down = (g_old >= 0) & (g_new <= 0)
     either = up | down
-    mask = up & (directions > 0) | down & (directions < 0) | either & (directions == 0)
-
-    return np.nonzero(mask)[0]
+    active = up & (direction > 0) | down & (direction < 0) | either & (direction == 0)
+    return active
 
 
 def solve_ivp(
@@ -179,12 +182,11 @@ def solve_ivp(
     interpolants = []
 
     terminals = np.array([event.terminal for event in events])
-    directions = np.array([event.direction for event in events])
 
     if len(events) > 0:
-        g = []
+        gs_old = []
         for event in events:
-            g.append(event.impl_hf(t0, rr, vv, argk))
+            gs_old.append(event.impl_hf(t0, rr, vv, argk))
             event.last_t_raw = t0
 
     status = None
@@ -217,18 +219,24 @@ def solve_ivp(
         interpolants.append(interpolant)
 
         if len(events) > 0:
-            g_new = []
+            gs_new = []
             for event in events:
-                g_new.append(
+                gs_new.append(
                     event.impl_hf(t, solver[DOP853_RR], solver[DOP853_VV], argk)
                 )
                 event.last_t_raw = t
-            active_events = _find_active_events(g, g_new, directions)
-            if active_events.size > 0:
+
+            actives = [
+                _is_active_hf(g_old, g_new, event.direction)
+                for g_old, g_new, event in zip(gs_old, gs_new, events)
+            ]
+            actives = [idx for idx, active in enumerate(actives) if active]
+
+            if len(actives) > 0:
                 roots, terminate = _handle_events(
                     interpolant,
                     events,
-                    active_events,
+                    actives,
                     terminals,
                     t_old,
                     t,
@@ -237,7 +245,7 @@ def solve_ivp(
                 if terminate:
                     status = 1
                     t = roots[-1]
-            g = g_new
+            gs_old = gs_new
 
         ts.append(t)
 

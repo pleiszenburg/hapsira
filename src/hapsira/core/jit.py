@@ -97,6 +97,11 @@ def hjit(*args, **kwargs) -> Callable:
     if len(args) > 0 and isinstance(args[0], str):
         args = _parse_signatures(args[0]), *args[1:]
 
+    try:
+        inline = kwargs.pop("inline")
+    except KeyError:
+        inline = settings["INLINE"].value
+
     def wrapper(inner_func: Callable) -> Callable:
         """
         Applies JIT
@@ -106,14 +111,14 @@ def hjit(*args, **kwargs) -> Callable:
             wjit = cuda.jit
             cfg = dict(
                 device=True,
-                inline=settings["INLINE"].value,
+                inline=inline,
                 cache=settings["CACHE"].value,
             )
         else:
             wjit = nb.jit
             cfg = dict(
                 nopython=settings["NOPYTHON"].value,
-                inline="always" if settings["INLINE"].value else "never",
+                inline="always" if inline else "never",
                 cache=settings["CACHE"].value,
             )
         cfg.update(kwargs)

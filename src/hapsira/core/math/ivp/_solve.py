@@ -247,6 +247,11 @@ def solve_ivp(
                     t = root
             gs_old = gs_new
 
+        try:
+            assert ts[-1] <= t
+        except AssertionError:
+            assert ts[-1] == 0
+
         ts.append(t)
 
     return OdeSolution(np.array(ts), interpolants), status >= 0

@@ -216,7 +216,6 @@ def solve_ivp(
             solver[DOP853_FV],
             solver[DOP853_K],
         )
-        interpolants.append(interpolant)
 
         if len(events) > 0:
             gs_new = []
@@ -248,10 +247,11 @@ def solve_ivp(
             gs_old = gs_new
 
         try:
-            assert ts[-1] <= t
+            assert ts[-1] < t
         except AssertionError:
             assert ts[-1] == 0
 
+        interpolants.append(interpolant)
         ts.append(t)
 
     return OdeSolution(np.array(ts), interpolants), status >= 0

@@ -246,11 +246,7 @@ def solve_ivp(
                     t = root
             gs_old = gs_new
 
-        try:
-            assert ts[-1] < t
-        except AssertionError:
-            assert ts[-1] == 0
-
+        assert ts[-1] <= t
         interpolants.append(interpolant)
         ts.append(t)
 

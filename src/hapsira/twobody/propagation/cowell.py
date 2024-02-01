@@ -63,7 +63,7 @@ class CowellPropagator:
         )
 
         # TODO: This should probably return a RVStateArray instead,
-        # see discussion at https://github.com/hapsira/hapsira/pull/1492
+        # see discussion at https://github.com/poliastro/poliastro/pull/1492
         return (
             rrs << u.km,
             vvs << (u.km / u.s),

@@ -20,6 +20,8 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), f=func_twobody
     atol : float
     events : Optional[List[Event]]
     f : Callable
+
+    Can be reversed: https://github.com/poliastro/poliastro/issues/1630
     """
 
     assert hasattr(f, "djit")  # DEBUG check for compiler flag

@@ -123,13 +123,16 @@ def _handle_events(
 
     roots = np.asarray(roots)
 
-    if np.any(terminals[active_events]):
+    if np.any(terminals[active_events]):  # is at least one terminal event active?
         if t > t_old:
-            order = np.argsort(roots)
+            order = np.argsort(roots)  # sort index mask based on roots
         else:
+            raise ValueError("not t > t_old", t, t_old)
             order = np.argsort(-roots)
-        active_events = active_events[order]
-        roots = roots[order]
+
+        active_events = active_events[order]  # sort active_events
+        roots = roots[order]  # sort roots
+
         t = np.nonzero(terminals[active_events])[0][0]
         roots = roots[: t + 1]
         terminate = True
@@ -246,7 +249,8 @@ def solve_ivp(
                     t = root
             gs_old = gs_new
 
-        assert ts[-1] <= t
+        if not ts[-1] <= t:
+            raise ValueError("not ts[-1] <= t", ts[-1], t)
         interpolants.append(interpolant)
         ts.append(t)
 

@@ -22,8 +22,8 @@ from ._rkcore import (
     DOP853_VV,
     DOP853_VV_OLD,
 )
+from ._rkdenseinterp import dense_interp_hf
 from ._rkdenseoutput import dense_output_hf
-from ._solution import OdeSolution
 from ..ieee754 import EPS
 from ...jit import hjit
 
@@ -175,7 +175,7 @@ def solve_ivp(
     rtol: float,
     atol: float,
     events: Tuple[Callable],
-) -> Tuple[OdeSolution, bool]:
+) -> Tuple[Callable, bool]:
     """
     Solve an initial value problem for a system of ODEs.
     """
@@ -254,4 +254,22 @@ def solve_ivp(
         interpolants.append(interpolant)
         ts.append(t)
 
-    return OdeSolution(np.array(ts), interpolants), status >= 0
+    assert len(ts) >= 2
+    assert len(ts) == len(interpolants) + 1
+    assert (
+        (len(ts) == 2 and ts[0] == ts[1])
+        or all(a - b > 0 for a, b in zip(ts[:-1], ts[1:]))
+        or all(b - a > 0 for a, b in zip(ts[:-1], ts[1:]))
+    )
+
+    def ode_solution(
+        t: float,
+    ) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]:
+        """
+        Evaluate the solution
+        """
+        idx = np.searchsorted(ts, t, side="left")
+        segment = min(max(idx - 1, 0), len(interpolants) - 1)
+        return dense_interp_hf(t, *interpolants[segment])
+
+    return ode_solution, status >= 0

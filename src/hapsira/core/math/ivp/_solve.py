@@ -184,6 +184,20 @@ def solve_ivp(
     ts = [t0]
     interpolants = []
 
+    _ = """
+    Event:
+        - impl_hf (callable) -> compiled tuple
+        - impl_dense_hf (callable) -> compiled tuple
+        - terminal (const) -> input array
+        - direction (const) -> input array
+        - is_active
+        - g_old
+        - g_new
+        - last_t -> output array
+    N events -> compiled const int?
+    for-loop???
+    """
+
     terminals = np.array([event.terminal for event in events])
 
     if len(events) > 0:

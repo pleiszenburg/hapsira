@@ -6,7 +6,7 @@ from astropy import units as u
 from astropy.coordinates import get_body_barycentric_posvel
 
 from hapsira.core.jit import hjit
-from hapsira.core.math.ivp import dense_interp_brentq_hb
+from hapsira.core.math.ivp import dop853_dense_interp_brentq_hb
 from hapsira.core.math.linalg import mul_Vs_hf, norm_V_hf
 from hapsira.core.events import (
     eclipse_function_hf,
@@ -78,7 +78,7 @@ class BaseEvent(ABC):
         return self._impl_dense_hf
 
     def _wrap(self):
-        self._impl_dense_hf = dense_interp_brentq_hb(self._impl_hf)
+        self._impl_dense_hf = dop853_dense_interp_brentq_hb(self._impl_hf)
 
 
 class AltitudeCrossEvent(BaseEvent):

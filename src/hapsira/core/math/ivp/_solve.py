@@ -22,8 +22,8 @@ from ._rkcore import (
     DOP853_VV,
     DOP853_VV_OLD,
 )
-from ._rkdenseinterp import dense_interp_hf
-from ._rkdenseoutput import dense_output_hf
+from ._rkdenseinterp import dop853_dense_interp_hf
+from ._rkdenseoutput import dop853_dense_output_hf
 from ..ieee754 import EPS
 from ...jit import hjit
 
@@ -205,7 +205,7 @@ def solve_ivp(
         t_old = solver[DOP853_T_OLD]
         t = solver[DOP853_T]
 
-        interpolant = dense_output_hf(
+        interpolant = dop853_dense_output_hf(
             solver[DOP853_FUN],
             solver[DOP853_ARGK],
             solver[DOP853_T_OLD],
@@ -270,6 +270,6 @@ def solve_ivp(
         """
         idx = np.searchsorted(ts, t, side="left")
         segment = min(max(idx - 1, 0), len(interpolants) - 1)
-        return dense_interp_hf(t, *interpolants[segment])
+        return dop853_dense_interp_hf(t, *interpolants[segment])
 
     return ode_solution, status >= 0

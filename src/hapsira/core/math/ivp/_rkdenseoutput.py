@@ -9,7 +9,7 @@ from ..linalg import (
 from ...jit import hjit, DSIG
 
 __all__ = [
-    "dense_output_hf",
+    "dop853_dense_output_hf",
 ]
 
 
@@ -24,7 +24,7 @@ D03 = tuple(float_(number) for number in _D[3, :])
 
 
 @hjit(f"Tuple([f,f,V,V,{FSIG:s}])(F({DSIG:s}),f,f,f,f,V,V,V,V,V,V,{KSIG:s})")
-def dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K):
+def dop853_dense_output_hf(fun, argk, t_old, t, h, rr, vv, rr_old, vv_old, fr, fv, K):
     """Compute a local interpolant over the last successful step.
 
     Returns

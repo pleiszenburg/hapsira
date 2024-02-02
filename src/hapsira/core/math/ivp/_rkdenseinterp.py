@@ -4,8 +4,8 @@ from ...jit import hjit
 
 
 __all__ = [
-    "dense_interp_brentq_hb",
-    "dense_interp_hf",
+    "dop853_dense_interp_brentq_hb",
+    "dop853_dense_interp_hf",
     "DENSE_SIG",
 ]
 
@@ -14,7 +14,7 @@ DENSE_SIG = f"f,f,V,V,{FSIG:s}"
 
 
 @hjit(f"Tuple([V,V])(f,{DENSE_SIG:s})")
-def dense_interp_hf(t, t_old, h, rr_old, vv_old, F):
+def dop853_dense_interp_hf(t, t_old, h, rr_old, vv_old, F):
     """
     Local interpolant over step made by an ODE solver.
     Evaluate the interpolant.
@@ -74,10 +74,10 @@ def dense_interp_hf(t, t_old, h, rr_old, vv_old, F):
     return rr_new, vv_new
 
 
-def dense_interp_brentq_hb(func):
+def dop853_dense_interp_brentq_hb(func):
     @hjit(f"f(f,{DENSE_SIG:s},f)", cache=False)
     def event_wrapper(t, t_old, h, rr_old, vv_old, F, argk):
-        rr, vv = dense_interp_hf(t, t_old, h, rr_old, vv_old, F)
+        rr, vv = dop853_dense_interp_hf(t, t_old, h, rr_old, vv_old, F)
         return func(t, rr, vv, argk)
 
     return event_wrapper

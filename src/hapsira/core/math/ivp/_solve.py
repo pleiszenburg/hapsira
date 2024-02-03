@@ -1,3 +1,4 @@
+from math import nan, isnan
 from typing import Callable, List, Tuple
 
 import numpy as np
@@ -80,9 +81,10 @@ def _solve_event_equation(
 
 def _handle_events(
     interpolant,
-    events: List[Callable],
-    active_events,
-    terminals,
+    event_impl_dense_hfs: List[Callable],
+    event_last_ts: np.ndarray,
+    event_actives: np.ndarray,
+    event_terminals: np.ndarray,
     t_old: float,
     t: float,
     argk: float,
@@ -114,32 +116,49 @@ def _handle_events(
         Whether a terminal event occurred.
     """
 
-    active_events = np.array(active_events)
+    assert np.any(event_actives)  # nothing active
 
-    roots = [
-        _solve_event_equation(events[event_index], interpolant, t_old, t, argk)
-        for event_index in active_events
-    ]
+    EVENTS = len(event_impl_dense_hfs)  # TODO compile as const
 
-    roots = np.asarray(roots)
+    pivot = nan  # set initial value
+    terminate = False
 
-    if np.any(terminals[active_events]):  # is at least one terminal event active?
-        if t > t_old:
-            order = np.argsort(roots)  # sort index mask based on roots
-        else:
-            raise ValueError("not t > t_old", t, t_old)
-            order = np.argsort(-roots)
+    for idx in range(EVENTS):
+        if not event_actives[idx]:
+            continue
 
-        active_events = active_events[order]  # sort active_events
-        roots = roots[order]  # sort roots
+        event_last_ts[idx], root, status = brentq_dense_hf(
+            event_impl_dense_hfs[idx],
+            t_old,
+            t,
+            4 * EPS,
+            4 * EPS,
+            BRENTQ_MAXITER,
+            *interpolant,
+            argk,
+        )
+        assert status == BRENTQ_CONVERGED
 
-        t = np.nonzero(terminals[active_events])[0][0]
-        roots = roots[: t + 1]
-        terminate = True
-    else:
-        terminate = False
+        if event_terminals[idx]:
+            terminate = True
 
-    return roots[-1], terminate
+        if isnan(pivot):
+            pivot = root
+            continue
+
+        if t > t_old:  # smallest root of all active events
+            if root < pivot:
+                pivot = root
+            continue
+
+        # largest root of all active events
+        if root > pivot:
+            pivot = root
+        raise ValueError("not t > t_old", t, t_old)  # TODO remove
+
+    assert not isnan(pivot)
+
+    return pivot if terminate else nan, terminate
 
 
 @hjit("b1(f,f,f)")
@@ -174,11 +193,20 @@ def solve_ivp(
     argk: float,
     rtol: float,
     atol: float,
-    events: Tuple[Callable],
+    event_impl_hfs: Tuple[Callable, ...],
+    event_impl_dense_hfs: Tuple[Callable, ...],
+    event_terminals: np.ndarray,
+    event_directions: np.ndarray,
+    event_actives: np.ndarray,
+    event_g_olds: np.ndarray,
+    event_g_news: np.ndarray,
+    event_last_ts: np.ndarray,
 ) -> Tuple[Callable, bool]:
     """
     Solve an initial value problem for a system of ODEs.
     """
+
+    EVENTS = len(event_impl_hfs)  # TODO compile as const
 
     solver = dop853_init_hf(fun, t0, rr, vv, tf, argk, rtol, atol)
     ts = [t0]
@@ -198,13 +226,9 @@ def solve_ivp(
     for-loop???
     """
 
-    terminals = np.array([event.terminal for event in events])
-
-    if len(events) > 0:
-        gs_old = []
-        for event in events:
-            gs_old.append(event.impl_hf(t0, rr, vv, argk))
-            event.last_t_raw = t0
+    for idx in range(EVENTS):
+        event_g_olds[idx] = event_impl_hfs[idx](t0, rr, vv, argk)
+        event_last_ts[idx] = t0
 
     status = None
     while status is None:
@@ -234,34 +258,37 @@ def solve_ivp(
             solver[DOP853_K],
         )
 
-        if len(events) > 0:
-            gs_new = []
-            for event in events:
-                gs_new.append(
-                    event.impl_hf(t, solver[DOP853_RR], solver[DOP853_VV], argk)
-                )
-                event.last_t_raw = t
+        at_least_one_active = False
+        for idx in range(EVENTS):
+            event_g_news[idx] = event_impl_hfs[idx](
+                t, solver[DOP853_RR], solver[DOP853_VV], argk
+            )
+            event_last_ts[idx] = t
+            event_actives[idx] = _event_is_active_hf(
+                event_g_olds[idx],
+                event_g_news[idx],
+                event_directions[idx],
+            )
+            if event_actives[idx]:
+                at_least_one_active = True
 
-            actives = [
-                _event_is_active_hf(g_old, g_new, event.direction)
-                for g_old, g_new, event in zip(gs_old, gs_new, events)
-            ]
-            actives = [idx for idx, active in enumerate(actives) if active]
+        if at_least_one_active:
+            root, terminate = _handle_events(
+                interpolant,
+                event_impl_dense_hfs,  # TODO
+                event_last_ts,
+                event_actives,  # TODO
+                event_terminals,  # TODO
+                t_old,
+                t,
+                argk,
+            )
+            if terminate:
+                status = 1
+                t = root
 
-            if len(actives) > 0:
-                root, terminate = _handle_events(
-                    interpolant,
-                    events,
-                    actives,
-                    terminals,
-                    t_old,
-                    t,
-                    argk,
-                )
-                if terminate:
-                    status = 1
-                    t = root
-            gs_old = gs_new
+        for idx in range(EVENTS):
+            event_g_olds[idx] = event_g_news[idx]
 
         if not ts[-1] <= t:
             raise ValueError("not ts[-1] <= t", ts[-1], t)

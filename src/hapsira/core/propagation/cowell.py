@@ -1,3 +1,5 @@
+import numpy as np
+
 from ..jit import array_to_V_hf
 from ..math.ivp import solve_ivp
 from ..propagation.base import func_twobody_hf
@@ -29,6 +31,33 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), f=func_twobody
     assert all(tof >= 0 for tof in tofs)
     assert sorted(tofs) == list(tofs)
 
+    EVENTS = len(events)  # TODO compile as const
+
+    event_impl_hfs = tuple(
+        event.impl_hf for event in events
+    )  # TODO compile into kernel
+    event_impl_dense_hfs = tuple(
+        event.impl_dense_hf for event in events
+    )  # TODO compile into kernel
+    event_terminals = np.array(
+        [event.terminal for event in events], dtype=bool
+    )  # gufunc param static
+    event_directions = np.array(
+        [event.direction for event in events], dtype=float
+    )  # gufunc param static
+    event_actives = np.full(
+        (EVENTS,), fill_value=np.nan, dtype=bool
+    )  # gufunc param TODO reset to nan
+    event_g_olds = np.full(
+        (EVENTS,), fill_value=np.nan, dtype=float
+    )  # gufunc param TODO reset to nan
+    event_g_news = np.full(
+        (EVENTS,), fill_value=np.nan, dtype=float
+    )  # gufunc param TODO reset to nan
+    event_last_ts = np.full(
+        (EVENTS,), fill_value=np.nan, dtype=float
+    )  # gufunc param TODO reset to nan
+
     sol, success = solve_ivp(
         f,
         0.0,
@@ -38,10 +67,20 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), f=func_twobody
         argk=k,
         rtol=rtol,
         atol=atol,
-        events=tuple(events),
+        event_impl_hfs=event_impl_hfs,
+        event_impl_dense_hfs=event_impl_dense_hfs,
+        event_terminals=event_terminals,
+        event_directions=event_directions,
+        event_actives=event_actives,
+        event_g_olds=event_g_olds,
+        event_g_news=event_g_news,
+        event_last_ts=event_last_ts,
     )
     if not success:
         raise RuntimeError("Integration failed")
+
+    for idx in range(EVENTS):
+        events[idx].last_t_raw = event_last_ts[idx]
 
     if len(events) > 0:
         # Collect only the terminal events

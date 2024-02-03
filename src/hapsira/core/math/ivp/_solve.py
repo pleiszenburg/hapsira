@@ -34,51 +34,6 @@ __all__ = [
 ]
 
 
-def _solve_event_equation(
-    event: Callable,
-    interpolant: Callable,
-    t_old: float,
-    t: float,
-    argk: float,
-) -> float:
-    """Solve an equation corresponding to an ODE event.
-
-    The equation is ``event(t, y(t)) = 0``, here ``y(t)`` is known from an
-    ODE solver using some sort of interpolation. It is solved by
-    `scipy.optimize.brentq` with xtol=atol=4*EPS.
-
-    Parameters
-    ----------
-    event : callable
-        Function ``event(t, y)``.
-    sol : callable
-        Function ``sol(t)`` which evaluates an ODE solution between `t_old`
-        and  `t`.
-    t_old, t : float
-        Previous and new values of time. They will be used as a bracketing
-        interval.
-
-    Returns
-    -------
-    root : float
-        Found solution.
-    """
-
-    last_t, value, status = brentq_dense_hf(
-        event.impl_dense_hf,
-        t_old,
-        t,
-        4 * EPS,
-        4 * EPS,
-        BRENTQ_MAXITER,
-        *interpolant,
-        argk,
-    )
-    event.last_t_raw = last_t
-    assert BRENTQ_CONVERGED == status
-    return value
-
-
 def _handle_events(
     interpolant,
     event_impl_dense_hfs: List[Callable],

@@ -35,6 +35,9 @@ __all__ = [
 ]
 
 
+SOLVE_TERMINATED = 1
+
+
 TEMPLATE = """
 @hjit("{RESTYPE:s}(i8,{ARGTYPES:s})", cache = False)
 def dispatcher_hf(idx, {ARGUMENTS:s}):
@@ -106,10 +109,11 @@ def _event_is_active_hf(g_old, g_new, direction):
 
 def solve_ivp(
     fun: Callable,
-    t0: float,
-    tf: float,
+    tofs: np.ndarray,
     rr: Tuple[float, float, float],
     vv: Tuple[float, float, float],
+    rrs: np.ndarray,
+    vvs: np.ndarray,
     argk: float,
     rtol: float,
     atol: float,
@@ -127,6 +131,7 @@ def solve_ivp(
     """
 
     EVENTS = len(event_impl_hfs)  # TODO compile as const
+    T0 = 0.0
 
     event_impl_hf = dispatcher_hb(
         funcs=event_impl_hfs,
@@ -141,27 +146,14 @@ def solve_ivp(
         arguments="t, t_old, h, rr_old, vv_old, F, argk",
     )
 
-    solver = dop853_init_hf(fun, t0, rr, vv, tf, argk, rtol, atol)
-    ts = [t0]
-    interpolants = []
+    solver = dop853_init_hf(fun, T0, rr, vv, tofs[-1], argk, rtol, atol)
 
-    _ = """
-    Event:
-        - impl_hf (callable) -> compiled tuple
-        - impl_dense_hf (callable) -> compiled tuple
-        - terminal (const) -> input array
-        - direction (const) -> input array
-        - is_active
-        - g_old
-        - g_new
-        - last_t -> output array
-    N events -> compiled const int?
-    for-loop???
-    """
+    t_idx = 0
+    t_last = T0
 
-    for idx in range(EVENTS):
-        event_g_olds[idx] = event_impl_hf(idx, t0, rr, vv, argk)
-        event_last_ts[idx] = t0
+    for event_idx in range(EVENTS):
+        event_g_olds[event_idx] = event_impl_hf(event_idx, T0, rr, vv, argk)
+        event_last_ts[event_idx] = T0
 
     status = None
     while status is None:
@@ -192,30 +184,35 @@ def solve_ivp(
         )
 
         at_least_one_active = False
-        for idx in range(EVENTS):
-            event_g_news[idx] = event_impl_hfs[idx](
+        for event_idx in range(EVENTS):
+            event_g_news[event_idx] = event_impl_hfs[event_idx](
                 t, solver[DOP853_RR], solver[DOP853_VV], argk
             )
-            event_last_ts[idx] = t
-            event_actives[idx] = _event_is_active_hf(
-                event_g_olds[idx],
-                event_g_news[idx],
-                event_directions[idx],
+            event_last_ts[event_idx] = t
+            event_actives[event_idx] = _event_is_active_hf(
+                event_g_olds[event_idx],
+                event_g_news[event_idx],
+                event_directions[event_idx],
             )
-            if event_actives[idx]:
+            if event_actives[event_idx]:
                 at_least_one_active = True
 
         if at_least_one_active:
             root_pivot = nan  # set initial value
             terminate = False
 
-            for idx in range(EVENTS):
-                if not event_actives[idx]:
+            for event_idx in range(EVENTS):
+                if not event_actives[event_idx]:
                     continue
 
-                event_last_ts[idx], root, status = brentq_dense_hf(
+                if not event_terminals[event_idx]:
+                    continue
+
+                terminate = True
+
+                event_last_ts[event_idx], root, status = brentq_dense_hf(
                     event_impl_dense_hf,
-                    idx,
+                    event_idx,
                     t_old,
                     t,
                     4 * EPS,
@@ -225,9 +222,6 @@ def solve_ivp(
                     argk,
                 )
                 assert status == BRENTQ_CONVERGED
-
-                if event_terminals[idx]:
-                    terminate = True
 
                 if isnan(root_pivot):
                     root_pivot = root
@@ -243,36 +237,30 @@ def solve_ivp(
                     root_pivot = root
                 raise ValueError("not t > t_old", t, t_old)  # TODO remove
 
-            assert not isnan(root_pivot)
-
             if terminate:
-                status = 1
+                assert not isnan(root_pivot)
+                status = SOLVE_TERMINATED
                 t = root_pivot
 
-        for idx in range(EVENTS):
-            event_g_olds[idx] = event_g_news[idx]
+        for event_idx in range(EVENTS):
+            event_g_olds[event_idx] = event_g_news[event_idx]
 
-        if not ts[-1] <= t:
-            raise ValueError("not ts[-1] <= t", ts[-1], t)
-        interpolants.append(interpolant)
-        ts.append(t)
+        if not t_last <= t:
+            raise ValueError("not t_last <= t", t_last, t)
 
-    assert len(ts) >= 2
-    assert len(ts) == len(interpolants) + 1
-    assert (
-        (len(ts) == 2 and ts[0] == ts[1])
-        or all(a - b > 0 for a, b in zip(ts[:-1], ts[1:]))
-        or all(b - a > 0 for a, b in zip(ts[:-1], ts[1:]))
-    )
+        while t_idx < tofs.shape[0] and tofs[t_idx] < t:
+            rrs[t_idx, :], vvs[t_idx, :] = dop853_dense_interp_hf(
+                tofs[t_idx], *interpolant
+            )
+            t_idx += 1
+        if status == SOLVE_TERMINATED or tofs[t_idx] == t:
+            rrs[t_idx, :], vvs[t_idx, :] = dop853_dense_interp_hf(t, *interpolant)
+            t_idx += 1
 
-    def ode_solution(
-        t: float,
-    ) -> Tuple[Tuple[float, float, float], Tuple[float, float, float]]:
-        """
-        Evaluate the solution
-        """
-        idx = np.searchsorted(ts, t, side="left")
-        segment = min(max(idx - 1, 0), len(interpolants) - 1)
-        return dop853_dense_interp_hf(t, *interpolants[segment])
+        t_last = t
 
-    return ode_solution, status >= 0
+    # while t_idx < tofs.shape[0] and status != SOLVE_TERMINATED:  # fill up if not terminated
+    #     rrs[t_idx, :], vvs[t_idx, :] = dop853_dense_interp_hf(tofs[t_idx], *interpolant)
+    #     t_idx += 1
+
+    return t_idx, status >= 0

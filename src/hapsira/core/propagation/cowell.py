@@ -33,6 +33,9 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), f=func_twobody
 
     EVENTS = len(events)  # TODO compile as const
 
+    rrs = np.full((len(tofs), 3), fill_value=np.nan, dtype=float)
+    vvs = np.full((len(tofs), 3), fill_value=np.nan, dtype=float)
+
     event_impl_hfs = tuple(
         event.impl_hf for event in events
     )  # TODO compile into kernel
@@ -58,12 +61,13 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), f=func_twobody
         (EVENTS,), fill_value=np.nan, dtype=float
     )  # gufunc param TODO reset to nan
 
-    sol, success = solve_ivp(
-        f,
-        0.0,
-        float(max(tofs)),
-        array_to_V_hf(r),
-        array_to_V_hf(v),
+    length, success = solve_ivp(
+        fun=f,
+        tofs=tofs,
+        rr=array_to_V_hf(r),
+        vv=array_to_V_hf(v),
+        rrs=rrs,
+        vvs=vvs,
         argk=k,
         rtol=rtol,
         atol=atol,
@@ -82,23 +86,4 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), f=func_twobody
     for idx in range(EVENTS):
         events[idx].last_t_raw = event_last_ts[idx]
 
-    if len(events) > 0:
-        # Collect only the terminal events
-        terminal_events = [event for event in events if event.terminal]
-
-        # If there are no terminal events, then the last time of integration is the
-        # greatest one from the original array of propagation times
-        if len(terminal_events) > 0:
-            # Filter the event which triggered first
-            last_t = min(event.last_t_raw for event in terminal_events)
-            tofs = [tof for tof in tofs if tof < last_t]
-            tofs.append(last_t)
-
-    rrs = []
-    vvs = []
-    for t in tofs:
-        r_new, v_new = sol(t)
-        rrs.append(r_new)
-        vvs.append(v_new)
-
-    return rrs, vvs
+    return rrs[:length, :], vvs[:length, :]

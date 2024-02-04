@@ -259,8 +259,4 @@ def solve_ivp(
 
         t_last = t
 
-    # while t_idx < tofs.shape[0] and status != SOLVE_TERMINATED:  # fill up if not terminated
-    #     rrs[t_idx, :], vvs[t_idx, :] = dop853_dense_interp_hf(tofs[t_idx], *interpolant)
-    #     t_idx += 1
-
     return t_idx, status >= 0

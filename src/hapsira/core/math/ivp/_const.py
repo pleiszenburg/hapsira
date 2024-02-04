@@ -36,3 +36,5 @@ FSIG = (
     + ",".join(["Tuple([" + ",".join(["f"] * N_RV) + "])"] * INTERPOLATOR_POWER)
     + "])"
 )
+
+DENSE_SIG = f"f,f,V,V,{FSIG:s}"

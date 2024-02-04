@@ -1,8 +1,9 @@
 from math import nan, isnan
-from typing import Callable, List, Tuple
+from typing import Callable, Tuple
 
 import numpy as np
 
+from ._const import DENSE_SIG
 from ._brentq import brentq_dense_hf, BRENTQ_CONVERGED, BRENTQ_MAXITER
 from ._rkcore import (
     dop853_init_hf,
@@ -34,9 +35,55 @@ __all__ = [
 ]
 
 
+TEMPLATE = """
+@hjit("{RESTYPE:s}(i8,{ARGTYPES:s})", cache = False)
+def dispatcher_hf(idx, {ARGUMENTS:s}):
+{DISPATCHER:s}
+    return {ERROR:s}
+"""
+
+
+def dispatcher_hb(
+    funcs: Tuple[Callable, ...],
+    argtypes: str,
+    restype: str,
+    arguments: str,
+    error: str = "nan",
+):
+    """
+    Workaround for https://github.com/numba/numba/issues/9420
+    """
+    funcs = [
+        (f"func_{id(func):x}", func) for func in funcs
+    ]  # names are not unique, ids are
+    globals_, locals_ = globals(), locals()  # HACK https://stackoverflow.com/a/71560563
+    globals_.update({name: handle for name, handle in funcs})
+
+    def switch(idx):
+        return "if" if idx == 0 else "elif"
+
+    code = TEMPLATE.format(
+        DISPATCHER="\n".join(
+            [
+                f"    {switch(idx):s} idx == {idx:d}:\n        return {name:s}({arguments:s})"
+                for idx, (name, _) in enumerate(funcs)
+            ]
+        ),  # TODO tree-like dispatch, faster
+        ARGTYPES=argtypes,
+        RESTYPE=restype,
+        ARGUMENTS=arguments,
+        ERROR=error,
+    )
+    exec(code, globals_, locals_)  # pylint: disable=W0122
+    globals_["dispatcher_hf"] = locals_[
+        "dispatcher_hf"
+    ]  # HACK https://stackoverflow.com/a/71560563
+    return dispatcher_hf  # pylint: disable=E0602  # noqa: F821
+
+
 def _handle_events(
     interpolant,
-    event_impl_dense_hfs: List[Callable],
+    event_impl_dense_hf: Callable,
     event_last_ts: np.ndarray,
     event_actives: np.ndarray,
     event_terminals: np.ndarray,
@@ -73,7 +120,7 @@ def _handle_events(
 
     assert np.any(event_actives)  # nothing active
 
-    EVENTS = len(event_impl_dense_hfs)  # TODO compile as const
+    EVENTS = len(event_last_ts)  # TODO compile as const
 
     pivot = nan  # set initial value
     terminate = False
@@ -83,7 +130,8 @@ def _handle_events(
             continue
 
         event_last_ts[idx], root, status = brentq_dense_hf(
-            event_impl_dense_hfs[idx],
+            event_impl_dense_hf,
+            idx,
             t_old,
             t,
             4 * EPS,
@@ -163,6 +211,19 @@ def solve_ivp(
 
     EVENTS = len(event_impl_hfs)  # TODO compile as const
 
+    event_impl_hf = dispatcher_hb(
+        funcs=event_impl_hfs,
+        argtypes="f,V,V,f",
+        restype="f",
+        arguments="t, rr, vv, k",
+    )
+    event_impl_dense_hf = dispatcher_hb(
+        funcs=event_impl_dense_hfs,
+        argtypes=f"f,{DENSE_SIG:s},f",
+        restype="f",
+        arguments="t, t_old, h, rr_old, vv_old, F, argk",
+    )
+
     solver = dop853_init_hf(fun, t0, rr, vv, tf, argk, rtol, atol)
     ts = [t0]
     interpolants = []
@@ -182,7 +243,7 @@ def solve_ivp(
     """
 
     for idx in range(EVENTS):
-        event_g_olds[idx] = event_impl_hfs[idx](t0, rr, vv, argk)
+        event_g_olds[idx] = event_impl_hf(idx, t0, rr, vv, argk)
         event_last_ts[idx] = t0
 
     status = None
@@ -230,7 +291,7 @@ def solve_ivp(
         if at_least_one_active:
             root, terminate = _handle_events(
                 interpolant,
-                event_impl_dense_hfs,  # TODO
+                event_impl_dense_hf,  # TODO
                 event_last_ts,
                 event_actives,  # TODO
                 event_terminals,  # TODO

@@ -1,4 +1,4 @@
-from ._const import FSIG
+from ._const import DENSE_SIG
 from ..linalg import add_VV_hf, mul_Vs_hf
 from ...jit import hjit
 
@@ -6,11 +6,7 @@ from ...jit import hjit
 __all__ = [
     "dop853_dense_interp_brentq_hb",
     "dop853_dense_interp_hf",
-    "DENSE_SIG",
 ]
-
-
-DENSE_SIG = f"f,f,V,V,{FSIG:s}"
 
 
 @hjit(f"Tuple([V,V])(f,{DENSE_SIG:s})")

@@ -1,6 +1,6 @@
 from math import fabs, isnan, nan
 
-from ._rkdenseinterp import DENSE_SIG
+from ._const import DENSE_SIG
 from ..ieee754 import EPS
 from ...jit import hjit
 
@@ -132,9 +132,10 @@ def brentq_hf(
     return xcur, BRENTQ_CONVERR
 
 
-@hjit(f"Tuple([f,f,i8])(F(f(f,{DENSE_SIG:s},f)),f,f,f,f,f,{DENSE_SIG:s},f)")
+@hjit(f"Tuple([f,f,i8])(F(f(i8,f,{DENSE_SIG:s},f)),i8,f,f,f,f,f,{DENSE_SIG:s},f)")
 def brentq_dense_hf(
     func,  # callback_type
+    idx,
     xa,  # double
     xb,  # double
     xtol,  # double
@@ -164,11 +165,11 @@ def brentq_dense_hf(
     fpre, fcur, fblk = 0.0, 0.0, 0.0
     spre, scur = 0.0, 0.0
 
-    fpre = func(xpre, sol1, sol2, sol3, sol4, sol5, argk)
+    fpre = func(idx, xpre, sol1, sol2, sol3, sol4, sol5, argk)
     if isnan(fpre):
         return xpre, 0.0, BRENTQ_ERROR
 
-    fcur = func(xcur, sol1, sol2, sol3, sol4, sol5, argk)
+    fcur = func(idx, xcur, sol1, sol2, sol3, sol4, sol5, argk)
     if isnan(fcur):
         return xcur, 0.0, BRENTQ_ERROR
 
@@ -225,7 +226,7 @@ def brentq_dense_hf(
         else:
             xcur += delta if sbis > 0 else -delta
 
-        fcur = func(xcur, sol1, sol2, sol3, sol4, sol5, argk)
+        fcur = func(idx, xcur, sol1, sol2, sol3, sol4, sol5, argk)
         if isnan(fcur):
             return xcur, 0.0, BRENTQ_ERROR
 

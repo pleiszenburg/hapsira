@@ -2,7 +2,7 @@ import sys
 
 from astropy import units as u
 
-from hapsira.core.propagation.cowell import cowell
+from hapsira.core.propagation.cowell import cowell_vb
 from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import RVState
@@ -30,19 +30,19 @@ class CowellPropagator:
     def __init__(self, rtol=1e-11, events=tuple(), f=func_twobody_hf):
         self._rtol = rtol
         self._events = events
-        self._f = f
+        self._func = f
 
     def propagate(self, state, tof):
         state = state.to_vectors()
         tofs = tof.reshape(-1)
 
-        rrs, vvs = cowell(
+        rrs, vvs = cowell_vb(
             state.attractor.k.to_value(u.km**3 / u.s**2),
             *state.to_value(),
             tofs.to_value(u.s),
             self._rtol,
             events=self._events,
-            f=self._f,
+            func=self._func,
         )
         r = rrs[-1] << u.km
         v = vvs[-1] << (u.km / u.s)
@@ -53,13 +53,13 @@ class CowellPropagator:
     def propagate_many(self, state, tofs):
         state = state.to_vectors()
 
-        rrs, vvs = cowell(
+        rrs, vvs = cowell_vb(
             state.attractor.k.to_value(u.km**3 / u.s**2),
             *state.to_value(),
             tofs.to_value(u.s),
             self._rtol,
             events=self._events,
-            f=self._f,
+            func=self._func,
         )
 
         # TODO: This should probably return a RVStateArray instead,

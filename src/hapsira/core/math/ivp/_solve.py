@@ -110,7 +110,7 @@ def _event_is_active_hf(g_old, g_new, direction):
 
 
 def solve_ivp(
-    fun: Callable,
+    func: Callable,
     tofs: np.ndarray,
     rr: Tuple[float, float, float],
     vv: Tuple[float, float, float],
@@ -148,7 +148,7 @@ def solve_ivp(
         arguments="t, t_old, h, rr_old, vv_old, F, argk",
     )
 
-    solver = dop853_init_hf(fun, T0, rr, vv, tofs[-1], argk, rtol, atol)
+    solver = dop853_init_hf(func, T0, rr, vv, tofs[-1], argk, rtol, atol)
 
     t_idx = 0
     t_last = T0

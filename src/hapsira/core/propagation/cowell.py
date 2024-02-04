@@ -6,11 +6,13 @@ from ..propagation.base import func_twobody_hf
 
 
 __all__ = [
-    "cowell",
+    "cowell_vb",
 ]
 
 
-def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), f=func_twobody_hf):
+def cowell_vb(
+    k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), func=func_twobody_hf
+):
     """
     Scalar cowell
 
@@ -21,12 +23,12 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), f=func_twobody
     rtol : float
     atol : float
     events : Optional[List[Event]]
-    f : Callable
+    func : Callable
 
     Can be reversed: https://github.com/poliastro/poliastro/issues/1630
     """
 
-    assert hasattr(f, "djit")  # DEBUG check for compiler flag
+    assert hasattr(func, "djit")  # DEBUG check for compiler flag
     assert isinstance(rtol, float)
     assert all(tof >= 0 for tof in tofs)
     assert sorted(tofs) == list(tofs)
@@ -62,7 +64,7 @@ def cowell(k, r, v, tofs, rtol=1e-11, atol=1e-12, events=tuple(), f=func_twobody
     )  # gufunc param TODO reset to nan
 
     length, success = solve_ivp(
-        fun=f,
+        func=func,
         tofs=tofs,
         rr=array_to_V_hf(r),
         vv=array_to_V_hf(v),

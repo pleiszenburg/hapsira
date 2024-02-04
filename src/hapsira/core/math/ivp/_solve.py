@@ -49,7 +49,7 @@ def dispatcher_hb(
     restype: str,
     arguments: str,
     error: str = "nan",
-):
+) -> Callable:
     """
     Workaround for https://github.com/numba/numba/issues/9420
     """

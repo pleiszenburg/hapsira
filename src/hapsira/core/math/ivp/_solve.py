@@ -35,8 +35,10 @@ __all__ = [
 ]
 
 
+SOLVE_RUNNING = -2
+SOLVE_FAILED = -1
+SOLVE_FINISHED = 0
 SOLVE_TERMINATED = 1
-
 
 TEMPLATE = """
 @hjit("{RESTYPE:s}(i8,{ARGTYPES:s})", cache = False)
@@ -155,14 +157,14 @@ def solve_ivp(
         event_g_olds[event_idx] = event_impl_hf(event_idx, T0, rr, vv, argk)
         event_last_ts[event_idx] = T0
 
-    status = None
-    while status is None:
+    status = SOLVE_RUNNING
+    while status == SOLVE_RUNNING:
         solver = dop853_step_hf(*solver)
 
         if solver[DOP853_STATUS] == DOP853_FINISHED:
-            status = 0
+            status = SOLVE_FINISHED
         elif solver[DOP853_STATUS] == DOP853_FAILED:
-            status = -1
+            status = SOLVE_FAILED
             break
 
         t_old = solver[DOP853_T_OLD]
@@ -210,7 +212,7 @@ def solve_ivp(
 
                 terminate = True
 
-                event_last_ts[event_idx], root, status = brentq_dense_hf(
+                event_last_ts[event_idx], root, brentq_status = brentq_dense_hf(
                     event_impl_dense_hf,
                     event_idx,
                     t_old,
@@ -221,7 +223,8 @@ def solve_ivp(
                     *interpolant,
                     argk,
                 )
-                assert status == BRENTQ_CONVERGED
+                if brentq_status != BRENTQ_CONVERGED:
+                    return t_idx, False  # failed on event
 
                 if isnan(root_pivot):
                     root_pivot = root

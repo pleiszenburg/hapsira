@@ -81,89 +81,6 @@ def dispatcher_hb(
     return dispatcher_hf  # pylint: disable=E0602  # noqa: F821
 
 
-def _handle_events(
-    interpolant,
-    event_impl_dense_hf: Callable,
-    event_last_ts: np.ndarray,
-    event_actives: np.ndarray,
-    event_terminals: np.ndarray,
-    t_old: float,
-    t: float,
-    argk: float,
-):
-    """Helper function to handle events.
-
-    Parameters
-    ----------
-    sol : DenseOutput
-        Function ``sol(t)`` which evaluates an ODE solution between `t_old`
-        and  `t`.
-    events : list of callables, length n_events
-        Event functions with signatures ``event(t, y)``.
-    active_events : ndarray
-        Indices of events which occurred.
-    terminals : ndarray, shape (n_events,)
-        Which events are terminal.
-    t_old, t : float
-        Previous and new values of time.
-
-    Returns
-    -------
-    root_indices : ndarray
-        Indices of events which take zero between `t_old` and `t` and before
-        a possible termination.
-    roots : ndarray
-        Values of t at which events occurred.
-    terminate : bool
-        Whether a terminal event occurred.
-    """
-
-    assert np.any(event_actives)  # nothing active
-
-    EVENTS = len(event_last_ts)  # TODO compile as const
-
-    pivot = nan  # set initial value
-    terminate = False
-
-    for idx in range(EVENTS):
-        if not event_actives[idx]:
-            continue
-
-        event_last_ts[idx], root, status = brentq_dense_hf(
-            event_impl_dense_hf,
-            idx,
-            t_old,
-            t,
-            4 * EPS,
-            4 * EPS,
-            BRENTQ_MAXITER,
-            *interpolant,
-            argk,
-        )
-        assert status == BRENTQ_CONVERGED
-
-        if event_terminals[idx]:
-            terminate = True
-
-        if isnan(pivot):
-            pivot = root
-            continue
-
-        if t > t_old:  # smallest root of all active events
-            if root < pivot:
-                pivot = root
-            continue
-
-        # largest root of all active events
-        if root > pivot:
-            pivot = root
-        raise ValueError("not t > t_old", t, t_old)  # TODO remove
-
-    assert not isnan(pivot)
-
-    return pivot if terminate else nan, terminate
-
-
 @hjit("b1(f,f,f)")
 def _event_is_active_hf(g_old, g_new, direction):
     """Find which event occurred during an integration step.
@@ -289,19 +206,48 @@ def solve_ivp(
                 at_least_one_active = True
 
         if at_least_one_active:
-            root, terminate = _handle_events(
-                interpolant,
-                event_impl_dense_hf,  # TODO
-                event_last_ts,
-                event_actives,  # TODO
-                event_terminals,  # TODO
-                t_old,
-                t,
-                argk,
-            )
+            root_pivot = nan  # set initial value
+            terminate = False
+
+            for idx in range(EVENTS):
+                if not event_actives[idx]:
+                    continue
+
+                event_last_ts[idx], root, status = brentq_dense_hf(
+                    event_impl_dense_hf,
+                    idx,
+                    t_old,
+                    t,
+                    4 * EPS,
+                    4 * EPS,
+                    BRENTQ_MAXITER,
+                    *interpolant,
+                    argk,
+                )
+                assert status == BRENTQ_CONVERGED
+
+                if event_terminals[idx]:
+                    terminate = True
+
+                if isnan(root_pivot):
+                    root_pivot = root
+                    continue
+
+                if t > t_old:  # smallest root of all active events
+                    if root < root_pivot:
+                        root_pivot = root
+                    continue
+
+                # largest root of all active events
+                if root > root_pivot:
+                    root_pivot = root
+                raise ValueError("not t > t_old", t, t_old)  # TODO remove
+
+            assert not isnan(root_pivot)
+
             if terminate:
                 status = 1
-                t = root
+                t = root_pivot
 
         for idx in range(EVENTS):
             event_g_olds[idx] = event_g_news[idx]

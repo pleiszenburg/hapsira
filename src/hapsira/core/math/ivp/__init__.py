@@ -7,9 +7,32 @@ from ._brentq import (
     BRENTQ_RTOL,
     BRENTQ_MAXITER,
     brentq_hf,
+    brentq_dense_hf,
+)
+from ._const import DENSE_SIG
+from ._rkcore import (
+    dop853_init_hf,
+    dop853_step_hf,
+    DOP853_FINISHED,
+    DOP853_FAILED,
+    DOP853_ARGK,
+    DOP853_FR,
+    DOP853_FUN,
+    DOP853_FV,
+    DOP853_H_PREVIOUS,
+    DOP853_K,
+    DOP853_RR,
+    DOP853_RR_OLD,
+    DOP853_STATUS,
+    DOP853_T,
+    DOP853_T_OLD,
+    DOP853_VV,
+    DOP853_VV_OLD,
 )
 from ._rkdenseinterp import dop853_dense_interp_brentq_hb, dop853_dense_interp_hf
-from ._solve import solve_ivp
+from ._rkdenseoutput import dop853_dense_output_hf
+from ._solve import event_is_active_hf, dispatcher_hb
+
 
 __all__ = [
     "BRENTQ_CONVERGED",
@@ -19,8 +42,29 @@ __all__ = [
     "BRENTQ_XTOL",
     "BRENTQ_RTOL",
     "BRENTQ_MAXITER",
+    "DENSE_SIG",
+    "DOP853_FINISHED",
+    "DOP853_FAILED",
+    "DOP853_ARGK",
+    "DOP853_FR",
+    "DOP853_FUN",
+    "DOP853_FV",
+    "DOP853_H_PREVIOUS",
+    "DOP853_K",
+    "DOP853_RR",
+    "DOP853_RR_OLD",
+    "DOP853_STATUS",
+    "DOP853_T",
+    "DOP853_T_OLD",
+    "DOP853_VV",
+    "DOP853_VV_OLD",
     "brentq_hf",
+    "brentq_dense_hf",
+    "dispatcher_hb",
     "dop853_dense_interp_brentq_hb",
     "dop853_dense_interp_hf",
-    "solve_ivp",
+    "dop853_dense_output_hf",
+    "dop853_init_hf",
+    "dop853_step_hf",
+    "event_is_active_hf",
 ]

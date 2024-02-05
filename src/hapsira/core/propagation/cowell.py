@@ -1,8 +1,6 @@
 from math import isnan, nan
 from typing import Callable, Tuple
 
-from numpy import ndarray
-
 from ..jit import gjit, array_to_V_hf
 from ..math.ieee754 import EPS
 from ..math.ivp import (
@@ -81,25 +79,25 @@ def cowell_vb(
         "void(f[:],f[:],f[:],f,f,f,b1[:],f[:],f[:],f[:],f[:],f[:],i8[:],i8[:],f[:,:],f[:,:])",
         "(n),(m),(m),(),(),(),(o),(o)->(o),(o),(o),(o),(),(),(n,m),(n,m)",
         cache=False,
-    )  # n: tofs, m: dims, o: events
+    )
     def cowell_gf(
-        tofs: ndarray,
-        rr: Tuple[float, float, float],
-        vv: Tuple[float, float, float],
-        argk: float,
-        rtol: float,
-        atol: float,
-        event_terminals: ndarray,
-        event_directions: ndarray,
-        event_g_olds: ndarray,  # (out)
-        event_g_news: ndarray,  # (out)
-        event_actives: ndarray,  # out
-        event_last_ts: ndarray,  # out
-        status: int,  # out
-        t_idx: int,  # out
-        rrs: ndarray,  # out
-        vvs: ndarray,  # out
-    ):  # -> void(..., rrs, vvs, success)
+        tofs,
+        rr,
+        vv,
+        argk,
+        rtol,
+        atol,
+        event_terminals,
+        event_directions,
+        event_g_olds,
+        event_g_news,
+        event_actives,
+        event_last_ts,
+        status,
+        t_idx,
+        rrs,
+        vvs,
+    ):
         """
         Solve an initial value problem for a system of ODEs.
 

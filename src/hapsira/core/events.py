@@ -10,11 +10,16 @@ from .util import planetocentric_to_AltAz_hf
 
 
 __all__ = [
+    "ECLIPSE_UMBRA",
     "eclipse_function_hf",
+    "eclipse_function_gf",
     "line_of_sight_hf",
     "line_of_sight_gf",
     "elevation_function",
 ]
+
+
+ECLIPSE_UMBRA = True
 
 
 @hjit("f(f,V,V,V,f,f,b1)")
@@ -69,6 +74,26 @@ def eclipse_function_hf(k, rr, vv, r_sec, R_sec, R_primary, umbra):
     )
 
     return shadow_function
+
+
+@gjit(
+    "void(f,f[:],f[:],f[:],f,f,b1,f[:])",
+    "(),(n),(n),(n),(),(),()->()",
+)
+def eclipse_function_gf(k, rr, vv, r_sec, R_sec, R_primary, umbra, eclipse):
+    """
+    Vectorized eclipse_function
+    """
+
+    eclipse[0] = eclipse_function_hf(
+        k,
+        array_to_V_hf(rr),
+        array_to_V_hf(vv),
+        array_to_V_hf(r_sec),
+        R_sec,
+        R_primary,
+        umbra,
+    )
 
 
 @hjit("f(V,V,f)")

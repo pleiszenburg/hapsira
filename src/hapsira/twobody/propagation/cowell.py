@@ -4,7 +4,7 @@ from astropy import units as u
 import numpy as np
 
 from hapsira.core.math.ieee754 import float_
-from hapsira.core.propagation.cowell import cowell_vb, SOLVE_FINISHED, SOLVE_TERMINATED
+from hapsira.core.propagation.cowell import cowell_gb, SOLVE_FINISHED, SOLVE_TERMINATED
 from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import RVState
@@ -35,7 +35,7 @@ class CowellPropagator:
         self._events = events
         self._terminals = np.array([event.terminal for event in events], dtype=bool)
         self._directions = np.array([event.direction for event in events], dtype=float_)
-        self._cowell_gf = cowell_vb(events=events, func=f)
+        self._cowell_gf = cowell_gb(events=events, func=f)
 
     def propagate(self, state, tof):
         state = state.to_vectors()

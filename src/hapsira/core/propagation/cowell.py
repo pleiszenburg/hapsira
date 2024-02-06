@@ -34,7 +34,7 @@ from ..propagation.base import func_twobody_hf
 
 
 __all__ = [
-    "cowell_vb",
+    "cowell_gb",
     "SOLVE_BRENTQFAILED",
     "SOLVE_FAILED",
     "SOLVE_RUNNING",
@@ -50,7 +50,7 @@ SOLVE_FINISHED = 0
 SOLVE_TERMINATED = 1
 
 
-def cowell_vb(
+def cowell_gb(
     events: Tuple = tuple(),
     func: Callable = func_twobody_hf,
 ) -> Callable:

@@ -1,8 +1,9 @@
 from math import fabs, isnan, nan
+from typing import Callable
 
 from ._const import DENSE_SIG
 from ..ieee754 import EPS
-from ...jit import hjit
+from ...jit import hjit, gjit
 
 
 __all__ = [
@@ -13,7 +14,7 @@ __all__ = [
     "BRENTQ_XTOL",
     "BRENTQ_RTOL",
     "BRENTQ_MAXITER",
-    "brentq_hf",
+    "brentq_gb",
     "brentq_dense_hf",
 ]
 
@@ -38,8 +39,8 @@ def _signbit_s_hf(a):
     return a < 0
 
 
-@hjit("Tuple([f,i8])(F(f(f)),f,f,f,f,f)", forceobj=True, nopython=False, cache=False)
-def brentq_hf(
+@hjit("Tuple([f,i8])(F(f(f)),f,f,f,f,f)")
+def _brentq_hf(
     func,  # callback_type
     xa,  # double
     xb,  # double
@@ -130,6 +131,30 @@ def brentq_hf(
             return 0.0, BRENTQ_ERROR
 
     return xcur, BRENTQ_CONVERR
+
+
+def brentq_gb(func: Callable) -> Callable:
+    """
+    Builds vectorized brentq
+    """
+
+    @gjit(
+        "void(f,f,f,f,f,f[:],i8[:])",
+        "(),(),(),(),()->(),()",
+        cache=False,
+    )
+    def brentq_gf(
+        xa,
+        xb,
+        xtol,
+        rtol,
+        maxiter,
+        xcur,
+        status,
+    ):
+        xcur[0], status[0] = _brentq_hf(func, xa, xb, xtol, rtol, maxiter)
+
+    return brentq_gf
 
 
 @hjit(f"Tuple([f,f,i8])(F(f(i8,f,{DENSE_SIG:s},f)),i8,f,f,f,f,f,{DENSE_SIG:s},f)")

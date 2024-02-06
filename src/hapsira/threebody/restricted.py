@@ -9,7 +9,7 @@ import numpy as np
 
 from hapsira.core.jit import hjit
 from hapsira.core.math.ivp import (
-    brentq_hf,
+    brentq_gb,
     BRENTQ_XTOL,
     BRENTQ_RTOL,
     BRENTQ_MAXITER,
@@ -51,29 +51,31 @@ def lagrange_points(r12, m1, m2):
         aux -= xi
         return aux
 
+    brentq_gf = brentq_gb(eq_L123)
+
     lp = np.zeros((5,))
 
     # L1
     tol = 1e-11  # `brentq` uses a xtol of 2e-12, so it should be covered
     a = -pi2 + tol
     b = 1 - pi2 - tol
-    xi, status = brentq_hf(
-        eq_L123, a, b, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
-    )  # TODO call into hf
+    xi, status = brentq_gf(  # pylint: disable=E0633,E1120
+        a, b, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
+    )
     assert status == BRENTQ_CONVERGED
     lp[0] = xi + pi2
 
     # L2
-    xi, status = brentq_hf(
-        eq_L123, 1, 1.5, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
-    )  # TODO call into hf
+    xi, status = brentq_gf(  # pylint: disable=E0633,E1120
+        1, 1.5, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
+    )
     assert status == BRENTQ_CONVERGED
     lp[1] = xi + pi2
 
     # L3
-    xi, status = brentq_hf(
-        eq_L123, -1.5, -1, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
-    )  # TODO call into hf
+    xi, status = brentq_gf(  # pylint: disable=E0633,E1120
+        -1.5, -1, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
+    )
     assert status == BRENTQ_CONVERGED
     lp[2] = xi + pi2
 

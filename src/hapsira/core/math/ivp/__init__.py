@@ -6,7 +6,7 @@ from ._brentq import (
     BRENTQ_XTOL,
     BRENTQ_RTOL,
     BRENTQ_MAXITER,
-    brentq_hf,
+    brentq_gb,
     brentq_dense_hf,
 )
 from ._const import DENSE_SIG
@@ -58,7 +58,7 @@ __all__ = [
     "DOP853_T_OLD",
     "DOP853_VV",
     "DOP853_VV_OLD",
-    "brentq_hf",
+    "brentq_gb",
     "brentq_dense_hf",
     "dispatcher_hb",
     "dop853_dense_interp_brentq_hb",

@@ -115,9 +115,11 @@ def hjit(*args, **kwargs) -> Callable:
                 cache=settings["CACHE"].value,
             )
         else:
+            assert settings["NOPYTHON"].value != settings["FORCEOBJ"].value
             wjit = nb.jit
             cfg = dict(
                 nopython=settings["NOPYTHON"].value,
+                forceobj=settings["FORCEOBJ"].value,
                 inline="always" if inline else "never",
                 cache=settings["CACHE"].value,
             )
@@ -203,7 +205,9 @@ def vjit(*args, **kwargs) -> Callable:
             cache=settings["CACHE"].value,
         )
         if settings["TARGET"].value != "cuda":
+            assert settings["NOPYTHON"].value != settings["FORCEOBJ"].value
             cfg["nopython"] = settings["NOPYTHON"].value
+            cfg["forceobj"] = settings["FORCEOBJ"].value
         cfg.update(kwargs)
 
         logger.debug(
@@ -249,7 +253,9 @@ def gjit(*args, **kwargs) -> Callable:
             cache=settings["CACHE"].value,
         )
         if settings["TARGET"].value != "cuda":
+            assert settings["NOPYTHON"].value != settings["FORCEOBJ"].value
             cfg["nopython"] = settings["NOPYTHON"].value
+            cfg["forceobj"] = settings["FORCEOBJ"].value
         cfg.update(kwargs)
 
         logger.debug(
@@ -290,8 +296,10 @@ def sjit(*args, **kwargs) -> Callable:
         Applies JIT
         """
 
+        assert settings["NOPYTHON"].value != settings["FORCEOBJ"].value
         cfg = dict(
             nopython=settings["NOPYTHON"].value,
+            forceobj=settings["FORCEOBJ"].value,
             inline="always" if settings["INLINE"].value else "never",
             **kwargs,
         )

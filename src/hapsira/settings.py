@@ -135,6 +135,12 @@ class Settings:
         )
         self._add(
             Setting(
+                "FORCEOBJ",
+                False,
+            )
+        ),
+        self._add(
+            Setting(
                 "PRECISION",
                 "f8",
                 options=("f2", "f4", "f8"),

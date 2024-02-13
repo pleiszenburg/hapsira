@@ -1,6 +1,5 @@
-from math import inf, sqrt
+from math import fabs, inf, sqrt
 
-from .ieee754 import EPS
 from ..jit import hjit, vjit
 
 __all__ = [
@@ -16,7 +15,6 @@ __all__ = [
     "max_VV_hf",
     "mul_Vs_hf",
     "mul_VV_hf",
-    "nextafter_hf",
     "norm_V_hf",
     "norm_V_vf",
     "norm_VV_hf",
@@ -28,7 +26,7 @@ __all__ = [
 
 @hjit("V(V)", inline=True)
 def abs_V_hf(x):
-    return abs(x[0]), abs(x[1]), abs(x[2])
+    return fabs(x[0]), fabs(x[1]), fabs(x[2])
 
 
 @hjit("V(V,f)", inline=True)
@@ -122,13 +120,6 @@ def mul_Vs_hf(v, s):
 @hjit("V(V,V)", inline=True)
 def mul_VV_hf(a, b):
     return a[0] * b[0], a[1] * b[1], a[2] * b[2]
-
-
-@hjit("f(f,f)")
-def nextafter_hf(x, direction):
-    if x < direction:
-        return x + EPS
-    return x - EPS
 
 
 @hjit("f(V)", inline=True)

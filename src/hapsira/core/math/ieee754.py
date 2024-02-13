@@ -3,6 +3,7 @@ from numpy import (
     float32 as f4,
     float16 as f2,
     finfo,
+    nextafter,
 )
 
 from ...settings import settings
@@ -14,6 +15,7 @@ __all__ = [
     "f4",
     "f2",
     "float_",
+    "nextafter",
 ]
 
 

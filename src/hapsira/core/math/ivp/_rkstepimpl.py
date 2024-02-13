@@ -1,9 +1,10 @@
-from math import inf
+from math import inf, fabs
 
 from ._const import ERROR_EXPONENT, KSIG, MAX_FACTOR, MIN_FACTOR, SAFETY
 from ._rkstep import rk_step_hf
 from ._rkerror import estimate_error_norm_V_hf
-from ..linalg import abs_V_hf, add_Vs_hf, max_VV_hf, mul_Vs_hf, nextafter_hf
+from ..ieee754 import nextafter
+from ..linalg import abs_V_hf, add_Vs_hf, max_VV_hf, mul_Vs_hf
 from ...jit import hjit, DSIG
 
 
@@ -19,7 +20,7 @@ __all__ = [
 def step_impl_hf(
     fun, argk, t, rr, vv, fr, fv, rtol, atol, direction, h_abs, t_bound, K
 ):
-    min_step = 10 * abs(nextafter_hf(t, direction * inf) - t)
+    min_step = 10 * fabs(nextafter(t, direction * inf) - t)
 
     if h_abs < min_step:
         h_abs = min_step
@@ -48,7 +49,7 @@ def step_impl_hf(
             t_new = t_bound
 
         h = t_new - t
-        h_abs = abs(h)
+        h_abs = fabs(h)
 
         rr_new, vv_new, fr_new, fv_new, K_new = rk_step_hf(
             fun,

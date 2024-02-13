@@ -3,7 +3,7 @@ from numpy import (
     float32 as f4,
     float16 as f2,
     finfo,
-    nextafter,
+    nextafter,  # TODO switch to math module
 )
 
 from ...settings import settings

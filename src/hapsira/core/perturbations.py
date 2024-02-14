@@ -1,4 +1,4 @@
-from math import exp
+from math import exp, pow as pow_
 
 from .events import line_of_sight_hf
 from .jit import hjit
@@ -48,9 +48,8 @@ def J2_perturbation_hf(t0, rr, vv, k, J2, R):
     """
     r = norm_V_hf(rr)
 
-    factor = (3.0 / 2.0) * k * J2 * (R**2) / (r**5)
-
-    a_base = 5.0 * rr[2] ** 2 / r**2
+    factor = 1.5 * k * J2 * R * R / pow_(r, 5)
+    a_base = 5.0 * rr[2] * rr[2] / (r * r)
     a = a_base - 1, a_base - 1, a_base - 3
     return mul_Vs_hf(mul_VV_hf(a, rr), factor)
 

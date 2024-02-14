@@ -194,27 +194,27 @@ ephem4 = iss.to_ephem(strategy=EpochBounds(min_epoch=start_date, max_epoch=end_d
 Apart from the Keplerian propagators, hapsira also allows you to define custom perturbation accelerations to study non Keplerian orbits, thanks to Cowell's method:
 
 ```python
->>> from numba import njit
 >>> import numpy as np
->>> from hapsira.core.propagation import func_twobody
+>>> from hapsira.core.jit import hjit, djit
+>>> from hapsira.core.math.linalg import add_VV_hf, mul_Vs_hf, norm_V_hf
+>>> from hapsira.core.propagation.base import func_twobody_hf
 >>> from hapsira.twobody.propagation import CowellPropagator
 >>> r0 = [-2384.46, 5729.01, 3050.46] << u.km
 >>> v0 = [-7.36138, -2.98997, 1.64354] << (u.km / u.s)
 >>> initial = Orbit.from_vectors(Earth, r0, v0)
->>> @njit
-... def accel(t0, state, k):
+>>> @hjit("V(f,V,V,f)")
+... def accel_hf(t0, rr, vv, k):
 ...     """Constant acceleration aligned with the velocity. """
-...     v_vec = state[3:]
-...     norm_v = (v_vec * v_vec).sum() ** 0.5
-...     return 1e-5 * v_vec / norm_v
+...     norm_v = norm_V_hf(vv)
+...     return mul_Vs_hf(vv, 1e-5 / norm_v)
 ...
-... def f(t0, u_, k):
-...     du_kep = func_twobody(t0, u_, k)
-...     ax, ay, az = accel(t0, u_, k)
-...     du_ad = np.array([0, 0, 0, ax, ay, az])
-...     return du_kep + du_ad
+... @djit
+... def f_hf(t0, rr, vv, k):
+...     du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+...     a = accel_hf(t0, rr, vv, k)
+...     return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
->>> initial.propagate(3 << u.day, method=CowellPropagator(f=f))
+>>> initial.propagate(3 << u.day, method=CowellPropagator(f=f_hf))
 18255 x 21848 km x 28.0 deg (GCRS) orbit around Earth (♁) at epoch J2000.008 (TT)
 ```
 

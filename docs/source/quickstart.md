@@ -249,6 +249,7 @@ The J2 perturbation changes the orbit parameters (from Curtis example 12.2):
 In addition to natural perturbations, hapsira also has built-in artificial perturbations (thrust guidance laws) aimed at intentional change of some orbital elements. For example, to simultaneously change eccentricity and inclination:
 
 ```python
+>>> from hapsira.twobody.thrust import change_ecc_inc
 >>> ecc_0, ecc_f = [0.4, 0.0] << u.one
 >>> a = 42164 << u.km
 >>> inc_0 = 0.0 << u.deg  # baseline
@@ -262,20 +263,20 @@ In addition to natural perturbations, hapsira also has built-in artificial pertu
 ...     a,
 ...     ecc_0,
 ...     inc_0,
-...     0,
+...     0 << u.deg,
 ...     argp,
-...     0,
+...     0 << u.deg,
 ... )
->>> a_d, _, t_f = change_ecc_inc(orb0, ecc_f, inc_f, f)
+>>> a_d_hf, _, t_f = change_ecc_inc(orb0, ecc_f, inc_f, f)
 
 # Propagate orbit
->>> def f_geo(t0, u_, k):
-...     du_kep = func_twobody(t0, u_, k)
-...     ax, ay, az = a_d(t0, u_, k)
-...     du_ad = np.array([0, 0, 0, ax, ay, az])
-...     return du_kep + du_ad
+>>> @djit
+... def f_geo_hf(t0, rr, vv, k):
+...     du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+...     a = a_d_hf(t0, rr, vv, k)
+...     return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
->>> orbf = orb0.propagate(t_f << u.s, method=CowellPropagator(f=f_geo, rtol=1e-8))
+>>> orbf = orb0.propagate(t_f << u.s, method=CowellPropagator(f=f_geo_hf, rtol=1e-8))
 ```
 
 The thrust changes orbit parameters as desired (within errors):

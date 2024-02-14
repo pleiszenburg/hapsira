@@ -1,8 +1,9 @@
-from math import sqrt
+from math import fabs, sqrt
 
 from ._const import N_RV, KSIG
 from ._dop853_coefficients import E3 as _E3, E5 as _E5
 from ..ieee754 import float_
+from ..linalg import div_ss_hf
 from ...jit import hjit
 
 
@@ -20,7 +21,7 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
     K00, K01, K02, K03, K04, K05, K06, K07, K08, K09, K10, K11, K12 = K
 
     err3 = (
-        (
+        div_ss_hf(
             K00[0] * E3[0]
             + K01[0] * E3[1]
             + K02[0] * E3[2]
@@ -33,10 +34,10 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[0] * E3[9]
             + K10[0] * E3[10]
             + K11[0] * E3[11]
-            + K12[0] * E3[12]
-        )
-        / scale_r[0],
-        (
+            + K12[0] * E3[12],
+            scale_r[0],
+        ),
+        div_ss_hf(
             K00[1] * E3[0]
             + K01[1] * E3[1]
             + K02[1] * E3[2]
@@ -49,10 +50,10 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[1] * E3[9]
             + K10[1] * E3[10]
             + K11[1] * E3[11]
-            + K12[1] * E3[12]
-        )
-        / scale_r[1],
-        (
+            + K12[1] * E3[12],
+            scale_r[1],
+        ),
+        div_ss_hf(
             K00[2] * E3[0]
             + K01[2] * E3[1]
             + K02[2] * E3[2]
@@ -65,10 +66,10 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[2] * E3[9]
             + K10[2] * E3[10]
             + K11[2] * E3[11]
-            + K12[2] * E3[12]
-        )
-        / scale_r[2],
-        (
+            + K12[2] * E3[12],
+            scale_r[2],
+        ),
+        div_ss_hf(
             K00[3] * E3[0]
             + K01[3] * E3[1]
             + K02[3] * E3[2]
@@ -81,10 +82,10 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[3] * E3[9]
             + K10[3] * E3[10]
             + K11[3] * E3[11]
-            + K12[3] * E3[12]
-        )
-        / scale_v[0],
-        (
+            + K12[3] * E3[12],
+            scale_v[0],
+        ),
+        div_ss_hf(
             K00[4] * E3[0]
             + K01[4] * E3[1]
             + K02[4] * E3[2]
@@ -97,10 +98,10 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[4] * E3[9]
             + K10[4] * E3[10]
             + K11[4] * E3[11]
-            + K12[4] * E3[12]
-        )
-        / scale_v[1],
-        (
+            + K12[4] * E3[12],
+            scale_v[1],
+        ),
+        div_ss_hf(
             K00[5] * E3[0]
             + K01[5] * E3[1]
             + K02[5] * E3[2]
@@ -113,12 +114,12 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[5] * E3[9]
             + K10[5] * E3[10]
             + K11[5] * E3[11]
-            + K12[5] * E3[12]
-        )
-        / scale_v[2],
+            + K12[5] * E3[12],
+            scale_v[2],
+        ),
     )
     err5 = (
-        (
+        div_ss_hf(
             K00[0] * E5[0]
             + K01[0] * E5[1]
             + K02[0] * E5[2]
@@ -131,10 +132,10 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[0] * E5[9]
             + K10[0] * E5[10]
             + K11[0] * E5[11]
-            + K12[0] * E5[12]
-        )
-        / scale_r[0],
-        (
+            + K12[0] * E5[12],
+            scale_r[0],
+        ),
+        div_ss_hf(
             K00[1] * E5[0]
             + K01[1] * E5[1]
             + K02[1] * E5[2]
@@ -147,10 +148,10 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[1] * E5[9]
             + K10[1] * E5[10]
             + K11[1] * E5[11]
-            + K12[1] * E5[12]
-        )
-        / scale_r[1],
-        (
+            + K12[1] * E5[12],
+            scale_r[1],
+        ),
+        div_ss_hf(
             K00[2] * E5[0]
             + K01[2] * E5[1]
             + K02[2] * E5[2]
@@ -163,10 +164,10 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[2] * E5[9]
             + K10[2] * E5[10]
             + K11[2] * E5[11]
-            + K12[2] * E5[12]
-        )
-        / scale_r[2],
-        (
+            + K12[2] * E5[12],
+            scale_r[2],
+        ),
+        div_ss_hf(
             K00[3] * E5[0]
             + K01[3] * E5[1]
             + K02[3] * E5[2]
@@ -179,10 +180,10 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[3] * E5[9]
             + K10[3] * E5[10]
             + K11[3] * E5[11]
-            + K12[3] * E5[12]
-        )
-        / scale_v[0],
-        (
+            + K12[3] * E5[12],
+            scale_v[0],
+        ),
+        div_ss_hf(
             K00[4] * E5[0]
             + K01[4] * E5[1]
             + K02[4] * E5[2]
@@ -195,10 +196,10 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[4] * E5[9]
             + K10[4] * E5[10]
             + K11[4] * E5[11]
-            + K12[4] * E5[12]
-        )
-        / scale_v[1],
-        (
+            + K12[4] * E5[12],
+            scale_v[1],
+        ),
+        div_ss_hf(
             K00[5] * E5[0]
             + K01[5] * E5[1]
             + K02[5] * E5[2]
@@ -211,9 +212,9 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
             + K09[5] * E5[9]
             + K10[5] * E5[10]
             + K11[5] * E5[11]
-            + K12[5] * E5[12]
-        )
-        / scale_v[2],
+            + K12[5] * E5[12],
+            scale_v[2],
+        ),
     )
 
     err5_norm_2 = (
@@ -237,4 +238,4 @@ def estimate_error_norm_V_hf(K, h, scale_r, scale_v):
         return 0.0
     denom = err5_norm_2 + 0.01 * err3_norm_2
 
-    return abs(h) * err5_norm_2 / sqrt(denom * N_RV)
+    return fabs(h) * div_ss_hf(err5_norm_2, sqrt(denom * N_RV))

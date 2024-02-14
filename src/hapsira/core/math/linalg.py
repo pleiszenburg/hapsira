@@ -9,6 +9,7 @@ __all__ = [
     "cross_VV_hf",
     "div_Vs_hf",
     "div_VV_hf",
+    "div_ss_hf",
     "matmul_MM_hf",
     "matmul_VM_hf",
     "matmul_VV_hf",
@@ -60,12 +61,12 @@ def div_ss_hf(a, b):
 
 @hjit("V(V,V)", inline=True)
 def div_VV_hf(x, y):
-    return x[0] / y[0], x[1] / y[1], x[2] / y[2]
+    return div_ss_hf(x[0], y[0]), div_ss_hf(x[1], y[1]), div_ss_hf(x[2], y[2])
 
 
 @hjit("V(V,f)", inline=True)
 def div_Vs_hf(v, s):
-    return v[0] / s, v[1] / s, v[2] / s
+    return div_ss_hf(v[0], s), div_ss_hf(v[1], s), div_ss_hf(v[2], s)
 
 
 @hjit("M(M,M)", inline=True)
@@ -135,7 +136,7 @@ def norm_V_vf(a, b, c):
 
 @hjit("f(V,V)", inline=True)
 def norm_VV_hf(x, y):
-    return sqrt(x[0] ** 2 + x[1] ** 2 + x[2] ** 2 + y[0] ** 2 + y[1] ** 2 + y[2] ** 2)
+    return sqrt(matmul_VV_hf(x, x) + matmul_VV_hf(y, y))
 
 
 @hjit("f(f)", inline=True)

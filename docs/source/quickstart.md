@@ -349,8 +349,9 @@ To easily visualize several orbits in two dimensions, you can run this code:
 
 ```python
 from hapsira.plotting import OrbitPlotter
+from hapsira.plotting.orbit.backends import Matplotlib2D
 
-op = OrbitPlotter(backend_name="matplotlib2D")
+op = OrbitPlotter(backend=Matplotlib2D())
 orb_a, orb_f = orb_i.apply_maneuver(hoh, intermediate=True)
 op.plot(orb_i, label="Initial orbit")
 op.plot(orb_a, label="Transfer orbit")
@@ -380,7 +381,7 @@ The {py:class}`hapsira.ephem.Ephem` class allows you to retrieve a planetary orb
 
 ```python
 >>> from astropy.time import Time
->>> epoch = time.Time("2020-04-29 10:43")  # UTC by default
+>>> epoch = Time("2020-04-29 10:43")  # UTC by default
 >>> from hapsira.ephem import Ephem
 >>> earth = Ephem.from_body(Earth, epoch.tdb)
 >>> earth
@@ -443,9 +444,9 @@ And these are the results:
 
 ```python
 >>> dv_a
-(<Quantity 0. s>, <Quantity [-2.06420561,  2.58796837,  0.23911543] km / s>)
+(<Quantity 0. s>, <Quantity [-2064.36683388,  2587.57963591,   239.59874839] m / s>)
 >>> dv_b
-(<Quantity 21910501.00019529 s>, <Quantity [287832.91384349,  58935.96079319, -94156.93383463] km / s>)
+(<Quantity 21910501.00019529 s>, <Quantity [ 3332.21063185,   680.5437324 , -1090.13639913] m / s>)
 ```
 
 ```{figure} _static/msl.png

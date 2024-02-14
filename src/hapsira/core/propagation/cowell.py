@@ -60,7 +60,7 @@ def cowell_gb(
 
     assert hasattr(func, "djit")  # DEBUG check for compiler flag
 
-    EVENTS = len(events)  # TODO compile as const
+    EVENTS = len(events)
 
     event_impl_hf = dispatcher_hb(
         funcs=tuple(event.impl_hf for event in events),

@@ -97,6 +97,7 @@ frame = OrbitPlotter(backend=Plotly3D())
 
 frame.set_attractor(Earth)
 frame.plot_ephem(ephem, label="ISS")
+frame.show()
 ```
 
 ## Error checking

@@ -221,17 +221,18 @@ Apart from the Keplerian propagators, hapsira also allows you to define custom p
 Some natural perturbations are available in hapsira to be used directly in this way. For instance, to examine the effect of J2 perturbation:
 
 ```python
->>> from hapsira.core.perturbations import J2_perturbation
->>> tofs = [48.0] << u.h
->>> def f(t0, u_, k):
-...     du_kep = func_twobody(t0, u_, k)
-...     ax, ay, az = J2_perturbation(
-...         t0, u_, k, J2=Earth.J2.value, R=Earth.R.to(u.km).value
+>>> from hapsira.core.perturbations import J2_perturbation_hf
+>>> tofs = 48.0 << u.h
+>>> _J2, _R = Earth.J2.value, Earth.R.to(u.km).value
+>>> @djit
+... def f_hf(t0, rr, vv, k):
+...     du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+...     a = J2_perturbation_hf(
+...         t0, rr, vv, k, _J2, _R
 ...     )
-...     du_ad = np.array([0, 0, 0, ax, ay, az])
-...     return du_kep + du_ad
+...     return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
->>> final = initial.propagate(tofs, method=CowellPropagator(f=f))
+>>> final = initial.propagate(tofs, method=CowellPropagator(f=f_hf))
 ```
 
 The J2 perturbation changes the orbit parameters (from Curtis example 12.2):

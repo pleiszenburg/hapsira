@@ -1,3 +1,5 @@
+from math import pow as pow_
+
 from ..jit import djit
 
 
@@ -24,6 +26,6 @@ def func_twobody_hf(t0, rr, vv, k):
     """
     x, y, z = rr
     vx, vy, vz = vv
-    r3 = (x**2 + y**2 + z**2) ** 1.5
+    r3 = pow_(x * x + y * y + z * z, 1.5)
 
     return (vx, vy, vz), (-k * x / r3, -k * y / r3, -k * z / r3)

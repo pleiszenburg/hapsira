@@ -316,20 +316,19 @@ def f_hf(t0, rr, vv, k):
         rr,
         vv,
         k,
-        R=R,
-        C_D=C_D,
-        A_over_m=A_over_m,
-        H0=H0,
-        rho0=rho0,
-        J2=_J2,
+        _J2,
+        R,
+        C_D,
+        A_over_m,
+        H0,
+        rho0,
     )
-    return du_kep_rr, add_VV_hf(du_kep_rr, a)
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
 # propagate with J2 and atmospheric drag
 rr3, _ = orbit.to_ephem(
     EpochsArray(orbit.epoch + tofs, method=CowellPropagator(f=f_hf)),
 ).rv()
-
 
 @djit
 def f_hf(t0, rr, vv, k):
@@ -339,13 +338,13 @@ def f_hf(t0, rr, vv, k):
         rr,
         vv,
         k,
-        R=R,
-        C_D=C_D,
-        A_over_m=A_over_m,
-        H0=H0,
-        rho0=rho0,
+        R,
+        C_D,
+        A_over_m,
+        H0,
+        rho0,
     )
-    return du_kep_rr, add_VV_hf(du_kep_rr, a)
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
 
 # propagate with only atmospheric drag

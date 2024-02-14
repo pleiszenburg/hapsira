@@ -4,7 +4,13 @@ from astropy import units as u
 import numpy as np
 
 from hapsira.core.math.ieee754 import float_
-from hapsira.core.propagation.cowell import cowell_gb, SOLVE_FINISHED, SOLVE_TERMINATED
+from hapsira.core.propagation.cowell import (
+    cowell_gb,
+    SOLVE_FINISHED,
+    SOLVE_TERMINATED,
+    SOLVE_BRENTQFAILED,
+    SOLVE_FAILED,
+)
 from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import RVState
@@ -63,6 +69,8 @@ class CowellPropagator:
             self._directions,  # event_directions
         )
 
+        assert np.all((status != SOLVE_FAILED))
+        assert np.all((status != SOLVE_BRENTQFAILED))
         assert np.all((status == SOLVE_FINISHED) | (status == SOLVE_TERMINATED))
 
         for last_t, event in zip(last_ts, self._events):
@@ -99,6 +107,8 @@ class CowellPropagator:
             self._directions,  # event_directions
         )
 
+        assert np.all((status != SOLVE_FAILED))
+        assert np.all((status != SOLVE_BRENTQFAILED))
         assert np.all((status == SOLVE_FINISHED) | (status == SOLVE_TERMINATED))
 
         for last_t, event in zip(last_ts, self._events):

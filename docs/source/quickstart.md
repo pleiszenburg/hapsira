@@ -155,6 +155,7 @@ To explore different propagation algorithms, check out the {py:mod}`hapsira.twob
 The `propagate` method gives you the final orbit at the epoch you designated. To retrieve the whole trajectory instead, you can use {py:meth}`hapsira.twobody.orbit.scalar.Orbit.to_ephem`, which returns an {{ Ephem }} instance:
 
 ```python
+from astropy.time import Time
 from hapsira.twobody.sampling import EpochsArray, TrueAnomalyBounds, EpochBounds
 from hapsira.util import time_range
 
@@ -165,7 +166,7 @@ end_date = Time("2022-07-11 07:05", scale="utc")
 ephem1 = iss.to_ephem()
 
 # Explicit times given
-ephem2 = iss.to_ephem(strategy=EpochsArray(epochs=time_range(start_date, end_date)))
+ephem2 = iss.to_ephem(strategy=EpochsArray(epochs=time_range(start_date, end=end_date)))
 
 # Automatic grid, true anomaly limits
 ephem3 = iss.to_ephem(strategy=TrueAnomalyBounds(min_nu=0 << u.deg, max_nu=180 << u.deg))

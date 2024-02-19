@@ -11,6 +11,7 @@ __all__ = [
     "div_VV_hf",
     "div_ss_hf",
     "matmul_MM_hf",
+    "matmul_MV_hf",
     "matmul_VM_hf",
     "matmul_VV_hf",
     "max_VV_hf",
@@ -96,6 +97,15 @@ def matmul_VM_hf(a, b):
         a[0] * b[0][0] + a[1] * b[1][0] + a[2] * b[2][0],
         a[0] * b[0][1] + a[1] * b[1][1] + a[2] * b[2][1],
         a[0] * b[0][2] + a[1] * b[1][2] + a[2] * b[2][2],
+    )
+
+
+@hjit("V(M,V)", inline=True)
+def matmul_MV_hf(a, b):
+    return (
+        b[0] * a[0][0] + b[1] * a[0][1] + b[2] * a[0][2],
+        b[0] * a[1][0] + b[1] * a[1][1] + b[2] * a[1][2],
+        b[0] * a[2][0] + b[1] * a[2][1] + b[2] * a[2][2],
     )
 
 

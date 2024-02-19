@@ -1,11 +1,8 @@
-from math import acos, cos, sin
-
-from numba import njit as jit
-import numpy as np
+from math import acos, asin, cos, sin, sqrt
 
 from .elements import coe_rotation_matrix_hf, rv2coe_hf, RV2COE_TOL
 from .jit import array_to_V_hf, hjit, gjit
-from .math.linalg import matmul_VV_hf, norm_V_hf
+from .math.linalg import div_Vs_hf, matmul_MV_hf, matmul_VV_hf, norm_V_hf, sub_VV_hf
 from .util import planetocentric_to_AltAz_hf
 
 
@@ -15,7 +12,8 @@ __all__ = [
     "eclipse_function_gf",
     "line_of_sight_hf",
     "line_of_sight_gf",
-    "elevation_function",
+    "elevation_function_hf",
+    "elevation_function_gf",
 ]
 
 
@@ -135,17 +133,15 @@ def line_of_sight_gf(r1, r2, R, delta_theta):
     delta_theta[0] = line_of_sight_hf(array_to_V_hf(r1), array_to_V_hf(r2), R)
 
 
-@jit
-def elevation_function(k, u_, phi, theta, R, R_p, H):
+@hjit("f(V,f,f,f,f,f)")
+def elevation_function_hf(rr, phi, theta, R, R_p, H):
     """Calculates the elevation angle of an object in orbit with respect to
     a location on attractor.
 
     Parameters
     ----------
-    k: float
-        Standard gravitational parameter.
-    u_: numpy.ndarray
-        Satellite position and velocity vector with respect to the central attractor.
+    rr: tuple[float,float,float]
+        Satellite position vector with respect to the central attractor.
     phi: float
         Geodetic Latitude of the station.
     theta: float
@@ -157,26 +153,38 @@ def elevation_function(k, u_, phi, theta, R, R_p, H):
     H: float
         Elevation, above the ellipsoidal surface.
     """
-    ecc = np.sqrt(1 - (R_p / R) ** 2)
-    denom = np.sqrt(1 - ecc**2 * np.sin(phi) ** 2)
+
+    cos_phi = cos(phi)
+    sin_phi = sin(phi)
+
+    ecc = sqrt(1 - (R_p / R) ** 2)
+    denom = sqrt(1 - ecc * ecc * sin_phi * sin_phi)
     g1 = H + (R / denom)
-    g2 = H + (1 - ecc**2) * R / denom
+    g2 = H + (1 - ecc * ecc) * R / denom
+
     # Coordinates of location on attractor.
-    coords = np.array(
-        [
-            g1 * np.cos(phi) * np.cos(theta),
-            g1 * np.cos(phi) * np.sin(theta),
-            g2 * np.sin(phi),
-        ]
+    coords = (
+        g1 * cos_phi * cos(theta),
+        g1 * cos_phi * sin(theta),
+        g2 * sin_phi,
     )
 
     # Position of satellite with respect to a point on attractor.
-    rho = np.subtract(u_[:3], coords)
+    rho = sub_VV_hf(rr, coords)
 
-    rot_matrix = np.array(planetocentric_to_AltAz_hf(theta, phi))
+    rot_matrix = planetocentric_to_AltAz_hf(theta, phi)
 
-    new_rho = rot_matrix @ rho
-    new_rho = new_rho / np.linalg.norm(new_rho)
-    el = np.arcsin(new_rho[-1])
+    new_rho = matmul_MV_hf(rot_matrix, rho)
+    new_rho = div_Vs_hf(new_rho, norm_V_hf(new_rho))
+    el = asin(new_rho[-1])
 
     return el
+
+
+@gjit("void(f[:],f,f,f,f,f,f[:])", "(n),(),(),(),(),()->()")
+def elevation_function_gf(rr, phi, theta, R, R_p, H, el):
+    """
+    Vectorized elevation_function
+    """
+
+    el[0] = elevation_function_hf(array_to_V_hf(rr), phi, theta, R, R_p, H)

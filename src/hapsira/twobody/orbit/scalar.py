@@ -11,7 +11,7 @@ from astropy.coordinates import (
 import numpy as np
 
 from hapsira.bodies import Earth
-from hapsira.core.events import elevation_function as elevation_function_fast
+from hapsira.core.events import elevation_function_gf
 from hapsira.frames.util import get_frame
 from hapsira.threebody.soi import laplace_radius
 from hapsira.twobody.elements import eccentricity_vector, energy, t_p
@@ -682,13 +682,8 @@ class Orbit(OrbitCreationMixin):
                 "Elevation implementation is currently only supported for orbits having Earth as the attractor."
             )
 
-        x, y, z = self.r.to_value(u.km)
-        vx, vy, vz = self.v.to_value(u.km / u.s)
-        u_ = np.array([x, y, z, vx, vy, vz])
-
-        elevation = elevation_function_fast(
-            self.attractor.k.to_value(u.km**3 / u.s**2),
-            u_,
+        elevation = elevation_function_gf(  # pylint: disable=E1120
+            self.r.to_value(u.km),
             lat.to_value(u.rad),
             theta.to_value(u.rad),
             self.attractor.R.to(u.km).value,

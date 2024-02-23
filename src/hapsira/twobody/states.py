@@ -13,7 +13,7 @@ from hapsira.core.elements import (
     mean_motion_vf,
     period_vf,
 )
-from hapsira.twobody.elements import t_p
+from hapsira.core.propagation.farnocchia import delta_t_from_nu_vf, FARNOCCHIA_DELTA
 
 
 u_km3s2 = u.km**3 / u.s**2
@@ -85,11 +85,16 @@ class BaseState:
     @cached_property
     def t_p(self):
         """Elapsed time since latest perifocal passage."""
-        return t_p(
-            self.to_classical().nu,
-            self.to_classical().ecc,
-            self.attractor.k,
-            self.r_p,
+        self_classical = self.to_classical()
+        return (
+            delta_t_from_nu_vf(
+                self_classical.nu.to_value(u.rad),
+                self_classical.ecc.value,
+                self.attractor.k.to_value(u_km3s2),
+                self.r_p.to_value(u.km),
+                FARNOCCHIA_DELTA,
+            )
+            * u.s
         )
 
     def to_tuple(self):

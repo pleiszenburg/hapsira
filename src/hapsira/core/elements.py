@@ -2,7 +2,7 @@
 convert between different elements that define the orbit of a body.
 """
 
-from math import acos, atan, atan2, cos, log, pi, sin, sqrt, tan
+from math import acos, atan, atan2, cos, fabs, log, pi, sin, sqrt, tan
 
 from .angles import E_to_nu_hf, F_to_nu_hf
 from .jit import array_to_V_hf, hjit, gjit, vjit
@@ -38,6 +38,7 @@ __all__ = [
     "mee2coe_gf",
     "mee2rv_hf",
     "mee2rv_gf",
+    "mean_motion_vf",
 ]
 
 
@@ -671,3 +672,19 @@ def mee2rv_gf(p, f, g, h, k, L, dummy, r, v):
     assert dummy.shape == (3,)
 
     (r[0], r[1], r[2]), (v[0], v[1], v[2]) = mee2rv_hf(p, f, g, h, k, L)
+
+
+@hjit("f(f,f)", inline=True)
+def mean_motion_hf(k, a):
+    """
+    Mean motion given body (k) and semimajor axis (a).
+    """
+    return sqrt(k / fabs(a * a * a))
+
+
+@vjit("f(f,f)")
+def mean_motion_vf(k, a):
+    """
+    Vectorized mean_motion
+    """
+    return mean_motion_hf(k, a)

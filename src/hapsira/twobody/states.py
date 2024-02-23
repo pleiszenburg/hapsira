@@ -10,8 +10,9 @@ from hapsira.core.elements import (
     mee2rv_gf,
     rv2coe_gf,
     RV2COE_TOL,
+    mean_motion_vf,
 )
-from hapsira.twobody.elements import mean_motion, period, t_p
+from hapsira.twobody.elements import period, t_p
 
 
 class BaseState:
@@ -47,7 +48,14 @@ class BaseState:
     @cached_property
     def n(self):
         """Mean motion."""
-        return mean_motion(self.attractor.k, self.to_classical().a)
+        return (
+            mean_motion_vf(
+                self.attractor.k.to_value(u.km**3 / u.s**2),
+                self.to_classical().a.to_value(u.km),
+            )
+            * u.rad
+            / u.s
+        )
 
     @cached_property
     def period(self):

@@ -5,6 +5,7 @@ from hapsira.core.elements import (
     circular_velocity_vf,
     coe2rv_gf,
     eccentricity_vector_gf,
+    mean_motion_vf,
 )
 from hapsira.core.propagation.farnocchia import delta_t_from_nu_vf, FARNOCCHIA_DELTA
 
@@ -21,7 +22,7 @@ def circular_velocity(k, a):
 @u.quantity_input(k=u_km3s2, a=u.km)
 def mean_motion(k, a):
     """Mean motion given body (k) and semimajor axis (a)."""
-    return np.sqrt(k / abs(a**3)).to(1 / u.s) * u.rad
+    return mean_motion_vf(k.to_value(u_km3s2), a.to_value(u.km)) * u.rad / u.s
 
 
 @u.quantity_input(k=u_km3s2, a=u.km)

@@ -6,6 +6,7 @@ from hapsira.core.elements import (
     coe2rv_gf,
     eccentricity_vector_gf,
     mean_motion_vf,
+    period_vf,
 )
 from hapsira.core.propagation.farnocchia import delta_t_from_nu_vf, FARNOCCHIA_DELTA
 
@@ -28,8 +29,7 @@ def mean_motion(k, a):
 @u.quantity_input(k=u_km3s2, a=u.km)
 def period(k, a):
     """Period given body (k) and semimajor axis (a)."""
-    n = mean_motion(k, a)
-    return 2 * np.pi * u.rad / n
+    return period_vf(k.to_value(u_km3s2), a.to_value(u.km)) * u.s
 
 
 @u.quantity_input(k=u_km3s2, r=u.km, v=u_kms)

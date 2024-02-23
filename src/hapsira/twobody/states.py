@@ -11,8 +11,12 @@ from hapsira.core.elements import (
     rv2coe_gf,
     RV2COE_TOL,
     mean_motion_vf,
+    period_vf,
 )
-from hapsira.twobody.elements import period, t_p
+from hapsira.twobody.elements import t_p
+
+
+u_km3s2 = u.km**3 / u.s**2
 
 
 class BaseState:
@@ -50,7 +54,7 @@ class BaseState:
         """Mean motion."""
         return (
             mean_motion_vf(
-                self.attractor.k.to_value(u.km**3 / u.s**2),
+                self.attractor.k.to_value(u_km3s2),
                 self.to_classical().a.to_value(u.km),
             )
             * u.rad
@@ -60,7 +64,13 @@ class BaseState:
     @cached_property
     def period(self):
         """Period of the orbit."""
-        return period(self.attractor.k, self.to_classical().a)
+        return (
+            period_vf(
+                self.attractor.k.to_value(u_km3s2),
+                self.to_classical().a.to_value(u.km),
+            )
+            * u.s
+        )
 
     @cached_property
     def r_p(self):

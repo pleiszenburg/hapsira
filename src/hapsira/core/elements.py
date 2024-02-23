@@ -39,6 +39,7 @@ __all__ = [
     "mee2rv_hf",
     "mee2rv_gf",
     "mean_motion_vf",
+    "period_vf",
 ]
 
 
@@ -688,3 +689,21 @@ def mean_motion_vf(k, a):
     Vectorized mean_motion
     """
     return mean_motion_hf(k, a)
+
+
+@hjit("f(f,f)", inline=True)
+def period_hf(k, a):
+    """
+    Period given body (k) and semimajor axis (a).
+    """
+    n = mean_motion_hf(k, a)
+    return 2 * pi / n
+
+
+@vjit("f(f,f)")
+def period_vf(k, a):
+    """
+    Vectorized period
+    """
+
+    return period_hf(k, a)

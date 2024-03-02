@@ -229,9 +229,9 @@ ephem = initial.to_ephem(
 
 ```{code-cell} ipython3
 frame = OrbitPlotter(backend=Plotly3D())
-
 frame.set_attractor(Earth)
 frame.plot_ephem(ephem, label="orbit influenced by Moon")
+frame.show()
 ```
 
 ## Applying thrust
@@ -282,9 +282,9 @@ ephem2 = orb0.to_ephem(
 
 ```{code-cell} ipython3
 frame = OrbitPlotter(backend=Plotly3D())
-
 frame.set_attractor(Earth)
 frame.plot_ephem(ephem2, label="orbit with artificial thrust")
+frame.show()
 ```
 
 ## Combining multiple perturbations

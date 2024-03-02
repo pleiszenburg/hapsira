@@ -52,7 +52,7 @@ class FarnocchiaPropagator:
         rv0 = state.to_value()
 
         # TODO: This should probably return a ClassicalStateArray instead,
-        # see discussion at https://github.com/hapsira/hapsira/pull/1492
+        # see discussion at https://github.com/poliastro/poliastro/pull/1492
         rr, vv = farnocchia_rv_gf(k, *rv0, tofs.to_value(u.s))  # pylint: disable=E0633
 
         return (

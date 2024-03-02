@@ -242,7 +242,7 @@ def test_set_frame_plots_same_colors():
 
 
 def test_redraw_keeps_trajectories():
-    # See https://github.com/hapsira/hapsira/issues/518
+    # See https://github.com/poliastro/poliastro/issues/518
     op = OrbitPlotter()
     trajectory = churi.sample()
     op.plot_body_orbit(Mars, J2000_TDB, label="Mars")

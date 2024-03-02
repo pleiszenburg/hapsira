@@ -347,7 +347,7 @@ def test_propagate_to_date_has_proper_epoch():
 )
 def test_propagate_long_times_keeps_geometry(method):
     # TODO: Extend to other propagators?
-    # See https://github.com/hapsira/hapsira/issues/265
+    # See https://github.com/poliastro/poliastro/issues/265
     time_of_flight = 100 * u.year
 
     res = iss.propagate(time_of_flight, method=method)
@@ -436,7 +436,7 @@ def test_propagation_sets_proper_epoch():
 
 
 def test_sample_around_moon_works():
-    # See https://github.com/hapsira/hapsira/issues/649
+    # See https://github.com/poliastro/poliastro/issues/649
     orbit = Orbit.circular(Moon, 100 << u.km)
 
     coords = orbit.sample(10)
@@ -446,7 +446,7 @@ def test_sample_around_moon_works():
 
 
 def test_propagate_around_moon_works():
-    # See https://github.com/hapsira/hapsira/issues/649
+    # See https://github.com/poliastro/poliastro/issues/649
     orbit = Orbit.circular(Moon, 100 << u.km)
     new_orbit = orbit.propagate(1 << u.h)
 

@@ -91,7 +91,7 @@ class EpochsArray(SamplingStrategy):
         # However, we are also returning the epochs
         # (since computing them here is more efficient than doing it from the outside)
         # but there are open questions around StateArrays and epochs.
-        # See discussion at https://github.com/hapsira/hapsira/pull/1492
+        # See discussion at https://github.com/poliastro/poliastro/pull/1492
         cartesian = CartesianRepresentation(
             rr, differentials=CartesianDifferential(vv, xyz_axis=1), xyz_axis=1
         )
@@ -160,7 +160,7 @@ class TrueAnomalyBounds(SamplingStrategy):
         # However, we are also returning the epochs
         # (since computing them here is more efficient than doing it from the outside)
         # but there are open questions around StateArrays and epochs.
-        # See discussion at https://github.com/hapsira/hapsira/pull/1492
+        # See discussion at https://github.com/poliastro/poliastro/pull/1492
         cartesian = CartesianRepresentation(
             rr, differentials=CartesianDifferential(vv, xyz_axis=1), xyz_axis=1
         )

@@ -28,7 +28,7 @@ kernelspec:
 
 +++
 
-However, it turns out that GP data in general, and TLEs in particular, are poorly understood even by professionals ([[1]](https://www.linkedin.com/posts/tom-johnson-32333a2_flawed-data-activity-6825845118990381056-yJX7), [[2]](https://twitter.com/flightclubio/status/1435303066085982209), [[3]](https://github.com/hapsira/hapsira/issues/1185)). The core issue is that TLEs and OMMs contain _Brouwer mean elements_, which **cannot be directly translated to osculating elements**.
+However, it turns out that GP data in general, and TLEs in particular, are poorly understood even by professionals ([[1]](https://www.linkedin.com/posts/tom-johnson-32333a2_flawed-data-activity-6825845118990381056-yJX7), [[2]](https://twitter.com/flightclubio/status/1435303066085982209), [[3]](https://github.com/poliastro/poliastro/issues/1185)). The core issue is that TLEs and OMMs contain _Brouwer mean elements_, which **cannot be directly translated to osculating elements**.
 
 From "Spacetrack Report #3":
 
@@ -58,7 +58,7 @@ Therefore, the **correct** way of using GP data is:
 As explained in the [Orbit Mean-Elements Messages (OMMs) support assessment](https://opensatcom.org/2020/12/28/omm-assessment-sgp4-benchmarks/) deliverable of OpenSatCom, OMM input/output support in open source libraries is somewhat scattered. Luckily, [python-sgp4](https://pypi.org/project/sgp4/) supports reading OMM in CSV and XML format, as well as usual TLE and 3LE formats. On the other hand, Astropy has accurate transformations from TEME to other reference frames.
 
 ```{code-cell} ipython3
-# From https://github.com/hapsira/hapsira/blob/main/contrib/satgpio.py
+# From https://github.com/pleiszenburg/hapsira/blob/main/contrib/satgpio.py
 """
 Author: Juan Luis Cano Rodríguez
 

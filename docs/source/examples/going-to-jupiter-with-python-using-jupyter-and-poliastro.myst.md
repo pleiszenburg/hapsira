@@ -37,7 +37,7 @@ from hapsira.twobody import Orbit
 from hapsira.util import norm, time_range
 ```
 
-All the data for Juno's mission is sorted [here](https://github.com/hapsira/hapsira/wiki/EuroPython:-Per-Python-ad-Astra). The main maneuvers that the spacecraft will perform are listed down:
+All the data for Juno's mission is sorted [here](https://github.com/poliastro/poliastro/wiki/EuroPython:-Per-Python-ad-Astra). The main maneuvers that the spacecraft will perform are listed down:
 
 * Inner cruise phase 1: This will set Juno in a new orbit around the sun.
 * Inner cruise phase 2: Fly-by around Earth. Gravity assist is performed.

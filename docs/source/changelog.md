@@ -1,4 +1,22 @@
-# What's new
+# Changes
+
+## hapsira 0.19.0 - 2024-XX-XX
+
+**CAUTION**: A number changes at least partially **BREAK BACKWARDS COMPATIBILITY** for certain use cases.
+
+This release features a significant refactoring of `core`, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7) for details. All relevant `core` functions are now designed to work equally on CPUs and GPUs as either [universal functions](https://numba.readthedocs.io/en/stable/user/vectorize.html#the-vectorize-decorator) or [generalized universal functions](https://numba.readthedocs.io/en/stable/user/vectorize.html#the-guvectorize-decorator). As a "side-effect", all relevant `core` functions allow parallel operation with full [broadcasting semantics](https://numpy.org/doc/stable/user/basics.broadcasting.html). Their single-thread performance was also increased depending on use-case by around two orders of magnitude. All refactored **functions** in `core` were **renamed**, now carrying additional suffixes to indicate how they can or can not be invoked.
+
+Critical fix changing behaviour: The Loss of Signal (LOS) event would previously produce wrong results.
+
+- FEATURE: New `core.math` module, including fast replacements for many `numpy` and some `scipy` functions, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FEATURE: New `core.jit` module, wrapping a number of `numba` functions to have a central place to apply settings, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FEATURE: New `settings` module, mainly for handling JIT compiler settings, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FEATURE: New `debug` module, including logging capabilities, mainly logging JIT compiler issues, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FIX: The Loss of Signal (LOS) event would misshandle the position of the secondary body i.e. producing wrong results, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7) as well as the [relevant commit](https://github.com/pleiszenburg/hapsira/commit/988a91cd22ff1de285c33af35b13d288963fcaf7)
+- FIX: The Cowell propagator could produce wrong results if times of flight (tof) where provided in units other than seconds, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FIX: Broken plots in example notebooks, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FIX: Typo in `bodies`, see [hapsira #6](https://github.com/pleiszenburg/hapsira/pull/6)
+- DEV: Parallel (multi-core) testing enabled by default, see [hapsira #5](https://github.com/pleiszenburg/hapsira/pull/5)
 
 ## hapsira 0.18.0 - 2023-12-24
 

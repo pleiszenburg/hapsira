@@ -8,7 +8,9 @@ This release features a significant refactoring of `core`, see [hapsira #7](http
 
 Critical fix changing behaviour: The Loss of Signal (LOS) event would previously produce wrong results.
 
-- FEATURE: New `core.math` module, including fast replacements for many `numpy` and some `scipy` functions, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FEATURE: New `core.math` module, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7), including fast replacements for many `numpy` and some `scipy` functions, most notably:
+    - [scipy.interpolate.interp1d](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html) is replaced by `core.math.interpolate.interp_hb`. It custom-compiles 1D linear interpolators, embedding data statically into the compiled functions.
+    - [scipy.integrate.solve_ivp](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html), [scipy.integrate.DOP853](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.DOP853.html) and [scipy.optimize.brentq](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.brentq.html) are replaced by `core.math.ivp`, a purely functional compiled implementation running entirely on the stack.
 - FEATURE: New `core.jit` module, wrapping a number of `numba` functions to have a central place to apply settings, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
 - FEATURE: New `settings` module, mainly for handling JIT compiler settings, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
 - FEATURE: New `debug` module, including logging capabilities, mainly logging JIT compiler issues, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)

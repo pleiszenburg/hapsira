@@ -87,7 +87,7 @@ source_suffix = {
 }
 
 project = "hapsira"
-copyright = "2023 Sebastian M. Ernst"
+copyright = "2023-2024 Sebastian M. Ernst"
 
 project_ver = version(project)
 version = ".".join(project_ver.split(".")[:2])

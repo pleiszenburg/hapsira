@@ -161,6 +161,7 @@ caption: How-to guides & Examples
 ---
 gallery
 contributing
+core
 ```
 
 ```{toctree}

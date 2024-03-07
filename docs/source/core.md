@@ -46,6 +46,18 @@ The "hierarchy" of decorators is imposed by CUDA-compatibility. While functions 
 As a result of name suffixes as of version `0.19.0`, many `core` module functions have been renamed making the package intentionally backwards-incompatible. Functions not yet using the new infrastructure can be recognized based on lack of suffix. Eventually all `core` functions will use this infrastructure and carry matching suffixes.
 ```
 
+```{note}
+Some functions decorated by `gjit` must receive a dummy parameter, also explicitly named `dummy`. It is usually an empty `numpy` array of shape `(3,)` of data type `u1` (unsigned one-byte integer). This is a work-around for [numba #2797](https://github.com/numba/numba/issues/2797).
+```
+
+## Compiler errors
+
+Misconfigured compiler decorators or unavailable targets raise an `errors.JitError` exception.
+
+## Keyword arguments and defaults
+
+Due to incompletely documented limitations in `numba`, see [documentation](https://numba.readthedocs.io/en/stable/reference/pysupported.html#function-calls) and [numba #7870](https://github.com/numba/numba/issues/7870), functions decorated by `hjit`, `vjit` and `gjit` can not have defaults for any of their arguments. In this context, those functions can not reliably be called with keyword arguments, too, which must therefore be avoided. Defaults are provided as constants within the same submodule, usually the function name in capital letters followed by the name of the argument, also in capital letters.
+
 ## Dependencies
 
 Functions decorated by `vjit`, `gjit` and `hjit` are only allowed to depend on Python's standard library's [math module](https://docs.python.org/3/library/math.html), but **not** on other third-party packages like [numpy](https://numpy.org/doc/stable/) or [scipy](https://docs.scipy.org/doc/scipy/) for that matter - except for certain details like [enforcing floating point precision](https://numpy.org/doc/stable/user/basics.types.html) as provided by `core.math.ieee754`
@@ -58,7 +70,7 @@ Eliminating `numpy` and other dependencies serves two purposes. While it is crit
 
 All functions decorated by `hjit`, `vjit` and `gjit` must by typed using [signatures similar to those of numba](https://numba.readthedocs.io/en/stable/reference/types.html).
 
-All compiled code enforces a single floating point precision level, which can be configured. The default is FP64 / double precision. For simplicity, the type shortcut is `f`, replacing `f2`, `f4` or `f8`. Additional infrastructure can be found in `core.math.ieee754`. Consider the following example:
+All compiled code enforces a single floating point precision level, which can be configured. The default is FP64 / double precision. For simplicity, the type shortcut is `f`, replacing `f2`, `f4` or `f8`. Consider the following example:
 
 ```python
 from numba import vectorize
@@ -71,6 +83,12 @@ def foo(x):
 @vjit("f(f)")
 def bar_vf(x):
     return x ** 2
+```
+
+Additional infrastructure can be found in `core.math.ieee754`. The default floating point type is exposed as `core.math.ieee754.float_` for explicit conversions. A matching epsilon is exposed as `core.math.ieee754.EPS`.
+
+```{note}
+Divisions by zero should, regardless of compiler target or even entirely deactivated compiler, always result in `inf` (infinity) instead of `ZeroDivisionError` exceptions. Most divisions within `core` are therefore explicitly guarded.
 ```
 
 3D vectors are expressed as tuples, type shortcut `V`, replacing `Tuple([f,f,f])`. Consider the following example:

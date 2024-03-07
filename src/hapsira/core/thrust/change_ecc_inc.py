@@ -3,7 +3,7 @@
 References
 ----------
 * Pollard, J. E. "Simplified Analysis of Low-Thrust Orbital Maneuvers", 2000.
-rv2coe
+
 """
 
 from math import asin, atan, cos, pi, log, sin

@@ -253,7 +253,7 @@ as well as the results from Google Summer of Code 2021.
   The interactive orbit plotters {py:class}`~poliastro.plotting.OrbitPlotter2D`
   and {py:class}`~poliastro.plotting.OrbitPlotter3D`
   now have a new method to easily display impulsive burns.
-  See {doc}`/examples/going-to-jupiter-with-python-using-jupyter-and-poliastro`
+  See {doc}`/examples/going-to-jupiter-with-python-using-jupyter-and-hapsira`
   for an example.
 - **Many performance improvements**
   Several contributors have helped accelerate more algorithms

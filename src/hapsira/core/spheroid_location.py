@@ -26,7 +26,7 @@ __all__ = [
 def cartesian_cords(a, c, lon, lat, h):
     """Calculates cartesian coordinates.
 
-    Parametersnorm_V_hf
+    Parameters
     ----------
     a : float
         Semi-major axis

@@ -1,4 +1,4 @@
-(quickstart)=
+(coremodule)=
 # Core module
 
 The `core` module handles most actual heavy computations. It is compiled via [numba](https://numba.readthedocs.io). For both working with functions from `core` directly and contributing to it, it is highly recommended to gain some basic understanding of how `numba` works.

@@ -37,20 +37,21 @@ The decorators are applied in a **hierarchy**:
 - Functions decorated by either `vjit` and `gjit` serve as the **only** interface between regular uncompiled Python code and `core`
 - Functions decorated by `vjit` and `hjit` only call functions decorated by `hjit`
 - Functions decorated by `hjit` can only call each other.
-- Functions decorated by `vjit`, `gjit` and `hjit`:
-    - are only allowed to depend on Python's standard library's [math module](https://docs.python.org/3/library/math.html), but not on [numpy](https://numpy.org/doc/stable/) - except for certain details like [enforcing floating point precision](https://numpy.org/doc/stable/user/basics.types.html) as provided by `core.math.ieee754`
-    - are fully typed, loosely following [numba semantics](https://numba.readthedocs.io/en/stable/reference/types.html) via shortcuts
 
 ```{note}
-The above mentioned "hierarchy" of decorators is imposed by CUDA-compatibility. While functions decorated by `numba.jit` (targets `cpu` and `parallel`) can be called from uncompiled Python code, functions decorated by `numba.cuda.jit` (target `cuda`) are considered [device functions](https://numba.readthedocs.io/en/stable/cuda/device-functions.html) and can not be called by uncompiled Python code directly. They are supposed to be called by CUDA-kernels (or other device functions) only (slightly simplifying the actual situation as implemented by `numba`). If the target is set to `cuda`, functions decorated by `numba.vectorize` and `numba.guvectorize` become CUDA kernels.
-```
-
-```{note}
-Eliminating `numpy` as a dependency serves two purposes. While it also contributes to [CUDA-compatiblity](https://numba.readthedocs.io/en/stable/cuda/cudapysupported.html), it additionally makes the code significantly faster on CPUs.
+The "hierarchy" of decorators is imposed by CUDA-compatibility. While functions decorated by `numba.jit` (targets `cpu` and `parallel`) can be called from uncompiled Python code, functions decorated by `numba.cuda.jit` (target `cuda`) are considered [device functions](https://numba.readthedocs.io/en/stable/cuda/device-functions.html) and can not be called by uncompiled Python code directly. They are supposed to be called by CUDA-kernels (or other device functions) only (slightly simplifying the actual situation as implemented by `numba`). If the target is set to `cuda`, functions decorated by `numba.vectorize` and `numba.guvectorize` become CUDA kernels.
 ```
 
 ```{warning}
 As a result of name suffixes as of version `0.19.0`, many `core` module functions have been renamed making the package intentionally backwards-incompatible. Functions not yet using the new infrastructure can be recognized based on lack of suffix. Eventually all `core` functions will use this infrastructure and carry matching suffixes.
+```
+
+## Dependencies
+
+Functions decorated by `vjit`, `gjit` and `hjit` are only allowed to depend on Python's standard library's [math module](https://docs.python.org/3/library/math.html), but **not** on other third-party packages like [numpy](https://numpy.org/doc/stable/) or [scipy](https://docs.scipy.org/doc/scipy/) for that matter - except for certain details like [enforcing floating point precision](https://numpy.org/doc/stable/user/basics.types.html) as provided by `core.math.ieee754`
+
+```{note}
+Eliminating `numpy` and other dependencies serves two purposes. While it is critical for [CUDA-compatiblity](https://numba.readthedocs.io/en/stable/cuda/cudapysupported.html), it additionally makes the code significantly faster on CPUs.
 ```
 
 ## Typing
@@ -175,7 +176,7 @@ The `DEBUG` setting disables caching and enables the highest log level, among ot
 `CACHE` only works for `cpu` and `parallel` targets. It speeds up import times drastically if the package gets reused. Dynamically generated functions can not be cached and must be exempt from caching by passing `cache = False` as a parameter to the JIT compiler decorator.
 
 ```{warning}
-Building the cache should not be done in parallel processes - this will result in segmentation faults, see [numba #4807](https://github.com/numba/numba/issues/4807). Once `core` is fully compiled and cached, it can however be used in parallel processes. Rebuilding the cache can usually reliably resolve segmentation faults.
+Building the cache should not be done in parallel processes - this will most likely result in non-deterministic segmentation faults, see [numba #4807](https://github.com/numba/numba/issues/4807). Once `core` is fully compiled and cached, it can however be used in parallel processes. Rebuilding the cache can usually reliably resolve segmentation faults.
 ```
 
 Inlining via `INLINE` drastically increases performance but also compile times. It is the default behaviour for target `cuda`. See [relevant chapter in numba documentation](https://numba.readthedocs.io/en/stable/developer/inlining.html#notes-on-inlining) for details.
@@ -185,7 +186,7 @@ Inlining via `INLINE` drastically increases performance but also compile times. 
 The default `PRECISION` of all floating point operations is FP64 / double precision float.
 
 ```{warning}
-`hapsira`, formerly `poliastro`, was validated using FP64. Certain parts like Cowell reliably operate at this precision only. Other parts like for instance atmospheric models can easily handle single precision. This option is therefore provided for experimental purposes only.
+`hapsira`, formerly `poliastro`, was validated for FP64. Certain parts like Cowell reliably operate at this precision only. Other parts like for instance atmospheric models can easily handle single precision. This option is therefore provided for experimental purposes only.
 ```
 
 ## Logging
@@ -196,7 +197,7 @@ Compiler issues are logged via logging channel `hapsira` using Python's standard
 
 The former `_math` module, version `0.18` and earlier, has become a first-class citizen as `core.math`, fully compiled by the above mentioned infrastructure. `core.math` contains a number of replacements for `numpy` operations, mostly found in `core.math.linalg`. All of those functions do not allocate memory and are free of side-effects including a lack of changes to their parameters.
 
-Functions in `core.math` follow a loose naming convention, indicating for what types of parameters they can be used. `mul_Vs_hf` for instance is a multiplication of a vector `V` and a scalar `s` (floating point).
+Functions in `core.math` follow a loose naming convention, indicating for what types of parameters they can be used. `mul_Vs_hf` for instance is a multiplication of a vector `V` and a scalar `s` (floating point). `M` indicates matricis.
 
 `core.math` also replaces (some) required `scipy` functions:
 

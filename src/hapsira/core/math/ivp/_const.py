@@ -21,7 +21,6 @@ MIN_FACTOR = 0.2  # Minimum allowed decrease in a step size.
 MAX_FACTOR = 10  # Maximum allowed increase in a step size.
 
 INTERPOLATOR_POWER = 7
-N_STAGES_EXTENDED = 16
 ERROR_ESTIMATOR_ORDER = 7
 ERROR_EXPONENT = -1 / (ERROR_ESTIMATOR_ORDER + 1)
 

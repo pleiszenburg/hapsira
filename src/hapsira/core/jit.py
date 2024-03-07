@@ -318,6 +318,6 @@ def sjit(*args, **kwargs) -> Callable:
     return wrapper
 
 
-@hjit("V(f[:])", inline=True)
+@hjit("V(f[:])")
 def array_to_V_hf(x):
     return x[0], x[1], x[2]

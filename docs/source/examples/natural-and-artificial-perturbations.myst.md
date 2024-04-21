@@ -25,7 +25,7 @@ from hapsira.bodies import Earth, Moon
 from hapsira.constants import rho0_earth, H0_earth
 
 from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
-from hapsira.core.jit import array_to_V_hf, djit, hjit
+from hapsira.core.jit import djit, hjit
 from hapsira.core.math.linalg import add_VV_hf
 from hapsira.core.perturbations import (
     atmospheric_drag_exponential_hf,

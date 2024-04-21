@@ -216,7 +216,7 @@ def cowell_gb(
                 event_g_olds[event_idx] = event_g_news[event_idx]
 
             if not t_last <= t:
-                raise ValueError("not t_last <= t", t_last, t)
+                raise ValueError("not t_last <= t")
 
             while t_idx[0] < tofs.shape[0] and tofs[t_idx[0]] < t:
                 rrs[t_idx[0], :], vvs[t_idx[0], :] = dop853_dense_interp_hf(

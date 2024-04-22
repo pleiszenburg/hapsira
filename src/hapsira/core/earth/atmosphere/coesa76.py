@@ -94,7 +94,7 @@ COESA76_GEOMETRIC = True
 
 
 @hjit("Tuple([f,f])(f,f,b1)")
-def _check_altitude_hf(alt, r0, geometric):  # geometric True by default
+def _check_altitude_hf(alt, r0, geometric):
     """Checks if altitude is inside valid range.
 
     Parameters
@@ -105,16 +105,16 @@ def _check_altitude_hf(alt, r0, geometric):  # geometric True by default
         Attractor radius.
     geometric : bool
         If `True`, assumes geometric altitude kind.
+        Default `True`.
 
     Returns
     -------
-    z: float
+    z : float
         Geometric altitude.
-    h: float
+    h : float
         Geopotential altitude.
 
     """
-
     z, h = check_altitude_hf(alt, r0, geometric)
     assert zb_levels[0] <= z <= zb_levels[-1]
 
@@ -132,8 +132,8 @@ def _get_index_zb_levels_hf(x):
 
     Returns
     -------
-    i: int
-        Index for the value.
+    i : int
+        Index for the value. `999` if there was an error.
 
     """
     for i, value in enumerate(zb_levels):
@@ -156,8 +156,9 @@ def _get_index_z_coeff_hf(x):
 
     Returns
     -------
-    i: int
+    i : int
         Index for the value.
+        Index for the value. `999` if there was an error.
 
     """
     for i, value in enumerate(z_coeff):
@@ -180,8 +181,9 @@ def _get_coefficients_avobe_86_p_coeff_hf(z):
 
     Returns
     -------
-    coeffs: tuple[float,float,float,float,float]
-        List of corresponding coefficients
+    coeffs : tuple[float,float,float,float,float]
+        Tuple of corresponding coefficients
+
     """
     # Get corresponding coefficients
     i = _get_index_z_coeff_hf(z)
@@ -199,8 +201,9 @@ def _get_coefficients_avobe_86_rho_coeff_hf(z):
 
     Returns
     -------
-    coeffs: tuple[float,float,float,float,float]
-        List of corresponding coefficients
+    coeffs : tuple[float,float,float,float,float]
+        Tuple of corresponding coefficients
+
     """
     # Get corresponding coefficients
     i = _get_index_z_coeff_hf(z)
@@ -214,7 +217,7 @@ def _get_coefficients_avobe_86_rho_coeff_hf(z):
 
 
 @hjit("f(f,b1)")
-def temperature_hf(alt, geometric):  # geometric True by default
+def temperature_hf(alt, geometric):
     """Solves for temperature at given altitude.
 
     Parameters
@@ -223,11 +226,13 @@ def temperature_hf(alt, geometric):  # geometric True by default
         Geometric/Geopotential altitude.
     geometric : bool
         If `True`, assumes geometric altitude kind.
+        Default `True`.
 
     Returns
     -------
-    T: float
+    T : float
         Kinetic temeperature.
+
     """
     # Test if altitude is inside valid range
     z, h = _check_altitude_hf(alt, r0, geometric)
@@ -266,16 +271,29 @@ def temperature_hf(alt, geometric):  # geometric True by default
 
 
 @vjit("f(f,b1)")
-def temperature_vf(alt, geometric):  # geometric True by default
-    """
-    Vectorized temperature
-    """
+def temperature_vf(alt, geometric):
+    """Solves for temperature at given altitude.
+    Vectorized.
 
+    Parameters
+    ----------
+    alt : float
+        Geometric/Geopotential altitude.
+    geometric : bool
+        If `True`, assumes geometric altitude kind.
+        Default `True`.
+
+    Returns
+    -------
+    T : float
+        Kinetic temeperature.
+
+    """
     return temperature_hf(alt, geometric)
 
 
 @hjit("f(f,b1)")
-def pressure_hf(alt, geometric):  # geometric True by default
+def pressure_hf(alt, geometric):
     """Solves pressure at given altitude.
 
     Parameters
@@ -284,11 +302,13 @@ def pressure_hf(alt, geometric):  # geometric True by default
         Geometric/Geopotential altitude.
     geometric : bool
         If `True`, assumes geometric altitude kind.
+        Default `True`.
 
     Returns
     -------
-    p: float
+    p : float
         Pressure at given altitude.
+
     """
     # Test if altitude is inside valid range
     z, h = _check_altitude_hf(alt, r0, geometric)
@@ -322,16 +342,29 @@ def pressure_hf(alt, geometric):  # geometric True by default
 
 
 @vjit("f(f,b1)")
-def pressure_vf(alt, geometric):  # geometric True by default
-    """
-    Vectorized pressure
-    """
+def pressure_vf(alt, geometric):
+    """Solves pressure at given altitude.
+    Vectorized.
 
+    Parameters
+    ----------
+    alt : float
+        Geometric/Geopotential altitude.
+    geometric : bool
+        If `True`, assumes geometric altitude kind.
+        Default `True`.
+
+    Returns
+    -------
+    p : float
+        Pressure at given altitude.
+
+    """
     return pressure_hf(alt, geometric)
 
 
 @hjit("f(f,b1)")
-def density_hf(alt, geometric):  # geometric True by default
+def density_hf(alt, geometric):
     """Solves density at given height.
 
     Parameters
@@ -340,11 +373,13 @@ def density_hf(alt, geometric):  # geometric True by default
         Geometric/Geopotential height.
     geometric : bool
         If `True`, assumes that `alt` argument is geometric kind.
+        Default `True`.
 
     Returns
     -------
-    rho: float
+    rho : float
         Density at given height.
+
     """
     # Test if altitude is inside valid range
     z, _ = _check_altitude_hf(alt, r0, geometric)
@@ -368,9 +403,22 @@ def density_hf(alt, geometric):  # geometric True by default
 
 
 @vjit("f(f,b1)")
-def density_vf(alt, geometric):  # geometric True by default
-    """
-    Vectorized density
-    """
+def density_vf(alt, geometric):
+    """Solves density at given height.
+    Vectorized.
 
+    Parameters
+    ----------
+    alt : float
+        Geometric/Geopotential height.
+    geometric : bool
+        If `True`, assumes that `alt` argument is geometric kind.
+        Default `True`.
+
+    Returns
+    -------
+    rho : float
+        Density at given height.
+
+    """
     return density_hf(alt, geometric)

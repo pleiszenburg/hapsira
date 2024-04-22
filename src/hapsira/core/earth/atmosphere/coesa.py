@@ -21,7 +21,7 @@ def _geometric_to_geopotential_hf(z, r0):
 
     Returns
     -------
-    h: float
+    h : float
         Geopotential altitude.
     """
     h = r0 * z / (r0 + z)
@@ -41,7 +41,7 @@ def _geopotential_to_geometric_hf(h, r0):
 
     Returns
     -------
-    z: float
+    z : float
         Geometric altitude.
     """
     z = r0 * h / (r0 - h)
@@ -67,7 +67,7 @@ def _gravity_hf(z, g0, r0):
 
     Returns
     -------
-    g: float
+    g : float
         Gravity value at given geometric altitude.
     """
     g = g0 * (r0 / (r0 + z)) ** 2
@@ -87,7 +87,7 @@ def get_index_hf(x, x_levels):
 
     Returns
     -------
-    i: int
+    i : int
         Index for the value.
 
     """
@@ -102,7 +102,7 @@ def get_index_hf(x, x_levels):
 
 @hjit("Tuple([f,f])(f,f,b1)")
 def check_altitude_hf(alt, r0, geometric):
-    # Get geometric and geopotential altitudes
+    """Get geometric and geopotential altitudes"""
     if geometric:
         z = alt
         h = _z_to_h_hf(z, r0)

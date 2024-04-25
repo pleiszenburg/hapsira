@@ -11,6 +11,9 @@ __all__ = [
     "E5",
 ]
 
+# Based on
+# https://github.com/scipy/scipy/blob/v1.12.0/scipy/integrate/_ivp/dop853_coefficients.py
+
 C = np.array(
     [
         0.0,

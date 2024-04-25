@@ -29,13 +29,47 @@ BRENTQ_RTOL = 4 * EPS
 BRENTQ_MAXITER = 100
 
 
-@hjit("f(f,f)")
+@hjit("f(f,f)", inline=True)
 def _min_ss_hf(a, b):
+    """
+    The smaller of two scalars.
+    Inline by default.
+
+    Parameters
+    ----------
+    a : float
+        Scalar
+    b : float
+        Scalar
+
+    Returns
+    -------
+    c : float
+        Scalar
+
+    """
+
     return a if a < b else b
 
 
-@hjit("b1(f)")
+@hjit("b1(f)", inline=True)
 def _signbit_s_hf(a):
+    """
+    Sign bit of float.
+    Inline by default.
+
+    Parameters
+    ----------
+    a : float
+        Scalar
+
+    Returns
+    -------
+    b : boolean
+        Scalar
+
+    """
+
     return a < 0
 
 
@@ -49,8 +83,45 @@ def _brentq_hf(
     maxiter,  # int
 ):
     """
+    Find a root of a function in a bracketing interval using Brent's method.
+
     Loosely adapted from
-    https://github.com/scipy/scipy/blob/d23363809572e9a44074a3f06f66137083446b48/scipy/optimize/_zeros_py.py#L682
+    - https://github.com/scipy/scipy/blob/d23363809572e9a44074a3f06f66137083446b48/scipy/optimize/_zeros_py.py#L682
+    - https://github.com/scipy/scipy/blob/bd60b4ef9d886a9171345fc064c80aad6d171e73/scipy/optimize/Zeros/brentq.c#L37
+
+    Parameters
+    ----------
+    func : Callable, float of float
+        The function :math:`f` must be continuous, and :math:`f(xa)`
+        and :math:`f(xb)` must have opposite signs.
+    xa : float
+        One end of the bracketing interval :math:`[xa, xb]`.
+    xb : float
+        The other end of the bracketing interval :math:`[xa, xb]`.
+    xtol : float
+        The computed root ``x0`` will satisfy ``np.allclose(x, x0,
+        atol=xtol, rtol=rtol)``, where ``x`` is the exact root. The
+        parameter must be positive. For nice functions, Brent's
+        method will often satisfy the above condition with ``xtol/2``
+        and ``rtol/2``.
+    rtol : float
+        The computed root ``x0`` will satisfy ``np.allclose(x, x0,
+        atol=xtol, rtol=rtol)``, where ``x`` is the exact root. The
+        parameter cannot be smaller than its default value of
+        ``4*np.finfo(float).eps``. For nice functions, Brent's
+        method will often satisfy the above condition with ``xtol/2``
+        and ``rtol/2``.
+    maxiter : float
+        If convergence is not achieved in `maxiter` iterations, an error is
+        raised. Must be >= 0.
+
+    Returns
+    -------
+    xc : float
+        Root of `f` between `a` and `b`.
+    status : int
+        Solver status code.
+
     """
 
     # if not xtol + 0. > 0:
@@ -136,6 +207,14 @@ def _brentq_hf(
 def brentq_gb(func: Callable) -> Callable:
     """
     Builds vectorized brentq
+
+    Parameters
+    ----------
+    func : Callable
+
+    Returns
+    -------
+    brentq_gf : Callable
     """
 
     @gjit(
@@ -152,6 +231,45 @@ def brentq_gb(func: Callable) -> Callable:
         xcur,
         status,
     ):
+        """
+        Find a root of a function in a bracketing interval using Brent's method.
+
+        Loosely adapted from
+        - https://github.com/scipy/scipy/blob/d23363809572e9a44074a3f06f66137083446b48/scipy/optimize/_zeros_py.py#L682
+        - https://github.com/scipy/scipy/blob/bd60b4ef9d886a9171345fc064c80aad6d171e73/scipy/optimize/Zeros/brentq.c#L37
+
+        Parameters
+        ----------
+        xa : float
+            One end of the bracketing interval :math:`[xa, xb]`.
+        xb : float
+            The other end of the bracketing interval :math:`[xa, xb]`.
+        xtol : float
+            The computed root ``x0`` will satisfy ``np.allclose(x, x0,
+            atol=xtol, rtol=rtol)``, where ``x`` is the exact root. The
+            parameter must be positive. For nice functions, Brent's
+            method will often satisfy the above condition with ``xtol/2``
+            and ``rtol/2``.
+        rtol : float
+            The computed root ``x0`` will satisfy ``np.allclose(x, x0,
+            atol=xtol, rtol=rtol)``, where ``x`` is the exact root. The
+            parameter cannot be smaller than its default value of
+            ``4*np.finfo(float).eps``. For nice functions, Brent's
+            method will often satisfy the above condition with ``xtol/2``
+            and ``rtol/2``.
+        maxiter : float
+            If convergence is not achieved in `maxiter` iterations, an error is
+            raised. Must be >= 0.
+
+        Returns
+        -------
+        xc : float
+            Root of `f` between `a` and `b`.
+        status : int
+            Solver status code.
+
+        """
+
         xcur[0], status[0] = _brentq_hf(func, xa, xb, xtol, rtol, maxiter)
 
     return brentq_gf
@@ -174,8 +292,61 @@ def brentq_dense_hf(
     argk,
 ):
     """
+    Find a root of a function in a bracketing interval using Brent's method.
+    Virtually identical to `_brentq_hf`, except that it passes extra arguments
+    through to `func`. Architecturally required due to limiations of `numba`.
+
     Loosely adapted from
-    https://github.com/scipy/scipy/blob/d23363809572e9a44074a3f06f66137083446b48/scipy/optimize/_zeros_py.py#L682
+    - https://github.com/scipy/scipy/blob/d23363809572e9a44074a3f06f66137083446b48/scipy/optimize/_zeros_py.py#L682
+    - https://github.com/scipy/scipy/blob/bd60b4ef9d886a9171345fc064c80aad6d171e73/scipy/optimize/Zeros/brentq.c#L37
+
+    Parameters
+    ----------
+    func : Callable, float of float
+        The function :math:`f` must be continuous, and :math:`f(xa)`
+        and :math:`f(xb)` must have opposite signs.
+    idx : int
+        Selects function in dispatcher, passed to `func`.
+    xa : float
+        One end of the bracketing interval :math:`[xa, xb]`.
+    xb : float
+        The other end of the bracketing interval :math:`[xa, xb]`.
+    xtol : float
+        The computed root ``x0`` will satisfy ``np.allclose(x, x0,
+        atol=xtol, rtol=rtol)``, where ``x`` is the exact root. The
+        parameter must be positive. For nice functions, Brent's
+        method will often satisfy the above condition with ``xtol/2``
+        and ``rtol/2``.
+    rtol : float
+        The computed root ``x0`` will satisfy ``np.allclose(x, x0,
+        atol=xtol, rtol=rtol)``, where ``x`` is the exact root. The
+        parameter cannot be smaller than its default value of
+        ``4*np.finfo(float).eps``. For nice functions, Brent's
+        method will often satisfy the above condition with ``xtol/2``
+        and ``rtol/2``.
+    maxiter : float
+        If convergence is not achieved in `maxiter` iterations, an error is
+        raised. Must be >= 0.
+    sol1 : any
+        Passed to `func`.
+    sol2 : any
+        Passed to `func`.
+    sol3 : any
+        Passed to `func`.
+    sol4 : any
+        Passed to `func`.
+    sol5 : any
+        Passed to `func`.
+    argk : float
+        Passed to `func`.
+
+    Returns
+    -------
+    xc : float
+        Root of `f` between `a` and `b`.
+    status : int
+        Solver status code.
+
     """
 
     if not xtol + 0.0 > 0:

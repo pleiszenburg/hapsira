@@ -29,7 +29,25 @@ def dispatcher_hb(
 ) -> Callable:
     """
     Workaround for https://github.com/numba/numba/issues/9420
+    Compiles a dispatcher for a list of functions that can eventually called by index.
+
+    Parameters
+    ----------
+    funcs : tuple[Callable, ...]
+        One or multiple callables that require dispatching.
+        Dispatching will be based on position in tuple.
+        All callables must have the same signature.
+    argtypes : argument portion of signature for callables
+    restype : return type portion of signature for callables
+    arguments : names of arguments for callables
+
+    Returns
+    -------
+    b : Callable
+        Dispatcher function
+
     """
+
     funcs = [
         (f"func_{id(func):x}", func) for func in funcs
     ]  # names are not unique, ids are
@@ -60,20 +78,28 @@ def dispatcher_hb(
 
 @hjit("b1(f,f,f)")
 def event_is_active_hf(g_old, g_new, direction):
-    """Find which event occurred during an integration step.
+    """
+    Find which event occurred during an integration step.
+
+    Based on
+    https://github.com/scipy/scipy/blob/4edfcaa3ce8a387450b6efce968572def71be089/scipy/integrate/_ivp/ivp.py#L130
 
     Parameters
     ----------
-    g, g_new : array_like, shape (n_events,)
-        Values of event functions at a current and next points.
-    directions : ndarray, shape (n_events,)
-        Event "direction" according to the definition in `solve_ivp`.
+    g_old : float
+        Value of event function at current point.
+    g_new : float
+        Value of event function at next point.
+    direction : float
+        Event "direction".
 
     Returns
     -------
-    active_events : ndarray
-        Indices of events which occurred during the step.
+    active : boolean
+        Status of event (active or not)
+
     """
+
     up = (g_old <= 0) & (g_new >= 0)
     down = (g_old >= 0) & (g_new <= 0)
     either = up | down

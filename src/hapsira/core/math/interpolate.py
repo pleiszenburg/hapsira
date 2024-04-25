@@ -15,7 +15,22 @@ __all__ = [
 
 def interp_hb(x: np.ndarray, y: np.ndarray) -> Callable:
     """
-    Build compiled 1d-interpolator for 3D vectors
+    Builds compiled linear 1D interpolator for 3D vectors,
+    embedding x and y as const values into the binary.
+    Does not extrapolate!
+
+    Parameters
+    ----------
+    x : np.ndarray
+        Values for x
+    y : np.ndarray
+        Values for y
+
+    Returns
+    -------
+    rho : Callable
+        1D interpolator
+
     """
 
     assert x.ndim == 1
@@ -30,6 +45,21 @@ def interp_hb(x: np.ndarray, y: np.ndarray) -> Callable:
 
     @hjit("V(f)", cache=False)
     def interp_hf(x_new):
+        """
+        1D interpolator
+
+        Parameters
+        ----------
+        x_new : float
+            New value for x
+
+        Returns
+        -------
+        y_new : float
+            New value for y
+
+        """
+
         assert x_new >= x[0]
         assert x_new <= x[-1]
 
@@ -67,13 +97,20 @@ def interp_hb(x: np.ndarray, y: np.ndarray) -> Callable:
 
 
 def spline_interp(y, x, u, *, kind="cubic"):
-    """Interpolates y, sampled at x instants, at u instants using `scipy.interpolate.interp1d`."""
+    """
+    Interpolates y, sampled at x instants, at u instants using `scipy.interpolate.interp1d`.
+
+    TODO compile
+
+    """
+
     y_u = _scipy_interp1d(x, y, kind=kind)(u)
     return y_u
 
 
 def sinc_interp(y, x, u):
-    """Interpolates y, sampled at x instants, at u instants using sinc interpolation.
+    """
+    Interpolates y, sampled at x instants, at u instants using sinc interpolation.
 
     Notes
     -----
@@ -82,7 +119,10 @@ def sinc_interp(y, x, u):
     see https://mail.python.org/pipermail/scipy-user/2012-January/031255.html.
     However, quick experiments show different ringing behavior.
 
+    TODO compile
+
     """
+
     if len(y) != len(x):
         raise ValueError("x and s must be the same length")
 

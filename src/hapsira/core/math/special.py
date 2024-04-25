@@ -14,7 +14,8 @@ __all__ = [
 
 @hjit("f(f)")
 def hyp2f1b_hf(x):
-    """Hypergeometric function 2F1(3, 1, 5/2, x), see [Battin].
+    """
+    Hypergeometric function 2F1(3, 1, 5/2, x), see [Battin].
 
     .. todo::
         Add more information about this function
@@ -24,7 +25,18 @@ def hyp2f1b_hf(x):
     More information about hypergeometric function can be checked at
     https://en.wikipedia.org/wiki/Hypergeometric_function
 
+    Parameters
+    ----------
+    x : float
+        Scalar
+
+    Returns
+    -------
+    res : float
+        Scalar
+
     """
+
     if x >= 1.0:
         return inf
 
@@ -43,7 +55,26 @@ def hyp2f1b_hf(x):
 @vjit("f(f)")
 def hyp2f1b_vf(x):
     """
-    Vectorized hyp2f1b
+    Hypergeometric function 2F1(3, 1, 5/2, x), see [Battin].
+
+    .. todo::
+        Add more information about this function
+
+    Notes
+    -----
+    More information about hypergeometric function can be checked at
+    https://en.wikipedia.org/wiki/Hypergeometric_function
+
+    Parameters
+    ----------
+    x : float
+        Scalar
+
+    Returns
+    -------
+    b : float
+        Scalar
+
     """
 
     return hyp2f1b_hf(x)
@@ -51,7 +82,8 @@ def hyp2f1b_vf(x):
 
 @hjit("f(f)")
 def stumpff_c2_hf(psi):
-    r"""Second Stumpff function.
+    r"""
+    Second Stumpff function.
 
     For positive arguments:
 
@@ -59,7 +91,18 @@ def stumpff_c2_hf(psi):
 
         c_2(\psi) = \frac{1 - \cos{\sqrt{\psi}}}{\psi}
 
+    Parameters
+    ----------
+    psi : float
+        Scalar
+
+    Returns
+    -------
+    res : float
+        Scalar
+
     """
+
     eps = 1.0
 
     if psi > eps:
@@ -80,8 +123,25 @@ def stumpff_c2_hf(psi):
 
 @vjit("f(f)")
 def stumpff_c2_vf(psi):
-    """
-    Vectorized stumpff_c2
+    r"""
+    Second Stumpff function.
+
+    For positive arguments:
+
+    .. math::
+
+        c_2(\psi) = \frac{1 - \cos{\sqrt{\psi}}}{\psi}
+
+    Parameters
+    ----------
+    psi : float
+        Scalar
+
+    Returns
+    -------
+    res : float
+        Scalar
+
     """
 
     return stumpff_c2_hf(psi)
@@ -89,7 +149,8 @@ def stumpff_c2_vf(psi):
 
 @hjit("f(f)")
 def stumpff_c3_hf(psi):
-    r"""Third Stumpff function.
+    r"""
+    Third Stumpff function.
 
     For positive arguments:
 
@@ -97,7 +158,18 @@ def stumpff_c3_hf(psi):
 
         c_3(\psi) = \frac{\sqrt{\psi} - \sin{\sqrt{\psi}}}{\sqrt{\psi^3}}
 
+    Parameters
+    ----------
+    psi : float
+        Scalar
+
+    Returns
+    -------
+    res : float
+        Scalar
+
     """
+
     eps = 1.0
 
     if psi > eps:
@@ -118,8 +190,25 @@ def stumpff_c3_hf(psi):
 
 @vjit("f(f)")
 def stumpff_c3_vf(psi):
-    """
-    Vectorized stumpff_c3
+    r"""
+    Third Stumpff function.
+
+    For positive arguments:
+
+    .. math::
+
+        c_3(\psi) = \frac{\sqrt{\psi} - \sin{\sqrt{\psi}}}{\sqrt{\psi^3}}
+
+    Parameters
+    ----------
+    psi : float
+        Scalar
+
+    Returns
+    -------
+    res : float
+        Scalar
+
     """
 
     return stumpff_c3_hf(psi)

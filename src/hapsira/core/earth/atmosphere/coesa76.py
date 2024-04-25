@@ -273,7 +273,6 @@ def temperature_hf(alt, geometric):
 @vjit("f(f,b1)")
 def temperature_vf(alt, geometric):
     """Solves for temperature at given altitude.
-    Vectorized.
 
     Parameters
     ----------
@@ -344,7 +343,6 @@ def pressure_hf(alt, geometric):
 @vjit("f(f,b1)")
 def pressure_vf(alt, geometric):
     """Solves pressure at given altitude.
-    Vectorized.
 
     Parameters
     ----------
@@ -405,7 +403,6 @@ def density_hf(alt, geometric):
 @vjit("f(f,b1)")
 def density_vf(alt, geometric):
     """Solves density at given height.
-    Vectorized.
 
     Parameters
     ----------

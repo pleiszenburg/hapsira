@@ -57,47 +57,67 @@ def dop853_init_hf(fun, t0, rr, vv, t_bound, argk, rtol, atol):
     Functional re-write of constructor of class `DOP853` within `scipy.integrate`.
 
     Based on
-    https://github.com/scipy/scipy/blob/4edfcaa3ce8a387450b6efce968572def71be089/scipy/integrate/_ivp/rk.py#L502
+    - https://github.com/scipy/scipy/blob/4edfcaa3ce8a387450b6efce968572def71be089/scipy/integrate/_ivp/rk.py#L502
+    - https://github.com/scipy/scipy/blob/4edfcaa3ce8a387450b6efce968572def71be089/scipy/integrate/_ivp/rk.py#L85
+    - https://github.com/scipy/scipy/blob/4edfcaa3ce8a387450b6efce968572def71be089/scipy/integrate/_ivp/base.py#L131
 
     Parameters
     ----------
     fun : float
-        Scalar
+        Right-hand side of the system.
     t0 : float
-        Scalar
+        Initial time.
     rr : float
-        Scalar
+        Initial state 0:3
     vv : float
-        Scalar
+        Initial state 3:6
     t_bound : float
-        Scalar
+        Boundary time
     argk : float
-        Scalar
+        Standard gravitational parameter for `fun`
     rtol : float
-        Scalar
+        Relative tolerance
     atol : float
-        Scalar
+        Absolute tolerance
 
     Returns
     -------
-    t0
-    rr
-    vv
-    t_bound
-    fun,  # 4
-    argk,  # 5
-    rtol,  # 6
-    atol,  # 7
-    direction,  # 8
-    K,  # 9
-    rr_old,  # 10
-    vv_old,  # 11
-    t_old,  # 12
-    h_previous,  # 13
-    status,  # 14
-    fr,  # 15
-    fv,  # 16
-    h_abs,  # 17
+    t0 : float
+        Initial time.
+    rr : tuple[float,float,float]
+        Initial state 0:3
+    vv : tuple[float,float,float]
+        Initial state 3:6
+    t_bound : float
+        Boundary time
+    fun : Callable
+        Right-hand side of the system
+    argk : float
+        Standard gravitational parameter for `fun`
+    rtol : float
+        Relative tolerance
+    atol : float
+        Absolute tolerance
+    direction : float
+        Integration direction
+    K : tuple[[float,...],...]
+        Storage array for RK stages
+    rr_old : tuple[float,float,float]
+        Last state 0:3
+    vv_old : tuple[float,float,float]
+        Last state 3:6
+    t_old : float
+        Last time
+    h_previous : float
+        Last step length
+    status : float
+        Solver status
+    fr : tuple[float,float,float]
+        Current value of the derivative 0:3
+    fv : tuple[float,float,float]
+        Current value of the derivative 3:6
+    h_abs : float
+        Absolute step
 
     """
 
@@ -201,6 +221,84 @@ def dop853_step_hf(
 
     Based on
     https://github.com/scipy/scipy/blob/4edfcaa3ce8a387450b6efce968572def71be089/scipy/integrate/_ivp/base.py#L175
+
+    Parameters
+    ----------
+    t : float
+        Current time.
+    rr : tuple[float,float,float]
+        Current state 0:3
+    vv : tuple[float,float,float]
+        Current state 3:6
+    t_bound : float
+        Boundary time
+    fun : Callable
+        Right-hand side of the system
+    argk : float
+        Standard gravitational parameter for `fun`
+    rtol : float
+        Relative tolerance
+    atol : float
+        Absolute tolerance
+    direction : float
+        Integration direction
+    K : tuple[[float,...],...]
+        Storage array for RK stages
+    rr_old : tuple[float,float,float]
+        Last state 0:3
+    vv_old : tuple[float,float,float]
+        Last state 3:6
+    t_old : float
+        Last time
+    h_previous : float
+        Last step length
+    status : float
+        Solver status
+    fr : tuple[float,float,float]
+        Current value of the derivative 0:3
+    fv : tuple[float,float,float]
+        Current value of the derivative 3:6
+    h_abs : float
+        Absolute step
+
+    Returns
+    -------
+    t : float
+        Current time.
+    rr : tuple[float,float,float]
+        Current state 0:3
+    vv : tuple[float,float,float]
+        Current state 3:6
+    t_bound : float
+        Boundary time
+    fun : Callable
+        Right-hand side of the system
+    argk : float
+        Standard gravitational parameter for `fun`
+    rtol : float
+        Relative tolerance
+    atol : float
+        Absolute tolerance
+    direction : float
+        Integration direction
+    K : tuple[[float,...],...]
+        Storage array for RK stages
+    rr_old : tuple[float,float,float]
+        Last state 0:3
+    vv_old : tuple[float,float,float]
+        Last state 3:6
+    t_old : float
+        Last time
+    h_previous : float
+        Last step length
+    status : float
+        Solver status
+    fr : tuple[float,float,float]
+        Current value of the derivative 0:3
+    fv : tuple[float,float,float]
+        Current value of the derivative 3:6
+    h_abs : float
+        Absolute step
 
     """
 

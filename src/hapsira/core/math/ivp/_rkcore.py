@@ -54,6 +54,51 @@ DOP853_SIG = f"f,V,V,f,F({DSIG}),f,f,f,f,{KSIG:s},V,V,f,f,f,V,V,f"
 def dop853_init_hf(fun, t0, rr, vv, t_bound, argk, rtol, atol):
     """
     Explicit Runge-Kutta method of order 8.
+    Functional re-write of constructor of class `DOP853` within `scipy.integrate`.
+
+    Based on
+    https://github.com/scipy/scipy/blob/4edfcaa3ce8a387450b6efce968572def71be089/scipy/integrate/_ivp/rk.py#L502
+
+    Parameters
+    ----------
+    fun : float
+        Scalar
+    t0 : float
+        Scalar
+    rr : float
+        Scalar
+    vv : float
+        Scalar
+    t_bound : float
+        Scalar
+    argk : float
+        Scalar
+    rtol : float
+        Scalar
+    atol : float
+        Scalar
+
+    Returns
+    -------
+    t0
+    rr
+    vv
+    t_bound
+    fun,  # 4
+    argk,  # 5
+    rtol,  # 6
+    atol,  # 7
+    direction,  # 8
+    K,  # 9
+    rr_old,  # 10
+    vv_old,  # 11
+    t_old,  # 12
+    h_previous,  # 13
+    status,  # 14
+    fr,  # 15
+    fv,  # 16
+    h_abs,  # 17
+
     """
 
     assert atol >= 0
@@ -150,14 +195,13 @@ def dop853_step_hf(
     fv,
     h_abs,
 ):
-    """Perform one integration step.
+    """
+    Perform one integration step.
+    Functional re-write of method `step` of class `OdeSolver` within `scipy.integrate`.
 
-    Returns
-    -------
-    message : string or None
-        Report from the solver. Typically a reason for a failure if
-        `self.status` is 'failed' after the step was taken or None
-        otherwise.
+    Based on
+    https://github.com/scipy/scipy/blob/4edfcaa3ce8a387450b6efce968572def71be089/scipy/integrate/_ivp/base.py#L175
+
     """
 
     if status != DOP853_RUNNING:

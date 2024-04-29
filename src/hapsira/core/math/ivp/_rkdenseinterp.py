@@ -20,14 +20,25 @@ def dop853_dense_interp_hf(t, t_old, h, rr_old, vv_old, F):
 
     Parameters
     ----------
-    t : float or array_like with shape (n_points,)
-        Points to evaluate the solution at.
+    t : float
+        Current time.
+    t_old : float
+        Previous time.
+    h : float
+        Step to use.
+    rr_rold : tuple[float,float,float]
+        Last values 0:3.
+    vv_vold : tuple[float,float,float]
+        Last values 3:6.
+    F : tuple[tuple[float,...]...]
+        Dense output coefficients.
 
     Returns
     -------
-    y : ndarray, shape (n,) or (n, n_points)
-        Computed values. Shape depends on whether `t` was a scalar or a
-        1-D array.
+    rr : tuple[float,float,float]
+        Computed values 0:3.
+    vv : tuple[float,float,float]
+        Computed values 3:6.
     """
 
     F00, F01, F02, F03, F04, F05, F06 = F

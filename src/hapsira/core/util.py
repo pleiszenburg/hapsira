@@ -1,24 +1,58 @@
+from math import cos, sin
+
 from numba import njit as jit
 import numpy as np
-from numpy import cos, sin
+
+from .jit import hjit, gjit
 
 
-@jit
-def rotation_matrix(angle, axis):
-    assert axis in (0, 1, 2)
-    angle = np.asarray(angle)
+__all__ = [
+    "rotation_matrix_hf",
+    "rotation_matrix_gf",
+    "alinspace",
+    "spherical_to_cartesian",
+    "planetocentric_to_AltAz_hf",
+]
+
+
+@hjit("M(f,i8)")
+def rotation_matrix_hf(angle, axis):
     c = cos(angle)
     s = sin(angle)
+    if axis == 0:
+        return (
+            (1.0, 0.0, 0.0),
+            (0.0, c, -s),
+            (0.0, s, c),
+        )
+    if axis == 1:
+        return (
+            (c, 0.0, s),
+            (0.0, 1.0, 0.0),
+            (-s, 0.0, c),
+        )
+    if axis == 2:
+        return (
+            (c, -s, 0.0),
+            (s, c, 0.0),
+            (0.0, 0.0, 1.0),
+        )
+    raise ValueError("Invalid axis: must be one of 0, 1 or 2")
 
-    a1 = (axis + 1) % 3
-    a2 = (axis + 2) % 3
-    R = np.zeros(angle.shape + (3, 3))
-    R[..., axis, axis] = 1.0
-    R[..., a1, a1] = c
-    R[..., a1, a2] = -s
-    R[..., a2, a1] = s
-    R[..., a2, a2] = c
-    return R
+
+@gjit("void(f,i8,u1[:],f[:,:])", "(),(),(n)->(n,n)")
+def rotation_matrix_gf(angle, axis, dummy, r):
+    """
+    Vectorized rotation_matrix
+
+    `dummy` because of https://github.com/numba/numba/issues/2797
+    """
+    assert dummy.shape == (3,)
+    (
+        (r[0, 0], r[0, 1], r[0, 2]),
+        (r[1, 0], r[1, 1], r[1, 2]),
+        (r[2, 0], r[2, 1], r[2, 2]),
+    ) = rotation_matrix_hf(angle, axis)
 
 
 @jit
@@ -72,8 +106,8 @@ def spherical_to_cartesian(v):
     return norm_vecs * np.stack((x, y, z), axis=-1)
 
 
-@jit
-def planetocentric_to_AltAz(theta, phi):
+@hjit("M(f,f)")
+def planetocentric_to_AltAz_hf(theta, phi):
     r"""Defines transformation matrix to convert from Planetocentric coordinate system
     to the Altitude-Azimuth system.
 
@@ -93,23 +127,25 @@ def planetocentric_to_AltAz(theta, phi):
 
     Returns
     -------
-    t_matrix: numpy.ndarray
+    t_matrix: tuple[tuple[float,float,float],...]
         Transformation matrix
     """
     # Transformation matrix for converting planetocentric equatorial coordinates to topocentric horizon system.
-    t_matrix = np.array(
-        [
-            [-np.sin(theta), np.cos(theta), 0],
-            [
-                -np.sin(phi) * np.cos(theta),
-                -np.sin(phi) * np.sin(theta),
-                np.cos(phi),
-            ],
-            [
-                np.cos(phi) * np.cos(theta),
-                np.cos(phi) * np.sin(theta),
-                np.sin(phi),
-            ],
-        ]
+    st = sin(theta)
+    ct = cos(theta)
+    sp = sin(phi)
+    cp = cos(phi)
+
+    return (
+        (-st, ct, 0.0),
+        (
+            -sp * ct,
+            -sp * st,
+            cp,
+        ),
+        (
+            cp * ct,
+            cp * st,
+            sp,
+        ),
     )
-    return t_matrix

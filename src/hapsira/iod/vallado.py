@@ -1,7 +1,8 @@
 """Initial orbit determination."""
 from astropy import units as u
+import numpy as np
 
-from hapsira.core.iod import vallado as vallado_fast
+from hapsira.core.iod import vallado_gf
 
 kms = u.km / u.s
 
@@ -55,6 +56,8 @@ def lambert(k, r0, r, tof, M=0, prograde=True, lowpath=True, numiter=35, rtol=1e
     r_ = r.to_value(u.km)
     tof_ = tof.to_value(u.s)
 
-    v0, v = vallado_fast(k_, r0_, r_, tof_, M, prograde, lowpath, numiter, rtol)
+    v0, v = vallado_gf(  # pylint: disable=E1120,E0633
+        k_, r0_, r_, tof_, M, np.asarray(prograde), np.asarray(lowpath), numiter, rtol
+    )
 
     return v0 << kms, v << kms

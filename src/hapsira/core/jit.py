@@ -1,0 +1,323 @@
+from typing import Callable, List, Union
+
+import numba as nb
+from numba import cuda
+
+from hapsira.debug import logger
+from hapsira.errors import JitError
+from hapsira.settings import settings
+
+
+__all__ = [
+    "DSIG",
+    "hjit",
+    "djit",
+    "vjit",
+    "gjit",
+    "sjit",
+    "array_to_V_hf",
+]
+
+
+logger.debug("jit target: %s", settings["TARGET"].value)
+if settings["TARGET"].value == "cuda" and not cuda.is_available():
+    raise JitError('selected target "cuda" is not available')
+
+logger.debug("jit inline: %s", "yes" if settings["INLINE"].value else "no")
+logger.debug("jit nopython: %s", "yes" if settings["NOPYTHON"].value else "no")
+
+_PRECISIONS = (
+    settings["PRECISION"].value,
+)  # TODO again allow to compile for multiple precision?
+logger.debug("jit precision: %s", settings["PRECISION"].value)
+if settings["PRECISION"].value != "f8":
+    logger.warning("jit precision: DOP853 as used by Cowell's method requires f8!")
+
+DSIG = "Tuple([V,V])(f,V,V,f)"
+
+
+def _parse_signatures(signature: str, noreturn: bool = False) -> Union[str, List[str]]:
+    """
+    Automatically generate signatures for single and double
+    """
+
+    if "->" in signature:  # this is likely a layout for guvectorize
+        logger.warning(
+            "jit signature: likely a layout for guvectorize, not parsing (%s)",
+            signature,
+        )
+        return signature
+
+    if noreturn and not signature.startswith("void("):
+        raise JitError(
+            "function does not allow return values, likely compiled via guvectorize"
+        )
+
+    if not any(
+        notation in signature for notation in ("f", "V", "M")
+    ):  # leave this signature as it is
+        logger.warning(
+            "jit signature: no special notation, not parsing (%s)", signature
+        )
+        return signature
+
+    if any(
+        level in signature for level in _PRECISIONS
+    ):  # leave this signature as it is
+        logger.warning(
+            "jit signature: precision specified, not parsing (%s)", signature
+        )
+        return signature
+
+    signature = signature.replace("M", "Tuple([V,V,V])")  # matrix is a tuple of vectors
+    signature = signature.replace("V", "Tuple([f,f,f])")  # vector is a tuple of floats
+    signature = signature.replace(
+        "F", "FunctionType"
+    )  # TODO does not work for CUDA yet
+
+    return [signature.replace("f", dtype) for dtype in _PRECISIONS]
+
+
+def hjit(*args, **kwargs) -> Callable:
+    """
+    Scalar helper, pre-configured, internal, switches compiler targets.
+    Functions decorated by it can only be called directly if TARGET is cpu or parallel.
+    """
+
+    if len(args) == 1 and callable(args[0]):
+        outer_func = args[0]
+        args = tuple()
+    else:
+        outer_func = None
+
+    if len(args) > 0 and isinstance(args[0], str):
+        args = _parse_signatures(args[0]), *args[1:]
+
+    try:
+        inline = kwargs.pop("inline")
+    except KeyError:
+        inline = settings["INLINE"].value
+
+    def wrapper(inner_func: Callable) -> Callable:
+        """
+        Applies JIT
+        """
+
+        if settings["TARGET"].value == "cuda":
+            wjit = cuda.jit
+            cfg = dict(
+                device=True,
+                inline=inline,
+                cache=settings["CACHE"].value,
+            )
+        else:
+            assert settings["NOPYTHON"].value != settings["FORCEOBJ"].value
+            wjit = nb.jit
+            cfg = dict(
+                nopython=settings["NOPYTHON"].value,
+                forceobj=settings["FORCEOBJ"].value,
+                inline="always" if inline else "never",
+                cache=settings["CACHE"].value,
+            )
+        cfg.update(kwargs)
+
+        logger.debug(
+            "hjit: func=%s, args=%s, kwargs=%s",
+            getattr(inner_func, "__name__", repr(inner_func)),
+            repr(args),
+            repr(cfg),
+        )
+
+        return wjit(
+            *args,
+            **cfg,
+        )(inner_func)
+
+    if outer_func is not None:
+        return wrapper(outer_func)
+
+    return wrapper
+
+
+def djit(*args, **kwargs) -> Callable:
+    """
+    Wrapper for hjit to track differential equations
+    """
+
+    if len(args) == 1 and callable(args[0]):
+        outer_func = args[0]
+        args = tuple()
+    else:
+        outer_func = None
+
+    def wrapper(inner_func: Callable) -> Callable:
+        """
+        Applies JIT
+        """
+
+        logger.debug(
+            "djit: func=%s, args=%s, kwargs=%s",
+            getattr(inner_func, "__name__", repr(inner_func)),
+            repr(args),
+            repr(kwargs),
+        )
+
+        compiled = hjit(
+            DSIG,
+            *args,
+            **kwargs,
+        )(inner_func)
+        compiled.djit = None  # attribute for debugging
+        return compiled
+
+    if outer_func is not None:
+        return wrapper(outer_func)
+
+    return wrapper
+
+
+def vjit(*args, **kwargs) -> Callable:
+    """
+    Vectorize on array, pre-configured, user-facing, switches compiler targets.
+    Functions decorated by it can always be called directly if needed.
+    """
+
+    if len(args) == 1 and callable(args[0]):
+        outer_func = args[0]
+        args = tuple()
+    else:
+        outer_func = None
+
+    if len(args) > 0 and isinstance(args[0], str):
+        args = _parse_signatures(args[0]), *args[1:]
+
+    def wrapper(inner_func: Callable) -> Callable:
+        """
+        Applies JIT
+        """
+
+        cfg = dict(
+            target=settings["TARGET"].value,
+            cache=settings["CACHE"].value,
+        )
+        if settings["TARGET"].value != "cuda":
+            assert settings["NOPYTHON"].value != settings["FORCEOBJ"].value
+            cfg["nopython"] = settings["NOPYTHON"].value
+            cfg["forceobj"] = settings["FORCEOBJ"].value
+        cfg.update(kwargs)
+
+        logger.debug(
+            "vjit: func=%s, args=%s, kwargs=%s",
+            getattr(inner_func, "__name__", repr(inner_func)),
+            repr(args),
+            repr(cfg),
+        )
+
+        return nb.vectorize(
+            *args,
+            **cfg,
+        )(inner_func)
+
+    if outer_func is not None:
+        return wrapper(outer_func)
+
+    return wrapper
+
+
+def gjit(*args, **kwargs) -> Callable:
+    """
+    General vectorize on array, pre-configured, user-facing, switches compiler targets.
+    Functions decorated by it can always be called directly if needed.
+    """
+
+    if len(args) == 1 and callable(args[0]):
+        outer_func = args[0]
+        args = tuple()
+    else:
+        outer_func = None
+
+    if len(args) > 0 and isinstance(args[0], str):
+        args = _parse_signatures(args[0], noreturn=True), *args[1:]
+
+    def wrapper(inner_func: Callable) -> Callable:
+        """
+        Applies JIT
+        """
+
+        cfg = dict(
+            target=settings["TARGET"].value,
+            cache=settings["CACHE"].value,
+        )
+        if settings["TARGET"].value != "cuda":
+            assert settings["NOPYTHON"].value != settings["FORCEOBJ"].value
+            cfg["nopython"] = settings["NOPYTHON"].value
+            cfg["forceobj"] = settings["FORCEOBJ"].value
+        cfg.update(kwargs)
+
+        logger.debug(
+            "gjit: func=%s, args=%s, kwargs=%s",
+            getattr(inner_func, "__name__", repr(inner_func)),
+            repr(args),
+            repr(cfg),
+        )
+
+        return nb.guvectorize(
+            *args,
+            **cfg,
+        )(inner_func)
+
+    if outer_func is not None:
+        return wrapper(outer_func)
+
+    return wrapper
+
+
+def sjit(*args, **kwargs) -> Callable:
+    """
+    Regular "scalar" (n)jit, pre-configured, potentially user-facing, always CPU compiler target.
+    Functions decorated by it can always be called directly if needed.
+    """
+
+    if len(args) == 1 and callable(args[0]):
+        outer_func = args[0]
+        args = tuple()
+    else:
+        outer_func = None
+
+    if len(args) > 0 and isinstance(args[0], str):
+        args = _parse_signatures(args[0]), *args[1:]
+
+    def wrapper(inner_func: Callable) -> Callable:
+        """
+        Applies JIT
+        """
+
+        assert settings["NOPYTHON"].value != settings["FORCEOBJ"].value
+        cfg = dict(
+            nopython=settings["NOPYTHON"].value,
+            forceobj=settings["FORCEOBJ"].value,
+            inline="always" if settings["INLINE"].value else "never",
+            **kwargs,
+        )
+
+        logger.debug(
+            "sjit: func=%s, args=%s, kwargs=%s",
+            getattr(inner_func, "__name__", repr(inner_func)),
+            repr(args),
+            repr(cfg),
+        )
+
+        return nb.jit(
+            *args,
+            **cfg,
+        )(inner_func)
+
+    if outer_func is not None:
+        return wrapper(outer_func)
+
+    return wrapper
+
+
+@hjit("V(f[:])")
+def array_to_V_hf(x):
+    return x[0], x[1], x[2]

@@ -155,6 +155,7 @@ To explore different propagation algorithms, check out the {py:mod}`hapsira.twob
 The `propagate` method gives you the final orbit at the epoch you designated. To retrieve the whole trajectory instead, you can use {py:meth}`hapsira.twobody.orbit.scalar.Orbit.to_ephem`, which returns an {{ Ephem }} instance:
 
 ```python
+from astropy.time import Time
 from hapsira.twobody.sampling import EpochsArray, TrueAnomalyBounds, EpochBounds
 from hapsira.util import time_range
 
@@ -165,7 +166,7 @@ end_date = Time("2022-07-11 07:05", scale="utc")
 ephem1 = iss.to_ephem()
 
 # Explicit times given
-ephem2 = iss.to_ephem(strategy=EpochsArray(epochs=time_range(start_date, end_date)))
+ephem2 = iss.to_ephem(strategy=EpochsArray(epochs=time_range(start_date, end=end_date)))
 
 # Automatic grid, true anomaly limits
 ephem3 = iss.to_ephem(strategy=TrueAnomalyBounds(min_nu=0 << u.deg, max_nu=180 << u.deg))
@@ -193,44 +194,45 @@ ephem4 = iss.to_ephem(strategy=EpochBounds(min_epoch=start_date, max_epoch=end_d
 Apart from the Keplerian propagators, hapsira also allows you to define custom perturbation accelerations to study non Keplerian orbits, thanks to Cowell's method:
 
 ```python
->>> from numba import njit
 >>> import numpy as np
->>> from hapsira.core.propagation import func_twobody
+>>> from hapsira.core.jit import hjit, djit
+>>> from hapsira.core.math.linalg import add_VV_hf, mul_Vs_hf, norm_V_hf
+>>> from hapsira.core.propagation.base import func_twobody_hf
 >>> from hapsira.twobody.propagation import CowellPropagator
 >>> r0 = [-2384.46, 5729.01, 3050.46] << u.km
 >>> v0 = [-7.36138, -2.98997, 1.64354] << (u.km / u.s)
 >>> initial = Orbit.from_vectors(Earth, r0, v0)
->>> @njit
-... def accel(t0, state, k):
+>>> @hjit("V(f,V,V,f)")
+... def accel_hf(t0, rr, vv, k):
 ...     """Constant acceleration aligned with the velocity. """
-...     v_vec = state[3:]
-...     norm_v = (v_vec * v_vec).sum() ** 0.5
-...     return 1e-5 * v_vec / norm_v
+...     norm_v = norm_V_hf(vv)
+...     return mul_Vs_hf(vv, 1e-5 / norm_v)
 ...
-... def f(t0, u_, k):
-...     du_kep = func_twobody(t0, u_, k)
-...     ax, ay, az = accel(t0, u_, k)
-...     du_ad = np.array([0, 0, 0, ax, ay, az])
-...     return du_kep + du_ad
+... @djit
+... def f_hf(t0, rr, vv, k):
+...     du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+...     a = accel_hf(t0, rr, vv, k)
+...     return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
->>> initial.propagate(3 << u.day, method=CowellPropagator(f=f))
+>>> initial.propagate(3 << u.day, method=CowellPropagator(f=f_hf))
 18255 x 21848 km x 28.0 deg (GCRS) orbit around Earth (♁) at epoch J2000.008 (TT)
 ```
 
 Some natural perturbations are available in hapsira to be used directly in this way. For instance, to examine the effect of J2 perturbation:
 
 ```python
->>> from hapsira.core.perturbations import J2_perturbation
->>> tofs = [48.0] << u.h
->>> def f(t0, u_, k):
-...     du_kep = func_twobody(t0, u_, k)
-...     ax, ay, az = J2_perturbation(
-...         t0, u_, k, J2=Earth.J2.value, R=Earth.R.to(u.km).value
+>>> from hapsira.core.perturbations import J2_perturbation_hf
+>>> tofs = 48.0 << u.h
+>>> _J2, _R = Earth.J2.value, Earth.R.to(u.km).value
+>>> @djit
+... def f_hf(t0, rr, vv, k):
+...     du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+...     a = J2_perturbation_hf(
+...         t0, rr, vv, k, _J2, _R
 ...     )
-...     du_ad = np.array([0, 0, 0, ax, ay, az])
-...     return du_kep + du_ad
+...     return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
->>> final = initial.propagate(tofs, method=CowellPropagator(f=f))
+>>> final = initial.propagate(tofs, method=CowellPropagator(f=f_hf))
 ```
 
 The J2 perturbation changes the orbit parameters (from Curtis example 12.2):
@@ -247,6 +249,7 @@ The J2 perturbation changes the orbit parameters (from Curtis example 12.2):
 In addition to natural perturbations, hapsira also has built-in artificial perturbations (thrust guidance laws) aimed at intentional change of some orbital elements. For example, to simultaneously change eccentricity and inclination:
 
 ```python
+>>> from hapsira.twobody.thrust import change_ecc_inc
 >>> ecc_0, ecc_f = [0.4, 0.0] << u.one
 >>> a = 42164 << u.km
 >>> inc_0 = 0.0 << u.deg  # baseline
@@ -260,20 +263,20 @@ In addition to natural perturbations, hapsira also has built-in artificial pertu
 ...     a,
 ...     ecc_0,
 ...     inc_0,
-...     0,
+...     0 << u.deg,
 ...     argp,
-...     0,
+...     0 << u.deg,
 ... )
->>> a_d, _, t_f = change_ecc_inc(orb0, ecc_f, inc_f, f)
+>>> a_d_hf, _, t_f = change_ecc_inc(orb0, ecc_f, inc_f, f)
 
 # Propagate orbit
->>> def f_geo(t0, u_, k):
-...     du_kep = func_twobody(t0, u_, k)
-...     ax, ay, az = a_d(t0, u_, k)
-...     du_ad = np.array([0, 0, 0, ax, ay, az])
-...     return du_kep + du_ad
+>>> @djit
+... def f_geo_hf(t0, rr, vv, k):
+...     du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+...     a = a_d_hf(t0, rr, vv, k)
+...     return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
->>> orbf = orb0.propagate(t_f << u.s, method=CowellPropagator(f=f_geo, rtol=1e-8))
+>>> orbf = orb0.propagate(t_f << u.s, method=CowellPropagator(f=f_geo_hf, rtol=1e-8))
 ```
 
 The thrust changes orbit parameters as desired (within errors):
@@ -346,8 +349,9 @@ To easily visualize several orbits in two dimensions, you can run this code:
 
 ```python
 from hapsira.plotting import OrbitPlotter
+from hapsira.plotting.orbit.backends import Matplotlib2D
 
-op = OrbitPlotter(backend_name="matplotlib2D")
+op = OrbitPlotter(backend=Matplotlib2D())
 orb_a, orb_f = orb_i.apply_maneuver(hoh, intermediate=True)
 op.plot(orb_i, label="Initial orbit")
 op.plot(orb_a, label="Transfer orbit")
@@ -377,7 +381,7 @@ The {py:class}`hapsira.ephem.Ephem` class allows you to retrieve a planetary orb
 
 ```python
 >>> from astropy.time import Time
->>> epoch = time.Time("2020-04-29 10:43")  # UTC by default
+>>> epoch = Time("2020-04-29 10:43")  # UTC by default
 >>> from hapsira.ephem import Ephem
 >>> earth = Ephem.from_body(Earth, epoch.tdb)
 >>> earth
@@ -440,9 +444,9 @@ And these are the results:
 
 ```python
 >>> dv_a
-(<Quantity 0. s>, <Quantity [-2.06420561,  2.58796837,  0.23911543] km / s>)
+(<Quantity 0. s>, <Quantity [-2064.36683388,  2587.57963591,   239.59874839] m / s>)
 >>> dv_b
-(<Quantity 21910501.00019529 s>, <Quantity [287832.91384349,  58935.96079319, -94156.93383463] km / s>)
+(<Quantity 21910501.00019529 s>, <Quantity [ 3332.21063185,   680.5437324 , -1090.13639913] m / s>)
 ```
 
 ```{figure} _static/msl.png

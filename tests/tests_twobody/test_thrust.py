@@ -4,12 +4,12 @@ from numpy.testing import assert_allclose
 import pytest
 
 from hapsira.bodies import Earth
-from hapsira.core.propagation import func_twobody
-from hapsira.core.thrust import (
-    change_a_inc as change_a_inc_fast,
-    change_argp as change_argp_fast,
-)
-from hapsira.core.thrust.change_ecc_inc import beta as beta_change_ecc_inc
+from hapsira.core.jit import djit
+from hapsira.core.math.linalg import add_VV_hf
+from hapsira.core.propagation.base import func_twobody_hf
+from hapsira.core.thrust.change_a_inc import change_a_inc_hb
+from hapsira.core.thrust.change_argp import change_argp_hb
+from hapsira.core.thrust.change_ecc_inc import beta_vf as beta_change_ecc_inc
 from hapsira.twobody import Orbit
 from hapsira.twobody.propagation import CowellPropagator
 from hapsira.twobody.thrust import (
@@ -34,19 +34,19 @@ def test_leo_geo_numerical_safe(inc_0):
 
     k = Earth.k.to(u.km**3 / u.s**2)
 
-    a_d, _, t_f = change_a_inc(k, a_0, a_f, inc_0, inc_f, f)
+    a_d_hf, _, t_f = change_a_inc(k, a_0, a_f, inc_0, inc_f, f)
 
     # Retrieve r and v from initial orbit
     s0 = Orbit.circular(Earth, a_0 - Earth.R, inc_0)
 
     # Propagate orbit
-    def f_leo_geo(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+    @djit(cache=False)
+    def f_leo_geo_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = a_d_hf(t0, rr, vv, k)
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    sf = s0.propagate(t_f, method=CowellPropagator(rtol=1e-6, f=f_leo_geo))
+    sf = s0.propagate(t_f, method=CowellPropagator(rtol=1e-6, f=f_leo_geo_hf))
 
     assert_allclose(sf.a.to(u.km).value, a_f.value, rtol=1e-3)
     assert_allclose(sf.ecc.value, 0.0, atol=1e-2)
@@ -66,19 +66,19 @@ def test_leo_geo_numerical_fast(inc_0):
 
     k = Earth.k.to(u.km**3 / u.s**2).value
 
-    a_d, _, t_f = change_a_inc_fast(k, a_0, a_f, inc_0, inc_f, f)
+    a_d_hf, _, t_f = change_a_inc_hb(k, a_0, a_f, inc_0, inc_f, f)
 
     # Retrieve r and v from initial orbit
     s0 = Orbit.circular(Earth, a_0 * u.km - Earth.R, inc_0 * u.rad)
 
     # Propagate orbit
-    def f_leo_geo(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+    @djit(cache=False)
+    def f_leo_geo_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = a_d_hf(t0, rr, vv, k)
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    sf = s0.propagate(t_f * u.s, method=CowellPropagator(rtol=1e-6, f=f_leo_geo))
+    sf = s0.propagate(t_f * u.s, method=CowellPropagator(rtol=1e-6, f=f_leo_geo_hf))
 
     assert_allclose(sf.a.to(u.km).value, a_f, rtol=1e-3)
     assert_allclose(sf.ecc.value, 0.0, atol=1e-2)
@@ -128,16 +128,18 @@ def test_sso_disposal_numerical(ecc_0, ecc_f):
         argp=0 * u.deg,
         nu=0 * u.deg,
     )
-    a_d, _, t_f = change_ecc_quasioptimal(s0, ecc_f, f)
+    a_d_hf, _, t_f = change_ecc_quasioptimal(s0, ecc_f, f)
 
     # Propagate orbit
-    def f_ss0_disposal(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+    @djit(cache=False)
+    def f_ss0_disposal_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = a_d_hf(t0, rr, vv, k)
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    sf = s0.propagate(t_f * u.s, method=CowellPropagator(rtol=1e-8, f=f_ss0_disposal))
+    sf = s0.propagate(
+        t_f * u.s, method=CowellPropagator(rtol=1e-8, f=f_ss0_disposal_hf)
+    )
 
     assert_allclose(sf.ecc.value, ecc_f, rtol=1e-4, atol=1e-4)
 
@@ -172,9 +174,7 @@ def test_geo_cases_beta_dnd_delta_v(ecc_0, inc_f, expected_beta, expected_delta_
         nu=0 * u.deg,
     )
 
-    beta = beta_change_ecc_inc(
-        ecc_0=ecc_0, ecc_f=ecc_f, inc_0=inc_0, inc_f=inc_f, argp=argp
-    )
+    beta = beta_change_ecc_inc(ecc_0, ecc_f, inc_0, inc_f, argp)
     _, delta_V, _ = change_ecc_inc(orb_0=s0, ecc_f=ecc_f, inc_f=inc_f * u.rad, f=f)
 
     assert_allclose(delta_V.to_value(u.km / u.s), expected_delta_V, rtol=1e-2)
@@ -199,16 +199,16 @@ def test_geo_cases_numerical(ecc_0, ecc_f):
         argp=argp * u.deg,
         nu=0 * u.deg,
     )
-    a_d, _, t_f = change_ecc_inc(orb_0=s0, ecc_f=ecc_f, inc_f=inc_f, f=f)
+    a_d_hf, _, t_f = change_ecc_inc(orb_0=s0, ecc_f=ecc_f, inc_f=inc_f, f=f)
 
     # Propagate orbit
-    def f_geo(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+    @djit(cache=False)
+    def f_geo_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = a_d_hf(t0, rr, vv, k)
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    sf = s0.propagate(t_f, method=CowellPropagator(rtol=1e-8, f=f_geo))
+    sf = s0.propagate(t_f, method=CowellPropagator(rtol=1e-8, f=f_geo_hf))
 
     assert_allclose(sf.ecc.value, ecc_f, rtol=1e-2, atol=1e-2)
     assert_allclose(sf.inc.to_value(u.rad), inc_f.to_value(u.rad), rtol=1e-1)
@@ -249,7 +249,7 @@ def test_soyuz_standard_gto_delta_v_fast():
 
     k = Earth.k.to(u.km**3 / u.s**2).value
 
-    _, delta_V, t_f = change_argp_fast(k, a, ecc, argp_0, argp_f, f)
+    _, delta_V, t_f = change_argp_hb(k, a, ecc, argp_0, argp_f, f)
 
     expected_t_f = 12.0  # days, approximate
     expected_delta_V = 0.2489  # km / s
@@ -271,7 +271,7 @@ def test_soyuz_standard_gto_numerical_safe():
 
     k = Earth.k.to(u.km**3 / u.s**2)
 
-    a_d, _, t_f = change_argp(k, a, ecc, argp_0, argp_f, f)
+    a_d_hf, _, t_f = change_argp(k, a, ecc, argp_0, argp_f, f)
 
     # Retrieve r and v from initial orbit
     s0 = Orbit.from_classical(
@@ -285,13 +285,13 @@ def test_soyuz_standard_gto_numerical_safe():
     )
 
     # Propagate orbit
-    def f_soyuz(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+    @djit(cache=False)
+    def f_soyuz_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = a_d_hf(t0, rr, vv, k)
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    sf = s0.propagate(t_f, method=CowellPropagator(rtol=1e-8, f=f_soyuz))
+    sf = s0.propagate(t_f, method=CowellPropagator(rtol=1e-8, f=f_soyuz_hf))
 
     assert_allclose(sf.argp.to_value(u.rad), argp_f.to_value(u.rad), rtol=1e-4)
 
@@ -309,7 +309,7 @@ def test_soyuz_standard_gto_numerical_fast():
 
     k = Earth.k.to(u.km**3 / u.s**2).value
 
-    a_d, _, t_f = change_argp_fast(k, a, ecc, argp_0, argp_f, f)
+    a_d_hf, _, t_f = change_argp_hb(k, a, ecc, argp_0, argp_f, f)
 
     # Retrieve r and v from initial orbit
     s0 = Orbit.from_classical(
@@ -323,15 +323,15 @@ def test_soyuz_standard_gto_numerical_fast():
     )
 
     # Propagate orbit
-    def f_soyuz(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = a_d(t0, u_, k)
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+    @djit(cache=False)
+    def f_soyuz_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = a_d_hf(t0, rr, vv, k)
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
     sf = s0.propagate(
         t_f * u.s,
-        method=CowellPropagator(rtol=1e-8, f=f_soyuz),
+        method=CowellPropagator(rtol=1e-8, f=f_soyuz_hf),
     )
 
     assert_allclose(sf.argp.to(u.rad).value, argp_f, rtol=1e-4)
@@ -354,7 +354,7 @@ def test_leo_geo_time_and_delta_v(inc_0, expected_t_f, expected_delta_V, rtol):
     k = Earth.k.to(u.km**3 / u.s**2).value
     inc_0 = np.radians(inc_0)  # rad
 
-    _, delta_V, t_f = change_a_inc_fast(k, a_0, a_f, inc_0, inc_f, f)
+    _, delta_V, t_f = change_a_inc_hb(k, a_0, a_f, inc_0, inc_f, f)
 
     assert_allclose(delta_V, expected_delta_V, rtol=rtol)
     assert_allclose((t_f * u.s).to(u.day).value, expected_t_f, rtol=rtol)

@@ -1,11 +1,10 @@
 import sys
 
 from astropy import units as u
-import numpy as np
 
 from hapsira.core.propagation.farnocchia import (
-    farnocchia_coe as farnocchia_coe_fast,
-    farnocchia_rv as farnocchia_rv_fast,
+    farnocchia_coe_vf,
+    farnocchia_rv_gf,
 )
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import ClassicalState
@@ -34,7 +33,7 @@ class FarnocchiaPropagator:
         state = state.to_classical()
 
         nu = (
-            farnocchia_coe_fast(
+            farnocchia_coe_vf(
                 state.attractor.k.to_value(u.km**3 / u.s**2),
                 *state.to_value(),
                 tof.to_value(u.s),
@@ -53,11 +52,10 @@ class FarnocchiaPropagator:
         rv0 = state.to_value()
 
         # TODO: This should probably return a ClassicalStateArray instead,
-        # see discussion at https://github.com/hapsira/hapsira/pull/1492
-        results = np.array(
-            [farnocchia_rv_fast(k, *rv0, tof) for tof in tofs.to_value(u.s)]
-        )
+        # see discussion at https://github.com/poliastro/poliastro/pull/1492
+        rr, vv = farnocchia_rv_gf(k, *rv0, tofs.to_value(u.s))  # pylint: disable=E0633
+
         return (
-            results[:, 0] << u.km,
-            results[:, 1] << (u.km / u.s),
+            rr << u.km,
+            vv << (u.km / u.s),
         )

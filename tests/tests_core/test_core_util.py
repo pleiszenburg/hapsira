@@ -10,20 +10,25 @@ import pytest
 
 from hapsira.core.util import (
     alinspace,
-    rotation_matrix as rotation_matrix_hapsira,
+    rotation_matrix_gf,
     spherical_to_cartesian,
 )
 
 
 def _test_rotation_matrix_with_v(v, angle, axis):
     exp = rotation_matrix_astropy(np.degrees(-angle), "xyz"[axis]) @ v
-    res = rotation_matrix_hapsira(angle, axis) @ v
+    res = rotation_matrix_gf(
+        angle, axis, np.zeros((3,), dtype="u1")
+    )  # pylint: disable=E1120
+    res = res @ v
     assert_allclose(exp, res)
 
 
 def _test_rotation_matrix(angle, axis):
     expected = rotation_matrix_astropy(-np.rad2deg(angle), "xyz"[axis])
-    result = rotation_matrix_hapsira(angle, axis)
+    result = rotation_matrix_gf(
+        angle, axis, np.zeros((3,), dtype="u1")
+    )  # pylint: disable=E1120
     assert_allclose(expected, result)
 
 
@@ -37,23 +42,38 @@ def test_rotation_matrix():
 # These tests are adapted from astropy:
 # https://github.com/astropy/astropy/blob/main/astropy/coordinates/tests/test_matrix_utilities.py
 def test_rotation_matrix_astropy():
-    assert_array_equal(rotation_matrix_hapsira(0, 0), np.eye(3))
+    exp = np.eye(3)
+    res = rotation_matrix_gf(0, 0, np.zeros((3,), dtype="u1"))  # pylint: disable=E1120
+    assert_array_equal(res, exp)
+
+    exp = np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]], dtype=float)
+    res = rotation_matrix_gf(
+        np.deg2rad(-90), 1, np.zeros((3,), dtype="u1")
+    )  # pylint: disable=E1120
     assert_allclose(
-        rotation_matrix_hapsira(np.deg2rad(-90), 1),
-        [[0, 0, -1], [0, 1, 0], [1, 0, 0]],
+        res,
+        exp,
         atol=1e-12,
     )
 
+    exp = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype=float)
+    res = rotation_matrix_gf(
+        np.deg2rad(90), 2, np.zeros((3,), dtype="u1")
+    )  # pylint: disable=E1120
     assert_allclose(
-        rotation_matrix_hapsira(np.deg2rad(90), 2),
-        [[0, -1, 0], [1, 0, 0], [0, 0, 1]],
+        res,
+        exp,
         atol=1e-12,
     )
 
     # make sure it also works for very small angles
+    exp = rotation_matrix_astropy(-0.000001, "x")
+    res = rotation_matrix_gf(
+        np.deg2rad(0.000001), 0, np.zeros((3,), dtype="u1")
+    )  # pylint: disable=E1120
     assert_allclose(
-        rotation_matrix_astropy(-0.000001, "x"),
-        rotation_matrix_hapsira(np.deg2rad(0.000001), 0),
+        exp,
+        res,
     )
 
 

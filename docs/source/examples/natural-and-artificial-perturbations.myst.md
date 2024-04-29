@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.1
+    jupytext_version: 1.16.0
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -24,13 +24,15 @@ from astropy import units as u
 from hapsira.bodies import Earth, Moon
 from hapsira.constants import rho0_earth, H0_earth
 
-from hapsira.core.elements import rv2coe
+from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
+from hapsira.core.jit import djit, hjit
+from hapsira.core.math.linalg import add_VV_hf
 from hapsira.core.perturbations import (
-    atmospheric_drag_exponential,
-    third_body,
-    J2_perturbation,
+    atmospheric_drag_exponential_hf,
+    third_body_hf,
+    J2_perturbation_hf,
 )
-from hapsira.core.propagation import func_twobody
+from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.ephem import build_ephem_interpolant
 from hapsira.plotting import OrbitPlotter
 from hapsira.plotting.orbit.backends import Plotly3D
@@ -64,12 +66,13 @@ H0 = H0_earth.to(u.km).value
 
 tofs = TimeDelta(np.linspace(0 * u.h, 100000 * u.s, num=2000))
 
-
-def f(t0, state, k):
-    du_kep = func_twobody(t0, state, k)
-    ax, ay, az = atmospheric_drag_exponential(
+@djit
+def f_hf(t0, rr, vv, k):
+    du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+    a = atmospheric_drag_exponential_hf(
         t0,
-        state,
+        rr,
+        vv,
         k,
         R=R,
         C_D=C_D,
@@ -77,13 +80,10 @@ def f(t0, state, k):
         H0=H0,
         rho0=rho0,
     )
-    du_ad = np.array([0, 0, 0, ax, ay, az])
-
-    return du_kep + du_ad
-
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
 rr, _ = orbit.to_ephem(
-    EpochsArray(orbit.epoch + tofs, method=CowellPropagator(f=f)),
+    EpochsArray(orbit.epoch + tofs, method=CowellPropagator(f=f_hf)),
 ).rv()
 ```
 
@@ -116,7 +116,7 @@ events = [lithobrake_event]
 
 rr, _ = orbit.to_ephem(
     EpochsArray(
-        orbit.epoch + tofs, method=CowellPropagator(f=f, events=events)
+        orbit.epoch + tofs, method=CowellPropagator(f=f_hf, events=events)
     ),
 ).rv()
 
@@ -144,26 +144,26 @@ v0 = np.array([-7.36138, -2.98997, 1.64354]) * u.km / u.s
 orbit = Orbit.from_vectors(Earth, r0, v0)
 
 tofs = TimeDelta(np.linspace(0, 48.0 * u.h, num=2000))
+_J2 = Earth.J2.value
+_R = Earth.R.to(u.km).value
 
-
-def f(t0, state, k):
-    du_kep = func_twobody(t0, state, k)
-    ax, ay, az = J2_perturbation(
-        t0, state, k, J2=Earth.J2.value, R=Earth.R.to(u.km).value
+@djit
+def f_hf(t0, rr, vv, k):
+    du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+    a = J2_perturbation_hf(
+        t0, rr, vv, k, J2=_J2, R=_R
     )
-    du_ad = np.array([0, 0, 0, ax, ay, az])
-
-    return du_kep + du_ad
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
 
 rr, vv = orbit.to_ephem(
-    EpochsArray(orbit.epoch + tofs, method=CowellPropagator(f=f)),
+    EpochsArray(orbit.epoch + tofs, method=CowellPropagator(f=f_hf)),
 ).rv()
 
 # This will be easier to compute when this is solved:
-# https://github.com/hapsira/hapsira/issues/380
+# https://github.com/poliastro/poliastro/issues/380
 raans = [
-    rv2coe(k, r, v)[3]
+    rv2coe_gf(k, r, v, RV2COE_TOL)[3]
     for r, v in zip(rr.to_value(u.km), vv.to_value(u.km / u.s))
 ]
 ```
@@ -205,33 +205,33 @@ initial = Orbit.from_classical(
 )
 
 tofs = TimeDelta(np.linspace(0, 60 * u.day, num=1000))
+_moon_k = Moon.k.to(u.km**3 / u.s**2).value
 
-
-def f(t0, state, k):
-    du_kep = func_twobody(t0, state, k)
-    ax, ay, az = third_body(
+@djit(cache = False)
+def f_hf(t0, rr, vv, k):
+    du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+    a = third_body_hf(
         t0,
-        state,
+        rr,
+        vv,
         k,
-        k_third=400 * Moon.k.to(u.km**3 / u.s**2).value,
+        k_third=400 * _moon_k,
         perturbation_body=body_r,
     )
-    du_ad = np.array([0, 0, 0, ax, ay, az])
-
-    return du_kep + du_ad
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
 
 # multiply Moon gravity by 400 so that effect is visible :)
 ephem = initial.to_ephem(
-    EpochsArray(initial.epoch + tofs, method=CowellPropagator(rtol=1e-6, f=f)),
+    EpochsArray(initial.epoch + tofs, method=CowellPropagator(rtol=1e-6, f=f_hf)),
 )
 ```
 
 ```{code-cell} ipython3
 frame = OrbitPlotter(backend=Plotly3D())
-
 frame.set_attractor(Earth)
 frame.plot_ephem(ephem, label="orbit influenced by Moon")
+frame.show()
 ```
 
 ## Applying thrust
@@ -260,33 +260,31 @@ orb0 = Orbit.from_classical(
     epoch=Time(0, format="jd", scale="tdb"),
 )
 
-a_d, _, t_f = change_ecc_inc(orb0, ecc_f, inc_f, f)
+a_d_hf, _, t_f = change_ecc_inc(orb0, ecc_f, inc_f, f)
 
-
-def f(t0, state, k):
-    du_kep = func_twobody(t0, state, k)
-    ax, ay, az = a_d(
+@djit
+def f_hf(t0, rr, vv, k):
+    du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+    a = a_d_hf(
         t0,
-        state,
+        rr,
+        vv,
         k,
     )
-    du_ad = np.array([0, 0, 0, ax, ay, az])
-
-    return du_kep + du_ad
-
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
 tofs = TimeDelta(np.linspace(0, t_f, num=1000))
 
 ephem2 = orb0.to_ephem(
-    EpochsArray(orb0.epoch + tofs, method=CowellPropagator(rtol=1e-6, f=f)),
+    EpochsArray(orb0.epoch + tofs, method=CowellPropagator(rtol=1e-6, f=f_hf)),
 )
 ```
 
 ```{code-cell} ipython3
 frame = OrbitPlotter(backend=Plotly3D())
-
 frame.set_attractor(Earth)
 frame.plot_ephem(ephem2, label="orbit with artificial thrust")
+frame.show()
 ```
 
 ## Combining multiple perturbations
@@ -294,13 +292,13 @@ frame.plot_ephem(ephem2, label="orbit with artificial thrust")
 It might be of interest to determine what effect multiple perturbations have on a single object. In order to add multiple perturbations we can create a custom function that adds them up:
 
 ```{code-cell} ipython3
-from numba import njit as jit
-
-# Add @jit for speed!
-@jit
-def a_d(t0, state, k, J2, R, C_D, A_over_m, H0, rho0):
-    return J2_perturbation(t0, state, k, J2, R) + atmospheric_drag_exponential(
-        t0, state, k, R, C_D, A_over_m, H0, rho0
+@hjit("V(f,V,V,f,f,f,f,f,f,f)")
+def a_d_hf(t0, rr, vv, k, J2, R, C_D, A_over_m, H0, rho0):
+    return add_VV_hf(
+        J2_perturbation_hf(t0, rr, vv, k, J2, R),
+        atmospheric_drag_exponential_hf(
+            t0, rr, vv, k, R, C_D, A_over_m, H0, rho0
+        )
     )
 ```
 
@@ -308,52 +306,50 @@ def a_d(t0, state, k, J2, R, C_D, A_over_m, H0, rho0):
 # propagation times of flight and orbit
 tofs = TimeDelta(np.linspace(0, 10 * u.day, num=10 * 500))
 orbit = Orbit.circular(Earth, 250 * u.km)  # recall orbit from drag example
+_J2 = Earth.J2.value
 
-
-def f(t0, state, k):
-    du_kep = func_twobody(t0, state, k)
-    ax, ay, az = a_d(
+@djit
+def f_hf(t0, rr, vv, k):
+    du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+    a = a_d_hf(
         t0,
-        state,
+        rr,
+        vv,
         k,
-        R=R,
-        C_D=C_D,
-        A_over_m=A_over_m,
-        H0=H0,
-        rho0=rho0,
-        J2=Earth.J2.value,
+        _J2,
+        R,
+        C_D,
+        A_over_m,
+        H0,
+        rho0,
     )
-    du_ad = np.array([0, 0, 0, ax, ay, az])
-
-    return du_kep + du_ad
-
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
 # propagate with J2 and atmospheric drag
 rr3, _ = orbit.to_ephem(
-    EpochsArray(orbit.epoch + tofs, method=CowellPropagator(f=f)),
+    EpochsArray(orbit.epoch + tofs, method=CowellPropagator(f=f_hf)),
 ).rv()
 
-
-def f(t0, state, k):
-    du_kep = func_twobody(t0, state, k)
-    ax, ay, az = atmospheric_drag_exponential(
+@djit
+def f_hf(t0, rr, vv, k):
+    du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+    a = atmospheric_drag_exponential_hf(
         t0,
-        state,
+        rr,
+        vv,
         k,
-        R=R,
-        C_D=C_D,
-        A_over_m=A_over_m,
-        H0=H0,
-        rho0=rho0,
+        R,
+        C_D,
+        A_over_m,
+        H0,
+        rho0,
     )
-    du_ad = np.array([0, 0, 0, ax, ay, az])
-
-    return du_kep + du_ad
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
 
 # propagate with only atmospheric drag
 rr4, _ = orbit.to_ephem(
-    EpochsArray(orbit.epoch + tofs, method=CowellPropagator(f=f)),
+    EpochsArray(orbit.epoch + tofs, method=CowellPropagator(f=f_hf)),
 ).rv()
 ```
 

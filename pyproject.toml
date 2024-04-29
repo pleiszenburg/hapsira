@@ -131,6 +131,7 @@ select = [
 
 ignore = [
     "E501",  # Line too long. Ignoring this so "black" manages line length.
+    "I001",  # import sort
 ]
 
 exclude = [
@@ -143,7 +144,7 @@ exclude = [
 
 [tool.ruff.isort]
 combine-as-imports = true
-force-sort-within-sections = true
+force-sort-within-sections = false
 known-first-party = ["hapsira"]
 
 [tool.ruff.mccabe]
@@ -176,6 +177,10 @@ name = "hapsira.core does not import astropy.units"
 type = "forbidden"
 source_modules = ["hapsira.core"]
 forbidden_modules = ["astropy.units"]
+ignore_imports = [
+    "hapsira.core.earth.atmosphere.coesa76 -> astropy.io.ascii",
+    "hapsira.core.earth.atmosphere.coesa76 -> astropy.utils.data"
+]
 
 [tool.pytest.ini_options]
 norecursedirs = [".git", ".tox", "dist", "build", ".venv"]

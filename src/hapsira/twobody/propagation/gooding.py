@@ -2,7 +2,11 @@ import sys
 
 from astropy import units as u
 
-from hapsira.core.propagation import gooding_coe as gooding_fast
+from hapsira.core.propagation.gooding import (
+    gooding_coe_vf,
+    GOODING_RTOL,
+    GOODING_NUMITER,
+)
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import ClassicalState
 
@@ -32,10 +36,12 @@ class GoodingPropagator:
         state = state.to_classical()
 
         nu = (
-            gooding_fast(
+            gooding_coe_vf(
                 state.attractor.k.to_value(u.km**3 / u.s**2),
                 *state.to_value(),
                 tof.to_value(u.s),
+                GOODING_NUMITER,
+                GOODING_RTOL,
             )
             << u.rad
         )

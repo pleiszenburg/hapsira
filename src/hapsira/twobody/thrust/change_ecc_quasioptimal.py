@@ -7,12 +7,9 @@ References
 
 """
 from astropy import units as u
-from numba import njit
-import numpy as np
-from numpy import cross
 
-from hapsira.core.thrust.change_ecc_quasioptimal import extra_quantities
-from hapsira.util import norm
+from hapsira.core.jit import array_to_V_hf
+from hapsira.core.thrust.change_ecc_quasioptimal import change_ecc_quasioptimal_hb
 
 
 def change_ecc_quasioptimal(orb_0, ecc_f, f):
@@ -29,22 +26,16 @@ def change_ecc_quasioptimal(orb_0, ecc_f, f):
     f : float
         Magnitude of constant acceleration
     """
-    # We fix the inertial direction at the beginning
-    k = orb_0.attractor.k.to(u.km**3 / u.s**2).value
-    a = orb_0.a.to(u.km).value
-    ecc_0 = orb_0.ecc.value
-    if ecc_0 > 0.001:  # Arbitrary tolerance
-        ref_vec = orb_0.e_vec / ecc_0
-    else:
-        ref_vec = orb_0.r / norm(orb_0.r)
 
-    h_unit = orb_0.h_vec / norm(orb_0.h_vec)
-    thrust_unit = cross(h_unit, ref_vec) * np.sign(ecc_f - ecc_0)
+    a_d_hf, delta_V, t_f = change_ecc_quasioptimal_hb(
+        orb_0.attractor.k.to(u.km**3 / u.s**2).value,  # k
+        orb_0.a.to(u.km).value,  # a
+        orb_0.ecc.value,  # ecc_0
+        ecc_f,
+        array_to_V_hf(orb_0.e_vec),  # e_vec,
+        array_to_V_hf(orb_0.h_vec),  # h_vec,
+        array_to_V_hf(orb_0.r),  # r
+        f,
+    )
 
-    @njit
-    def a_d(t0, u_, k):
-        accel_v = f * thrust_unit
-        return accel_v
-
-    delta_V, t_f = extra_quantities(k, a, ecc_0, ecc_f, f)
-    return a_d, delta_V, t_f
+    return a_d_hf, delta_V, t_f

@@ -1,4 +1,31 @@
-# What's new
+# Changes
+
+## hapsira 0.19.0 - 2024-XX-XX
+
+**CAUTION**: A number changes at least partially **BREAK BACKWARDS COMPATIBILITY** for certain use cases.
+
+This release features a significant refactoring of `core`, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7) for details. All relevant `core` functions are now designed to work equally on CPUs and GPUs as either [universal functions](https://numba.readthedocs.io/en/stable/user/vectorize.html#the-vectorize-decorator) or [generalized universal functions](https://numba.readthedocs.io/en/stable/user/vectorize.html#the-guvectorize-decorator). As a "side-effect", all relevant `core` functions allow parallel operation with full [broadcasting semantics](https://numpy.org/doc/stable/user/basics.broadcasting.html). Their single-thread performance was also increased depending on use-case by around two orders of magnitude. All refactored **functions** in `core` were **renamed**, now carrying additional suffixes to indicate how they can or can not be invoked.
+
+Critical fix changing behaviour: The Loss of Signal (LOS) event would previously produce wrong results.
+
+Module layout change: `core.earth_atmosphere` became `core.earth.atmosphere`.
+
+- FEATURE: New `core.math` module, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7), including fast replacements for many `numpy` and some `scipy` functions, most notably:
+    - [scipy.interpolate.interp1d](https://docs.scipy.org/doc/scipy/reference/generated/scipy.interpolate.interp1d.html) is replaced by `core.math.interpolate.interp_hb`. It custom-compiles 1D linear interpolators, embedding data statically into the compiled functions.
+    - [scipy.integrate.solve_ivp](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.solve_ivp.html), [scipy.integrate.DOP853](https://docs.scipy.org/doc/scipy/reference/generated/scipy.integrate.DOP853.html) and [scipy.optimize.brentq](https://docs.scipy.org/doc/scipy/reference/generated/scipy.optimize.brentq.html) are replaced by `core.math.ivp`, a purely functional compiled implementation running entirely on the stack.
+- FEATURE: New `core.jit` module, wrapping a number of `numba` functions to have a central place to apply settings, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FEATURE: New `settings` module, mainly for handling JIT compiler settings, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FEATURE: New `debug` module, including logging capabilities, mainly logging JIT compiler issues, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FEATURE: Significant portions of the COESA76 atmophere model are now compiled and available as part of `core`, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7). `core.earth_atmosphere` was renamed into `core.earth.atmosphere`.
+- DOCS: The `core` module is technically user-facing and as such now explicitly documented, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- DOCS: The "quickstart" section received an update and now includes all previously missing imports.
+- FIX: The Loss of Signal (LOS) event would misshandle the position of the secondary body i.e. producing wrong results, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7) as well as the [relevant commit](https://github.com/pleiszenburg/hapsira/commit/988a91cd22ff1de285c33af35b13d288963fcaf7)
+- FIX: The Cowell propagator could produce wrong results if times of flight (tof) where provided in units other than seconds, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FIX: Broken plots in example notebooks, see [hapsira #7](https://github.com/pleiszenburg/hapsira/pull/7)
+- FIX: Typo in `bodies`, see [hapsira #6](https://github.com/pleiszenburg/hapsira/pull/6)
+- FIX: Some notebooks in the documentation had disappeared due to incomplete rebranding
+- DEV: Parallel (multi-core) testing enabled by default, see [hapsira #5](https://github.com/pleiszenburg/hapsira/pull/5)
+- DEV: Deactivated warning due to too many simultaneously opened `matplotlib` plots
 
 ## hapsira 0.18.0 - 2023-12-24
 
@@ -233,7 +260,7 @@ as well as the results from Google Summer of Code 2021.
   The interactive orbit plotters {py:class}`~poliastro.plotting.OrbitPlotter2D`
   and {py:class}`~poliastro.plotting.OrbitPlotter3D`
   now have a new method to easily display impulsive burns.
-  See {doc}`/examples/going-to-jupiter-with-python-using-jupyter-and-poliastro`
+  See {doc}`/examples/going-to-jupiter-with-python-using-jupyter-and-hapsira`
   for an example.
 - **Many performance improvements**
   Several contributors have helped accelerate more algorithms

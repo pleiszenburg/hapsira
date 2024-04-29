@@ -2,7 +2,7 @@ import sys
 
 from astropy import units as u
 
-from hapsira.core.propagation import mikkola_coe as mikkola_fast
+from hapsira.core.propagation.mikkola import mikkola_coe_vf
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import ClassicalState
 
@@ -27,7 +27,7 @@ class MikkolaPropagator:
         state = state.to_classical()
 
         nu = (
-            mikkola_fast(
+            mikkola_coe_vf(
                 state.attractor.k.to_value(u.km**3 / u.s**2),
                 *state.to_value(),
                 tof.to_value(u.s),

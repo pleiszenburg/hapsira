@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.0
+    jupytext_version: 1.16.0
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -30,7 +30,7 @@ an event during an orbit's propagation is fairly simple:
 2. Pass the `Event` object(s) as an argument to `CowellPropagator`.
 3. Detect events! Optionally, the `terminal` and `direction` attributes can be set as required.
 
-```{code-cell}
+```{code-cell} ipython3
 # Imports
 import numpy as np
 from numpy.linalg import norm
@@ -63,10 +63,12 @@ from hapsira.util import time_range
 ## Altitude Crossing Event
 Let's define some natural perturbation conditions for our orbit so that its altitude decreases with time.
 
-```{code-cell}
+```{code-cell} ipython3
 from hapsira.constants import H0_earth, rho0_earth
-from hapsira.core.perturbations import atmospheric_drag_exponential
-from hapsira.core.propagation import func_twobody
+from hapsira.core.jit import djit
+from hapsira.core.math.linalg import add_VV_hf
+from hapsira.core.perturbations import atmospheric_drag_exponential_hf
+from hapsira.core.propagation.base import func_twobody_hf
 
 R = Earth.R.to_value(u.km)
 
@@ -80,19 +82,18 @@ A_over_m = ((np.pi / 4.0) * (u.m**2) / (100 * u.kg)).to_value(
 rho0 = rho0_earth.to_value(u.kg / u.km**3)  # kg/km^3
 H0 = H0_earth.to_value(u.km)  # km
 
-
-def f(t0, u_, k):
-    du_kep = func_twobody(t0, u_, k)
-    ax, ay, az = atmospheric_drag_exponential(
-        t0, u_, k, R=R, C_D=C_D, A_over_m=A_over_m, H0=H0, rho0=rho0
+@djit
+def f_hf(t0, r0, v0, k):
+    du_kep_rr, du_kep_vv = func_twobody_hf(t0, r0, v0, k)
+    a = atmospheric_drag_exponential_hf(
+        t0, r0, v0, k, R=R, C_D=C_D, A_over_m=A_over_m, H0=H0, rho0=rho0
     )
-    du_ad = np.array([0, 0, 0, ax, ay, az])
-    return du_kep + du_ad
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 ```
 
 We shall use the `CowellPropagator` with the above perturbating conditions and pass the events we want to keep track of, in this case only the `AltitudeCrossEvent`.
 
-```{code-cell}
+```{code-cell} ipython3
 tofs = np.arange(0, 2400, 100) << u.s
 orbit = Orbit.circular(Earth, 150 * u.km)
 
@@ -101,7 +102,7 @@ thresh_alt = 50  # in km
 altitude_cross_event = AltitudeCrossEvent(thresh_alt, R)  # Set up the event.
 events = [altitude_cross_event]
 
-method = CowellPropagator(events=events, f=f)
+method = CowellPropagator(events=events, f=f_hf)
 rr, _ = orbit.to_ephem(
     EpochsArray(orbit.epoch + tofs, method=method),
 ).rv()
@@ -113,7 +114,7 @@ print(
 
 Let's see how did the orbit's altitude vary with time:
 
-```{code-cell}
+```{code-cell} ipython3
 altitudes = np.apply_along_axis(
     norm, 1, (rr << u.km).value
 ) - Earth.R.to_value(u.km)
@@ -130,7 +131,7 @@ Refer to the API documentation of the events to check the default values for `te
 
 Similar to the `AltitudeCrossEvent`, just pass the threshold latitude while instantiating the event.
 
-```{code-cell}
+```{code-cell} ipython3
 orbit = Orbit.from_classical(
     Earth,
     6900 << u.km,
@@ -142,7 +143,7 @@ orbit = Orbit.from_classical(
 )
 ```
 
-```{code-cell}
+```{code-cell} ipython3
 thresh_lat = 35 << u.deg
 latitude_cross_event = LatitudeCrossEvent(orbit, thresh_lat, terminal=True)
 events = [latitude_cross_event]
@@ -157,16 +158,14 @@ print(
 
 Let's plot the latitude varying with time:
 
-```{code-cell}
-from hapsira.core.spheroid_location import cartesian_to_ellipsoidal
+```{code-cell} ipython3
+from hapsira.core.spheroid_location import cartesian_to_ellipsoidal_gf
 
-latitudes = []
-for r in rr:
-    position_on_body = (r / norm(r)) * Earth.R
-    _, lat, _ = cartesian_to_ellipsoidal(
-        Earth.R, Earth.R_polar, *position_on_body
-    )
-    latitudes.append(np.rad2deg(lat))
+position_on_body = (rr.to_value(u.km) / norm(rr.to_value(u.km), axis = 1)[:, None]) * Earth.R.to_value(u.km)
+_, latitudes, _ = cartesian_to_ellipsoidal_gf(
+    Earth.R.to_value(u.km), Earth.R_polar.to_value(u.km), *position_on_body.T
+)
+latitudes = np.rad2deg(latitudes)
 plt.plot(tofs[: len(rr)].to_value(u.s), latitudes)
 plt.title("Latitude variation")
 plt.ylabel("Latitude (in degrees)")
@@ -178,7 +177,7 @@ The orbit's latitude would not change after the event was detected since we had 
 Since the attractor is `Earth`, we could use `GroundtrackPlotter` for showing the groundtrack of the
 orbit on Earth.
 
-```{code-cell}
+```{code-cell} ipython3
 from hapsira.earth import EarthSatellite
 from hapsira.earth.plotting import GroundtrackPlotter
 from hapsira.plotting import OrbitPlotter
@@ -208,7 +207,7 @@ gp.plot(
 
 Viewing it in the `orthographic` projection mode,
 
-```{code-cell}
+```{code-cell} ipython3
 gp.update_geos(projection_type="orthographic")
 gp.fig.show()
 ```
@@ -220,9 +219,7 @@ and voila! The groundtrack terminates almost at the 35 degree latitude mark.
 Users can detect umbra/penumbra crossings using the `UmbraEvent` and `PenumbraEvent` event classes,
 respectively. As seen from the above examples, the procedure doesn't change much.
 
-```{code-cell}
-from hapsira.core.events import eclipse_function
-
+```{code-cell} ipython3
 attractor = Earth
 tof = 2 * u.d
 # Classical orbital elements
@@ -239,11 +236,12 @@ orbit = Orbit.from_classical(attractor, *coe)
 
 Let's search for umbra crossings.
 
-```{code-cell}
-umbra_event = UmbraEvent(orbit, terminal=True)
+```{code-cell} ipython3
+tofs = np.arange(0, 600, 30) << u.s
+
+umbra_event = UmbraEvent(orbit, tof, terminal=True)
 events = [umbra_event]
 
-tofs = np.arange(0, 600, 30) << u.s
 method = CowellPropagator(events=events)
 rr, vv = orbit.to_ephem(EpochsArray(orbit.epoch + tofs, method=method)).rv()
 print(
@@ -255,7 +253,9 @@ print(
 
 Let us plot the eclipse functions' variation with time.
 
-```{code-cell}
+```{code-cell} ipython3
+from hapsira.core.events import eclipse_function_gf, ECLIPSE_UMBRA
+
 k = Earth.k.to_value(u.km**3 / u.s**2)
 R_sec = Sun.R.to_value(u.km)
 R_pri = Earth.R.to_value(u.km)
@@ -268,12 +268,7 @@ r_sec = ((r_sec_ssb - r_pri_ssb).xyz << u.km).value
 rr = (rr << u.km).value
 vv = (vv << u.km / u.s).value
 
-eclipses = []  # List to store values of eclipse_function.
-for i in range(len(rr)):
-    r = rr[i]
-    v = vv[i]
-    eclipse = eclipse_function(k, np.hstack((r, v)), r_sec, R_sec, R_pri)
-    eclipses.append(eclipse)
+eclipses = eclipse_function_gf(k, rr, vv, r_sec, R_sec, R_pri, ECLIPSE_UMBRA)
 
 plt.xlabel("Time (s)")
 plt.ylabel("Eclipse function")
@@ -285,7 +280,7 @@ plt.plot(tofs[: len(rr)].to_value(u.s), eclipses)
 
 We could get some geometrical insights by plotting the orbit:
 
-```{code-cell}
+```{code-cell} ipython3
 # Plot `Earth` at the instant of event occurence.
 Earth.plot(
     orbit.epoch.tdb + umbra_event.last_t,
@@ -311,7 +306,7 @@ It seems our satellite is exiting the umbra region, as is evident from the orang
 This event detector aims to check for ascending and descending node crossings. Note that it could
 yield inaccurate results if the orbit is near-equatorial.
 
-```{code-cell}
+```{code-cell} ipython3
 r = [-3182930.668, 94242.56, -85767.257] << u.km
 v = [505.848, 942.781, 7435.922] << u.km / u.s
 orbit = Orbit.from_vectors(Earth, r, v)
@@ -319,13 +314,13 @@ orbit = Orbit.from_vectors(Earth, r, v)
 
 As a sanity check, let's check the orbit's inclination to ensure it is not near-zero:
 
-```{code-cell}
+```{code-cell} ipython3
 print(orbit.inc)
 ```
 
 Indeed, it isn't!
 
-```{code-cell}
+```{code-cell} ipython3
 node_event = NodeCrossEvent(terminal=True)
 events = [node_event]
 
@@ -338,7 +333,7 @@ print(f"The nodal cross time was {node_event.last_t} after the orbit's epoch")
 
 The plot below shows us the variation of the z coordinate of the orbit's position vector with time:
 
-```{code-cell}
+```{code-cell} ipython3
 z_coords = [r[-1].to_value(u.km) for r in rr]
 plt.xlabel("Time (s)")
 plt.ylabel("Z coordinate of the position vector")
@@ -348,7 +343,7 @@ plt.plot(tofs[: len(rr)].to_value(u.s), z_coords)
 
 We could do the same plotting done in `LatitudeCrossEvent` to check for equatorial crossings:
 
-```{code-cell}
+```{code-cell} ipython3
 es = EarthSatellite(orbit, None)
 
 # Show the groundtrack plot from
@@ -374,7 +369,7 @@ gp.plot(
 )
 ```
 
-```{code-cell}
+```{code-cell} ipython3
 gp.update_geos(projection_type="orthographic")
 gp.fig.show()
 ```
@@ -388,7 +383,7 @@ either of the two crossings, the `direction` attribute is at our disposal!
 If we would like to track multiple events while propagating an orbit, we just need to add the concerned events inside `events`.
 Below, we show the case where `NodeCrossEvent` and `LatitudeCrossEvent` events are to be detected.
 
-```{code-cell}
+```{code-cell} ipython3
 # NodeCrossEvent is detected earlier than the LatitudeCrossEvent.
 r = [-6142438.668, 3492467.56, -25767.257] << u.km
 v = [505.848, 942.781, 7435.922] << u.km / u.s
@@ -406,9 +401,9 @@ tofs = [1, 2, 4, 6, 8, 10, 12] << u.s
 method = CowellPropagator(events=events)
 rr, vv = orbit.to_ephem(EpochsArray(orbit.epoch + tofs, method=method)).rv()
 
-print(f"Node cross event termination time: {node_cross_event.last_t} s")
+print(f"Node cross event termination time: {node_cross_event.last_t}")
 print(
-    f"Latitude cross event termination time: {latitude_cross_event.last_t} s"
+    f"Latitude cross event termination time: {latitude_cross_event.last_t}"
 )
 ```
 

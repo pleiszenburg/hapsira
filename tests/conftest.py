@@ -1,10 +1,13 @@
 from astropy import units as u
 from astropy.coordinates import solar_system_ephemeris
 from astropy.time import Time
+import matplotlib as mpl
 import pytest
 
 from hapsira.bodies import Earth, Sun
 from hapsira.twobody import Orbit
+
+mpl.rc("figure", max_open_warning=0)
 
 solar_system_ephemeris.set("builtin")
 

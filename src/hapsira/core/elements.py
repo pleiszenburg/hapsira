@@ -2,19 +2,52 @@
 convert between different elements that define the orbit of a body.
 """
 
-import sys
+from math import acos, atan, atan2, cos, fabs, log, pi, sin, sqrt, tan
 
-from numba import njit as jit, prange
-import numpy as np
-from numpy import cos, cross, sin, sqrt
+from .angles import E_to_nu_hf, F_to_nu_hf
+from .jit import array_to_V_hf, hjit, gjit, vjit
+from .math.linalg import (
+    cross_VV_hf,
+    div_Vs_hf,
+    matmul_MM_hf,
+    matmul_VM_hf,
+    matmul_VV_hf,
+    mul_Vs_hf,
+    norm_V_hf,
+    sub_VV_hf,
+    transpose_M_hf,
+)
+from .util import rotation_matrix_hf
 
-from hapsira._math.linalg import norm
-from hapsira.core.angles import E_to_nu, F_to_nu
-from hapsira.core.util import rotation_matrix
+
+__all__ = [
+    "eccentricity_vector_hf",
+    "eccentricity_vector_gf",
+    "circular_velocity_hf",
+    "circular_velocity_vf",
+    "rv_pqw_hf",
+    "coe_rotation_matrix_hf",
+    "coe2rv_hf",
+    "coe2rv_gf",
+    "coe2mee_hf",
+    "coe2mee_gf",
+    "RV2COE_TOL",
+    "rv2coe_hf",
+    "rv2coe_gf",
+    "mee2coe_hf",
+    "mee2coe_gf",
+    "mee2rv_hf",
+    "mee2rv_gf",
+    "mean_motion_vf",
+    "period_vf",
+]
 
 
-@jit
-def eccentricity_vector(k, r, v):
+RV2COE_TOL = 1e-8
+
+
+@hjit("V(f,V,V)")
+def eccentricity_vector_hf(k, r, v):
     r"""Eccentricity vector.
 
     .. math::
@@ -27,17 +60,28 @@ def eccentricity_vector(k, r, v):
     ----------
     k : float
         Standard gravitational parameter (km^3 / s^2).
-    r : numpy.ndarray
+    r : tuple[float,float,float]
         Position vector (km)
-    v : numpy.ndarray
+    v : tuple[float,float,float]
         Velocity vector (km / s)
     """
-    return ((v @ v - k / norm(r)) * r - (r @ v) * v) / k
+    a = matmul_VV_hf(v, v) - k / norm_V_hf(r)
+    b = matmul_VV_hf(r, v)
+    return div_Vs_hf(sub_VV_hf(mul_Vs_hf(r, a), mul_Vs_hf(v, b)), k)
 
 
-@jit
-def circular_velocity(k, a):
-    r"""Compute circular velocity for a given body given thegravitational parameter and the semimajor axis.
+@gjit("void(f,f[:],f[:],f[:])", "(),(n),(n)->(n)")
+def eccentricity_vector_gf(k, r, v, e):
+    """
+    Vectorized eccentricity_vector
+    """
+
+    e[0], e[1], e[2] = eccentricity_vector_hf(k, array_to_V_hf(r), array_to_V_hf(v))
+
+
+@hjit("f(f,f)")
+def circular_velocity_hf(k, a):
+    r"""Compute circular velocity for a given body given the gravitational parameter and the semimajor axis.
 
     .. math::
 
@@ -51,11 +95,20 @@ def circular_velocity(k, a):
         Semimajor Axis
 
     """
-    return np.sqrt(k / a)
+    return sqrt(k / a)
 
 
-@jit
-def rv_pqw(k, p, ecc, nu):
+@vjit("f(f,f)")
+def circular_velocity_vf(k, a):
+    """
+    Vectorized circular_velocity
+    """
+
+    return circular_velocity_hf(k, a)
+
+
+@hjit("Tuple([V,V])(f,f,f,f)")
+def rv_pqw_hf(k, p, ecc, nu):
     r"""Returns r and v vectors in perifocal frame.
 
     Parameters
@@ -71,9 +124,9 @@ def rv_pqw(k, p, ecc, nu):
 
     Returns
     -------
-    r: numpy.ndarray
+    r: tuple[float,float,float]
         Position. Dimension 3 vector
-    v: numpy.ndarray
+    v: tuple[float,float,float]
         Velocity. Dimension 3 vector
 
     Notes
@@ -109,23 +162,29 @@ def rv_pqw(k, p, ecc, nu):
     v = [-5753.30180931 -1328.66813933  0] [m]/[s]
 
     """
-    pqw = np.array([[cos(nu), sin(nu), 0], [-sin(nu), ecc + cos(nu), 0]]) * np.array(
-        [[p / (1 + ecc * cos(nu))], [sqrt(k / p)]]
+
+    sin_nu = sin(nu)
+    cos_nu = cos(nu)
+    a = p / (1 + ecc * cos_nu)
+    b = sqrt(k / p)
+
+    return (
+        (cos_nu * a, sin_nu * a, 0.0),
+        (-sin_nu * b, (ecc + cos_nu) * b, 0.0),
     )
-    return pqw
 
 
-@jit
-def coe_rotation_matrix(inc, raan, argp):
+@hjit("M(f,f,f)")
+def coe_rotation_matrix_hf(inc, raan, argp):
     """Create a rotation matrix for coe transformation."""
-    r = rotation_matrix(raan, 2)
-    r = r @ rotation_matrix(inc, 0)
-    r = r @ rotation_matrix(argp, 2)
+    r = rotation_matrix_hf(raan, 2)
+    r = matmul_MM_hf(r, rotation_matrix_hf(inc, 0))
+    r = matmul_MM_hf(r, rotation_matrix_hf(argp, 2))
     return r
 
 
-@jit
-def coe2rv(k, p, ecc, inc, raan, argp, nu):
+@hjit("Tuple([V,V])(f,f,f,f,f,f,f)")
+def coe2rv_hf(k, p, ecc, inc, raan, argp, nu):
     r"""Converts from classical orbital to state vectors.
 
     Classical orbital elements are converted into position and velocity
@@ -151,9 +210,9 @@ def coe2rv(k, p, ecc, inc, raan, argp, nu):
 
     Returns
     -------
-    r_ijk: numpy.ndarray
+    r_ijk: tuple[float,float,float]
         Position vector in basis ijk.
-    v_ijk: numpy.ndarray
+    v_ijk: tuple[float,float,float]
         Velocity vector in basis ijk.
 
     Notes
@@ -179,30 +238,27 @@ def coe2rv(k, p, ecc, inc, raan, argp, nu):
         \end{bmatrix}
 
     """
-    pqw = rv_pqw(k, p, ecc, nu)
-    rm = coe_rotation_matrix(inc, raan, argp)
-
-    ijk = pqw @ rm.T
-
-    return ijk
+    r, v = rv_pqw_hf(k, p, ecc, nu)
+    rm = transpose_M_hf(coe_rotation_matrix_hf(inc, raan, argp))
+    return matmul_VM_hf(r, rm), matmul_VM_hf(v, rm)
 
 
-@jit(parallel=sys.maxsize > 2**31)
-def coe2rv_many(k, p, ecc, inc, raan, argp, nu):
-    """Parallel version of coe2rv."""
-    n = nu.shape[0]
-    rr = np.zeros((n, 3))
-    vv = np.zeros((n, 3))
+@gjit("void(f,f,f,f,f,f,f,u1[:],f[:],f[:])", "(),(),(),(),(),(),(),(n)->(n),(n)")
+def coe2rv_gf(k, p, ecc, inc, raan, argp, nu, dummy, rr, vv):
+    """
+    Vectorized coe2rv
 
-    # Disabling pylint warning, see https://github.com/PyCQA/pylint/issues/2910
-    for i in prange(n):  # pylint: disable=not-an-iterable
-        rr[i, :], vv[i, :] = coe2rv(k[i], p[i], ecc[i], inc[i], raan[i], argp[i], nu[i])
+    `dummy` because of https://github.com/numba/numba/issues/2797
+    """
+    assert dummy.shape == (3,)
 
-    return rr, vv
+    (rr[0], rr[1], rr[2]), (vv[0], vv[1], vv[2]) = coe2rv_hf(
+        k, p, ecc, inc, raan, argp, nu
+    )
 
 
-@jit
-def coe2mee(p, ecc, inc, raan, argp, nu):
+@hjit("Tuple([f,f,f,f,f,f])(f,f,f,f,f,f)")
+def coe2mee_hf(p, ecc, inc, raan, argp, nu):
     r"""Converts from classical orbital elements to modified equinoctial orbital elements.
 
     The definition of the modified equinoctial orbital elements is taken from [Walker, 1985].
@@ -259,31 +315,43 @@ def coe2mee(p, ecc, inc, raan, argp, nu):
         \end{align}
 
     """
-    if inc == np.pi:
+    if inc == pi:
         raise ValueError(
             "Cannot compute modified equinoctial set for 180 degrees orbit inclination due to `h` and `k` singularity."
         )
 
     lonper = raan + argp
-    f = ecc * np.cos(lonper)
-    g = ecc * np.sin(lonper)
-    h = np.tan(inc / 2) * np.cos(raan)
-    k = np.tan(inc / 2) * np.sin(raan)
+    f = ecc * cos(lonper)
+    g = ecc * sin(lonper)
+    h = tan(inc / 2) * cos(raan)
+    k = tan(inc / 2) * sin(raan)
     L = lonper + nu
     return p, f, g, h, k, L
 
 
-@jit
-def rv2coe(k, r, v, tol=1e-8):
+@gjit(
+    "void(f,f,f,f,f,f,f[:],f[:],f[:],f[:],f[:],f[:])",
+    "(),(),(),(),(),()->(),(),(),(),(),()",
+)
+def coe2mee_gf(p, ecc, inc, raan, argp, nu, p_, f, g, h, k, L):
+    """
+    Vectorized coe2mee
+    """
+
+    p_[0], f[0], g[0], h[0], k[0], L[0] = coe2mee_hf(p, ecc, inc, raan, argp, nu)
+
+
+@hjit("Tuple([f,f,f,f,f,f])(f,V,V,f)")
+def rv2coe_hf(k, r, v, tol):
     r"""Converts from vectors to classical orbital elements.
 
     Parameters
     ----------
     k : float
         Standard gravitational parameter (km^3 / s^2)
-    r : numpy.ndarray
+    r : tuple[float,float,float]
         Position vector (km)
-    v : numpy.ndarray
+    v : tuple[float,float,float]
         Velocity vector (km / s)
     tol : float, optional
         Tolerance for eccentricity and inclination checks, default to 1e-8
@@ -329,7 +397,7 @@ def rv2coe(k, r, v, tol=1e-8):
         N &= \sqrt{\vec{N}\cdot\vec{N}}
         \end{align}
 
-    4. The rigth ascension node is computed:
+    4. The right ascension node is computed:
 
     .. math::
         \Omega = \left\{ \begin{array}{lcc}
@@ -378,53 +446,80 @@ def rv2coe(k, r, v, tol=1e-8):
     nu: 28.445804984192122 [deg]
 
     """
-    h = cross(r, v)
-    n = cross([0, 0, 1], h)
-    e = ((v @ v - k / norm(r)) * r - (r @ v) * v) / k
-    ecc = norm(e)
-    p = (h @ h) / k
-    inc = np.arccos(h[2] / norm(h))
+    h = cross_VV_hf(r, v)
+    n = cross_VV_hf((0, 0, 1), h)
+    e = mul_Vs_hf(
+        sub_VV_hf(
+            mul_Vs_hf(r, (matmul_VV_hf(v, v) - k / norm_V_hf(r))),
+            mul_Vs_hf(v, matmul_VV_hf(r, v)),
+        ),
+        1 / k,
+    )
+    ecc = norm_V_hf(e)
+    p = matmul_VV_hf(h, h) / k
+    inc = acos(h[2] / norm_V_hf(h))
 
     circular = ecc < tol
     equatorial = abs(inc) < tol
 
     if equatorial and not circular:
         raan = 0
-        argp = np.arctan2(e[1], e[0]) % (2 * np.pi)  # Longitude of periapsis
-        nu = np.arctan2((h @ cross(e, r)) / norm(h), r @ e)
+        argp = atan2(e[1], e[0]) % (2 * pi)  # Longitude of periapsis
+        nu = atan2(
+            matmul_VV_hf(h, cross_VV_hf(e, r)) / norm_V_hf(h), matmul_VV_hf(r, e)
+        )
     elif not equatorial and circular:
-        raan = np.arctan2(n[1], n[0]) % (2 * np.pi)
+        raan = atan2(n[1], n[0]) % (2 * pi)
         argp = 0
         # Argument of latitude
-        nu = np.arctan2((r @ cross(h, n)) / norm(h), r @ n)
+        nu = atan2(
+            matmul_VV_hf(r, cross_VV_hf(h, n)) / norm_V_hf(h), matmul_VV_hf(r, n)
+        )
     elif equatorial and circular:
         raan = 0
         argp = 0
-        nu = np.arctan2(r[1], r[0]) % (2 * np.pi)  # True longitude
+        nu = atan2(r[1], r[0]) % (2 * pi)  # True longitude
     else:
         a = p / (1 - (ecc**2))
         ka = k * a
         if a > 0:
-            e_se = (r @ v) / sqrt(ka)
-            e_ce = norm(r) * (v @ v) / k - 1
-            nu = E_to_nu(np.arctan2(e_se, e_ce), ecc)
+            e_se = matmul_VV_hf(r, v) / sqrt(ka)
+            e_ce = norm_V_hf(r) * matmul_VV_hf(v, v) / k - 1
+            nu = E_to_nu_hf(atan2(e_se, e_ce), ecc)
         else:
-            e_sh = (r @ v) / sqrt(-ka)
-            e_ch = norm(r) * (norm(v) ** 2) / k - 1
-            nu = F_to_nu(np.log((e_ch + e_sh) / (e_ch - e_sh)) / 2, ecc)
+            e_sh = matmul_VV_hf(r, v) / sqrt(-ka)
+            e_ch = norm_V_hf(r) * (norm_V_hf(v) ** 2) / k - 1
+            nu = F_to_nu_hf(log((e_ch + e_sh) / (e_ch - e_sh)) / 2, ecc)
 
-        raan = np.arctan2(n[1], n[0]) % (2 * np.pi)
-        px = r @ n
-        py = (r @ cross(h, n)) / norm(h)
-        argp = (np.arctan2(py, px) - nu) % (2 * np.pi)
+        raan = atan2(n[1], n[0]) % (2 * pi)
+        px = matmul_VV_hf(r, n)
+        py = matmul_VV_hf(r, cross_VV_hf(h, n)) / norm_V_hf(h)
+        argp = (atan2(py, px) - nu) % (2 * pi)
 
-    nu = (nu + np.pi) % (2 * np.pi) - np.pi
+    nu = (nu + pi) % (2 * pi) - pi
 
     return p, ecc, inc, raan, argp, nu
 
 
-@jit
-def mee2coe(p, f, g, h, k, L):
+@gjit(
+    "void(f,f[:],f[:],f,f[:],f[:],f[:],f[:],f[:],f[:])",
+    "(),(n),(n),()->(),(),(),(),(),()",
+)
+def rv2coe_gf(k, r, v, tol, p, ecc, inc, raan, argp, nu):
+    """
+    Vectorized rv2coe
+    """
+
+    p[0], ecc[0], inc[0], raan[0], argp[0], nu[0] = rv2coe_hf(
+        k,
+        array_to_V_hf(r),
+        array_to_V_hf(v),
+        tol,
+    )
+
+
+@hjit("Tuple([f,f,f,f,f,f])(f,f,f,f,f,f)")
+def mee2coe_hf(p, f, g, h, k, L):
     r"""Converts from modified equinoctial orbital elements to classical
     orbital elements.
 
@@ -478,17 +573,29 @@ def mee2coe(p, f, g, h, k, L):
     arguments.
 
     """
-    ecc = np.sqrt(f**2 + g**2)
-    inc = 2 * np.arctan(np.sqrt(h**2 + k**2))
-    lonper = np.arctan2(g, f)
-    raan = np.arctan2(k, h) % (2 * np.pi)
-    argp = (lonper - raan) % (2 * np.pi)
-    nu = (L - lonper) % (2 * np.pi)
+    ecc = sqrt(f**2 + g**2)
+    inc = 2 * atan(sqrt(h**2 + k**2))
+    lonper = atan2(g, f)
+    raan = atan2(k, h) % (2 * pi)
+    argp = (lonper - raan) % (2 * pi)
+    nu = (L - lonper) % (2 * pi)
     return p, ecc, inc, raan, argp, nu
 
 
-@jit
-def mee2rv(p, f, g, h, k, L):
+@gjit(
+    "void(f,f,f,f,f,f,f[:],f[:],f[:],f[:],f[:],f[:])",
+    "(),(),(),(),(),()->(),(),(),(),(),()",
+)
+def mee2coe_gf(p, f, g, h, k, L, p_, ecc, inc, raan, argp, nu):
+    """
+    Vectorized mee2coe
+    """
+
+    p_[0], ecc[0], inc[0], raan[0], argp[0], nu[0] = mee2coe_hf(p, f, g, h, k, L)
+
+
+@hjit("Tuple([V,V])(f,f,f,f,f,f)")
+def mee2rv_hf(p, f, g, h, k, L):  # TODO untested
     """Calculates position and velocity vector from modified equinoctial elements.
 
     Parameters
@@ -508,9 +615,9 @@ def mee2rv(p, f, g, h, k, L):
 
     Returns
     -------
-    r: numpy.ndarray
+    r: tuple[float,float,float]
         Position vector.
-    v: numpy.ndarray
+    v: tuple[float,float,float]
         Velocity vector.
 
     Note
@@ -520,22 +627,22 @@ def mee2rv(p, f, g, h, k, L):
     Equation 3a and 3b.
 
     """
-    w = 1 + f * np.cos(L) + g * np.sin(L)
+    w = 1 + f * cos(L) + g * sin(L)
     r = p / w
     s2 = 1 + h**2 + k**2
     alpha2 = h**2 - k**2
 
-    rx = (r / s2)(np.cos(L) + alpha2**2 * np.cos(L) + 2 * h * k * np.sin(L))
-    ry = (r / s2)(np.sin(L) - alpha2**2 * np.sin(L) + 2 * h * k * np.cos(L))
-    rz = (2 * r / s2)(h * np.sin(L) - k * np.cos(L))
+    rx = (r / s2) * (cos(L) + alpha2**2 * cos(L) + 2 * h * k * sin(L))
+    ry = (r / s2) * (sin(L) - alpha2**2 * sin(L) + 2 * h * k * cos(L))
+    rz = (2 * r / s2) * (h * sin(L) - k * cos(L))
 
     vx = (
         (-1 / s2)
-        * (np.sqrt(k / p))
+        * (sqrt(k / p))
         * (
-            np.sin(L)
-            + alpha2 * np.sin(L)
-            - 2 * h * k * np.cos(L)
+            sin(L)
+            + alpha2 * sin(L)
+            - 2 * h * k * cos(L)
             + g
             - 2 * f * h * k
             + alpha2 * g
@@ -543,16 +650,60 @@ def mee2rv(p, f, g, h, k, L):
     )
     vy = (
         (-1 / s2)
-        * (np.sqrt(k / p))
+        * (sqrt(k / p))
         * (
-            -np.cos(L)
-            + alpha2 * np.cos(L)
-            + 2 * h * k * np.sin(L)
+            -cos(L)
+            + alpha2 * cos(L)
+            + 2 * h * k * sin(L)
             - f
             + 2 * g * h * k
             + alpha2 * f
         )
     )
-    vz = (2 / s2) * (np.sqrt(k / p)) * (h * np.cos(L) + k * np.sin(L) + f * h + g * k)
+    vz = (2 / s2) * (sqrt(k / p)) * (h * cos(L) + k * sin(L) + f * h + g * k)
 
-    return np.array([rx, ry, rz]), np.array([vx, vy, vz])
+    return (rx, ry, rz), (vx, vy, vz)
+
+
+@gjit("void(f,f,f,f,f,f,u1[:],f[:],f[:])", "(),(),(),(),(),(),(n)->(n),(n)")
+def mee2rv_gf(p, f, g, h, k, L, dummy, r, v):
+    """
+    Vectorized mee2rv
+    """
+    assert dummy.shape == (3,)
+
+    (r[0], r[1], r[2]), (v[0], v[1], v[2]) = mee2rv_hf(p, f, g, h, k, L)
+
+
+@hjit("f(f,f)", inline=True)
+def mean_motion_hf(k, a):
+    """
+    Mean motion given body (k) and semimajor axis (a).
+    """
+    return sqrt(k / fabs(a * a * a))
+
+
+@vjit("f(f,f)")
+def mean_motion_vf(k, a):
+    """
+    Vectorized mean_motion
+    """
+    return mean_motion_hf(k, a)
+
+
+@hjit("f(f,f)", inline=True)
+def period_hf(k, a):
+    """
+    Period given body (k) and semimajor axis (a).
+    """
+    n = mean_motion_hf(k, a)
+    return 2 * pi / n
+
+
+@vjit("f(f,f)")
+def period_vf(k, a):
+    """
+    Vectorized period
+    """
+
+    return period_hf(k, a)

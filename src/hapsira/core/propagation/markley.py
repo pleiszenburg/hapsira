@@ -1,28 +1,40 @@
-from numba import njit as jit
-import numpy as np
+from math import cos, pi, sin, sqrt
 
-from hapsira.core.angles import (
-    E_to_M,
-    E_to_nu,
-    _kepler_equation,
-    _kepler_equation_prime,
-    nu_to_E,
+from ..angles import (
+    E_to_M_hf,
+    E_to_nu_hf,
+    kepler_equation_hf,
+    kepler_equation_prime_hf,
+    nu_to_E_hf,
 )
-from hapsira.core.elements import coe2rv, rv2coe
+from ..elements import coe2rv_hf, rv2coe_hf, RV2COE_TOL
+from ..jit import array_to_V_hf, hjit, vjit, gjit
 
 
-@jit
-def markley_coe(k, p, ecc, inc, raan, argp, nu, tof):
-    M0 = E_to_M(nu_to_E(nu, ecc), ecc)
+__all__ = [
+    "markley_coe_hf",
+    "markley_coe_vf",
+    "markley_rv_hf",
+    "markley_rv_gf",
+]
+
+
+@hjit("f(f,f,f,f,f,f,f,f)")
+def markley_coe_hf(k, p, ecc, inc, raan, argp, nu, tof):
+    """
+    Scalar markley_coe
+    """
+
+    M0 = E_to_M_hf(nu_to_E_hf(nu, ecc), ecc)
     a = p / (1 - ecc**2)
-    n = np.sqrt(k / a**3)
+    n = sqrt(k / a**3)
     M = M0 + n * tof
 
     # Range between -pi and pi
-    M = (M + np.pi) % (2 * np.pi) - np.pi
+    M = (M + pi) % (2 * pi) - pi
 
     # Equation (20)
-    alpha = (3 * np.pi**2 + 1.6 * (np.pi - np.abs(M)) / (1 + ecc)) / (np.pi**2 - 6)
+    alpha = (3 * pi**2 + 1.6 * (pi - abs(M)) / (1 + ecc)) / (pi**2 - 6)
 
     # Equation (5)
     d = 3 * (1 - ecc) + alpha * ecc
@@ -34,16 +46,16 @@ def markley_coe(k, p, ecc, inc, raan, argp, nu, tof):
     r = 3 * alpha * d * (d - 1 + ecc) * M + M**3
 
     # Equation (14)
-    w = (np.abs(r) + np.sqrt(q**3 + r**2)) ** (2 / 3)
+    w = (abs(r) + sqrt(q**3 + r**2)) ** (2 / 3)
 
     # Equation (15)
     E = (2 * r * w / (w**2 + w * q + q**2) + M) / d
 
     # Equation (26)
-    f0 = _kepler_equation(E, M, ecc)
-    f1 = _kepler_equation_prime(E, M, ecc)
-    f2 = ecc * np.sin(E)
-    f3 = ecc * np.cos(E)
+    f0 = kepler_equation_hf(E, M, ecc)
+    f1 = kepler_equation_prime_hf(E, M, ecc)
+    f2 = ecc * sin(E)
+    f3 = ecc * cos(E)
     f4 = -f2
 
     # Equation (22)
@@ -54,13 +66,22 @@ def markley_coe(k, p, ecc, inc, raan, argp, nu, tof):
     )
 
     E += delta5
-    nu = E_to_nu(E, ecc)
+    nu = E_to_nu_hf(E, ecc)
 
     return nu
 
 
-@jit
-def markley(k, r0, v0, tof):
+@vjit("f(f,f,f,f,f,f,f,f)")
+def markley_coe_vf(k, p, ecc, inc, raan, argp, nu, tof):
+    """
+    Vectorized markley_coe
+    """
+
+    return markley_coe_hf(k, p, ecc, inc, raan, argp, nu, tof)
+
+
+@hjit("Tuple([V,V])(f,V,V,f)")
+def markley_rv_hf(k, r0, v0, tof):
     """Solves the kepler problem by a non-iterative method. Relative error is
     around 1e-18, only limited by machine double-precision errors.
 
@@ -68,18 +89,18 @@ def markley(k, r0, v0, tof):
     ----------
     k : float
         Standar Gravitational parameter.
-    r0 : numpy.ndarray
+    r0 : tuple[float,float,float]
         Initial position vector wrt attractor center.
-    v0 : numpy.ndarray
+    v0 : tuple[float,float,float]
         Initial velocity vector.
     tof : float
         Time of flight.
 
     Returns
     -------
-    rr: numpy.ndarray
+    rr: tuple[float,float,float]
         Final position vector.
-    vv: numpy.ndarray
+    vv: tuple[float,float,float]
         Final velocity vector.
 
     Notes
@@ -88,7 +109,18 @@ def markley(k, r0, v0, tof):
 
     """
     # Solve first for eccentricity and mean anomaly
-    p, ecc, inc, raan, argp, nu = rv2coe(k, r0, v0)
-    nu = markley_coe(k, p, ecc, inc, raan, argp, nu, tof)
+    p, ecc, inc, raan, argp, nu = rv2coe_hf(k, r0, v0, RV2COE_TOL)
+    nu = markley_coe_hf(k, p, ecc, inc, raan, argp, nu, tof)
 
-    return coe2rv(k, p, ecc, inc, raan, argp, nu)
+    return coe2rv_hf(k, p, ecc, inc, raan, argp, nu)
+
+
+@gjit("void(f,f[:],f[:],f,f[:],f[:])", "(),(n),(n),()->(n),(n)")
+def markley_rv_gf(k, r0, v0, tof, rr, vv):
+    """
+    Vectorized markley_rv
+    """
+
+    (rr[0], rr[1], rr[2]), (vv[0], vv[1], vv[2]) = markley_rv_hf(
+        k, array_to_V_hf(r0), array_to_V_hf(v0), tof
+    )

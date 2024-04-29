@@ -7,9 +7,11 @@ import pytest
 
 from hapsira.bodies import Earth
 from hapsira.constants import H0_earth, rho0_earth
-from hapsira.core.events import line_of_sight
-from hapsira.core.perturbations import atmospheric_drag_exponential
-from hapsira.core.propagation import func_twobody
+from hapsira.core.events import line_of_sight_gf
+from hapsira.core.jit import djit
+from hapsira.core.math.linalg import add_VV_hf
+from hapsira.core.perturbations import atmospheric_drag_exponential_hf
+from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.twobody import Orbit
 from hapsira.twobody.events import (
     AltitudeCrossEvent,
@@ -47,15 +49,23 @@ def test_altitude_crossing():
     altitude_cross_event = AltitudeCrossEvent(thresh_alt, R)
     events = [altitude_cross_event]
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = atmospheric_drag_exponential(
-            t0, u_, k, R=R, C_D=C_D, A_over_m=A_over_m, H0=H0, rho0=rho0
+    @djit(cache=False)
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = atmospheric_drag_exponential_hf(
+            t0,
+            rr,
+            vv,
+            k,
+            R,
+            C_D,
+            A_over_m,
+            H0,
+            rho0,
         )
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    method = CowellPropagator(events=events, f=f)
+    method = CowellPropagator(events=events, f=f_hf)
     rr, _ = method.propagate_many(
         orbit._state,
         tofs,
@@ -112,7 +122,7 @@ def test_penumbra_event_not_triggering_is_ok():
     v0 = np.array([7.36138, 2.98997, 1.64354])
     orbit = Orbit.from_vectors(attractor, r0 * u.km, v0 * u.km / u.s)
 
-    penumbra_event = PenumbraEvent(orbit)
+    penumbra_event = PenumbraEvent(orbit, tof=tof)
     method = CowellPropagator(events=[penumbra_event])
     rr, _ = method.propagate_many(
         orbit._state,
@@ -129,7 +139,7 @@ def test_umbra_event_not_triggering_is_ok():
     v0 = np.array([7.36138, 2.98997, 1.64354])
     orbit = Orbit.from_vectors(attractor, r0 * u.km, v0 * u.km / u.s)
 
-    umbra_event = UmbraEvent(orbit)
+    umbra_event = UmbraEvent(orbit, tof=tof)
 
     method = CowellPropagator(events=[umbra_event])
     rr, _ = method.propagate_many(
@@ -156,7 +166,7 @@ def test_umbra_event_crossing():
         epoch=epoch,
     )
 
-    umbra_event = UmbraEvent(orbit, terminal=True)
+    umbra_event = UmbraEvent(orbit, tof=tof, terminal=True)
 
     method = CowellPropagator(events=[umbra_event])
     rr, _ = method.propagate_many(
@@ -183,7 +193,7 @@ def test_penumbra_event_crossing():
         epoch=epoch,
     )
 
-    penumbra_event = PenumbraEvent(orbit, terminal=True)
+    penumbra_event = PenumbraEvent(orbit, tof=tof, terminal=True)
     method = CowellPropagator(events=[penumbra_event])
     rr, _ = method.propagate_many(
         orbit._state,
@@ -300,7 +310,11 @@ def test_propagation_stops_if_atleast_one_event_has_terminal_set_to_True(
         epoch=epoch,
     )
 
-    penumbra_event = PenumbraEvent(orbit, terminal=penumbra_terminal)
+    penumbra_event = PenumbraEvent(
+        orbit,
+        tof=600 * u.s,
+        terminal=penumbra_terminal,
+    )
 
     thresh_lat = 30 * u.deg
     latitude_cross_event = LatitudeCrossEvent(
@@ -330,8 +344,8 @@ def test_line_of_sight():
     r_sun = np.array([122233179, -76150708, 33016374]) << u.km
     R = Earth.R.to(u.km).value
 
-    los = line_of_sight(r1.value, r2.value, R)
-    los_with_sun = line_of_sight(r1.value, r_sun.value, R)
+    los = line_of_sight_gf(r1.value, r2.value, R)  # pylint: disable=E1120
+    los_with_sun = line_of_sight_gf(r1.value, r_sun.value, R)  # pylint: disable=E1120
 
     assert los < 0  # No LOS condition.
     assert los_with_sun >= 0  # LOS condition.
@@ -342,14 +356,13 @@ def test_LOS_event_raises_warning_if_norm_of_r1_less_than_attractor_radius_durin
     v2 = np.array([5021.38, -2900.7, 1000.354]) << u.km / u.s
     orbit = Orbit.from_vectors(Earth, r2, v2)
 
-    tofs = [100, 500, 1000, 2000] << u.s
+    tofs = tofs = np.arange(0, 2000, 10) << u.s
     # Propagate the secondary body to generate its position coordinates
     method = CowellPropagator()
-    rr, vv = method.propagate_many(
+    secondary_rr, _ = method.propagate_many(
         orbit._state,
         tofs,
     )
-    pos_coords = rr  # Trajectory of the secondary body.
 
     r1 = (
         np.array([0, -5010.696, -5102.509]) << u.km
@@ -357,16 +370,18 @@ def test_LOS_event_raises_warning_if_norm_of_r1_less_than_attractor_radius_durin
     v1 = np.array([736.138, 29899.7, 164.354]) << u.km / u.s
     orb = Orbit.from_vectors(Earth, r1, v1)
 
-    los_event = LosEvent(Earth, pos_coords, terminal=True)
+    los_event = LosEvent(Earth, tofs, secondary_rr.T, terminal=True)
     events = [los_event]
     tofs = [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.5] << u.s
 
-    with pytest.warns(UserWarning, match="The norm of the position vector"):
-        method = CowellPropagator(events=events)
-        r, v = method.propagate_many(
-            orb._state,
-            tofs,
-        )
+    # Can currently not warn due to: https://github.com/numba/numba/issues/1243
+    # TODO Matching implementation in LosEvent deactivated
+    # with pytest.warns(UserWarning, match="The norm of the position vector"):
+    method = CowellPropagator(events=events)
+    _, _ = method.propagate_many(
+        orb._state,
+        tofs,
+    )  # should trigger waring
 
 
 @pytest.mark.filterwarnings("ignore::UserWarning")
@@ -375,20 +390,19 @@ def test_LOS_event_with_lithobrake_event_raises_warning_when_satellite_cuts_attr
     v2 = np.array([5021.38, -2900.7, 1000.354]) << u.km / u.s
     orbit = Orbit.from_vectors(Earth, r2, v2)
 
-    tofs = [100, 500, 1000, 2000] << u.s
+    tofs = tofs = np.arange(0, 2000, 10) << u.s
     # Propagate the secondary body to generate its position coordinates
     method = CowellPropagator()
-    rr, vv = method.propagate_many(
+    secondary_rr, _ = method.propagate_many(
         orbit._state,
         tofs,
     )
-    pos_coords = rr  # Trajectory of the secondary body.
 
     r1 = np.array([0, -5010.696, -5102.509]) << u.km
     v1 = np.array([736.138, 2989.7, 164.354]) << u.km / u.s
     orb = Orbit.from_vectors(Earth, r1, v1)
 
-    los_event = LosEvent(Earth, pos_coords, terminal=True)
+    los_event = LosEvent(Earth, tofs, secondary_rr.T, terminal=True)
     tofs = [
         0.003,
         0.004,
@@ -407,7 +421,7 @@ def test_LOS_event_with_lithobrake_event_raises_warning_when_satellite_cuts_attr
 
     lithobrake_event = LithobrakeEvent(Earth.R.to_value(u.km))
     method = CowellPropagator(events=[lithobrake_event, los_event])
-    r, v = method.propagate_many(
+    _, _ = method.propagate_many(
         orb._state,
         tofs,
     )
@@ -416,19 +430,19 @@ def test_LOS_event_with_lithobrake_event_raises_warning_when_satellite_cuts_attr
 
 
 def test_LOS_event():
-    t_los = 2327.165 * u.s
+    t_los = 2327.381434 * u.s
     r2 = np.array([-500, 1500, 4012.09]) << u.km
     v2 = np.array([5021.38, -2900.7, 1000.354]) << u.km / u.s
     orbit = Orbit.from_vectors(Earth, r2, v2)
 
-    tofs = [100, 500, 1000, 2000] << u.s
+    tofs = np.arange(0, 5000, 10) << u.s
+
     # Propagate the secondary body to generate its position coordinates
     method = CowellPropagator()
-    rr, vv = method.propagate_many(
+    secondary_rr, _ = method.propagate_many(
         orbit._state,
         tofs,
     )
-    pos_coords = rr  # Trajectory of the secondary body.
 
     orb = Orbit.from_classical(
         attractor=Earth,
@@ -440,12 +454,11 @@ def test_LOS_event():
         nu=30 * u.deg,
     )
 
-    los_event = LosEvent(Earth, pos_coords, terminal=True)
+    los_event = LosEvent(Earth, tofs, secondary_rr.T, terminal=True)
     events = [los_event]
-    tofs = [1, 5, 10, 100, 1000, 2000, 3000, 5000] << u.s
 
     method = CowellPropagator(events=events)
-    r, v = method.propagate_many(
+    _, _ = method.propagate_many(
         orb._state,
         tofs,
     )

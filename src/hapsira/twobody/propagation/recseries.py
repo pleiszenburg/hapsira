@@ -2,7 +2,13 @@ import sys
 
 from astropy import units as u
 
-from hapsira.core.propagation import recseries_coe as recseries_fast
+from hapsira.core.propagation.recseries import (
+    recseries_coe_vf,
+    RECSERIES_METHOD_RTOL,
+    RECSERIES_ORDER,
+    RECSERIES_NUMITER,
+    RECSERIES_RTOL,
+)
 from hapsira.twobody.propagation.enums import PropagatorKind
 from hapsira.twobody.states import ClassicalState
 
@@ -29,10 +35,10 @@ class RecseriesPropagator:
 
     def __init__(
         self,
-        method="rtol",
-        order=8,
-        numiter=100,
-        rtol=1e-8,
+        method=RECSERIES_METHOD_RTOL,
+        order=RECSERIES_ORDER,
+        numiter=RECSERIES_NUMITER,
+        rtol=RECSERIES_RTOL,
     ):
         self._method = method
         self._order = order
@@ -43,14 +49,14 @@ class RecseriesPropagator:
         state = state.to_classical()
 
         nu = (
-            recseries_fast(
+            recseries_coe_vf(
                 state.attractor.k.to_value(u.km**3 / u.s**2),
                 *state.to_value(),
                 tof.to_value(u.s),
-                method=self._method,
-                order=self._order,
-                numiter=self._numiter,
-                rtol=self._rtol,
+                self._method,
+                self._order,
+                self._numiter,
+                self._rtol,
             )
             << u.rad
         )

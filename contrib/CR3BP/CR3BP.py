@@ -32,7 +32,8 @@ CR3BP MATLAB Library : https://github.com/JackCrusoe47/CR3BP_MATLAB_Library
 from numba import njit as jit
 import numpy as np
 
-from hapsira._math.ivp import DOP853, solve_ivp
+# from hapsira.core.math.ivp import solve_ivp
+from scipy.integrate import solve_ivp, DOP853
 
 
 @jit

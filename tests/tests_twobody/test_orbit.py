@@ -419,7 +419,7 @@ def test_sample_numpoints():
 
 
 def test_sample_big_orbits():
-    # See https://github.com/hapsira/hapsira/issues/265
+    # See https://github.com/poliastro/poliastro/issues/265
     ss = Orbit.from_vectors(
         Sun,
         [-9_018_878.6, -94_116_055, 22_619_059] * u.km,
@@ -1199,14 +1199,14 @@ def test_time_to_anomaly(expected_nu):
     # In some corner cases the resulting anomaly goes out of range,
     # and rather than trying to fix it right now
     # we will wait until we remove the round tripping,
-    # see https://github.com/hapsira/hapsira/issues/921
+    # see https://github.com/poliastro/poliastro/issues/921
     # FIXME: Add test that verifies that `orbit.nu` is always within range
     assert_quantity_allclose(iss_propagated.nu, expected_nu, atol=1e-12 * u.rad)
 
 
 @pytest.mark.xfail
 def test_can_set_iss_attractor_to_earth():
-    # See https://github.com/hapsira/hapsira/issues/798
+    # See https://github.com/poliastro/poliastro/issues/798
     epoch = Time("2019-11-10 12:00:00")
     ephem = Ephem.from_horizons(
         "International Space Station",
@@ -1235,7 +1235,7 @@ def test_issue_916(mock_query):
 
 
 def test_near_parabolic_M_does_not_hang(near_parabolic):
-    # See https://github.com/hapsira/hapsira/issues/907
+    # See https://github.com/poliastro/poliastro/issues/907
     expected_nu = -168.65 * u.deg
     orb = near_parabolic.propagate_to_anomaly(expected_nu)
 
@@ -1253,7 +1253,7 @@ def test_propagation_near_parabolic_orbits_zero_seconds_gives_same_anomaly(
 
 
 def test_propagation_near_parabolic_orbits_does_not_hang(near_parabolic):
-    # See https://github.com/hapsira/hapsira/issues/475
+    # See https://github.com/poliastro/poliastro/issues/475
     orb_final = near_parabolic.propagate(near_parabolic.period)
 
     # Smoke test

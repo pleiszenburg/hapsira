@@ -7,7 +7,14 @@ Includes the computation of Lagrange points
 from astropy import units as u
 import numpy as np
 
-from hapsira._math.optimize import brentq
+from hapsira.core.jit import hjit
+from hapsira.core.math.ivp import (
+    brentq_gb,
+    BRENTQ_XTOL,
+    BRENTQ_RTOL,
+    BRENTQ_MAXITER,
+    BRENTQ_CONVERGED,
+)
 from hapsira.util import norm
 
 
@@ -37,11 +44,14 @@ def lagrange_points(r12, m1, m2):
     """
     pi2 = (m2 / (m1 + m2)).value
 
+    @hjit("f(f)", cache=False)
     def eq_L123(xi):
         aux = (1 - pi2) * (xi + pi2) / abs(xi + pi2) ** 3
         aux += pi2 * (xi + pi2 - 1) / abs(xi + pi2 - 1) ** 3
         aux -= xi
         return aux
+
+    brentq_gf = brentq_gb(eq_L123)
 
     lp = np.zeros((5,))
 
@@ -49,15 +59,24 @@ def lagrange_points(r12, m1, m2):
     tol = 1e-11  # `brentq` uses a xtol of 2e-12, so it should be covered
     a = -pi2 + tol
     b = 1 - pi2 - tol
-    xi = brentq(eq_L123, a, b)
+    xi, status = brentq_gf(  # pylint: disable=E0633,E1120
+        a, b, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
+    )
+    assert status == BRENTQ_CONVERGED
     lp[0] = xi + pi2
 
     # L2
-    xi = brentq(eq_L123, 1, 1.5)
+    xi, status = brentq_gf(  # pylint: disable=E0633,E1120
+        1, 1.5, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
+    )
+    assert status == BRENTQ_CONVERGED
     lp[1] = xi + pi2
 
     # L3
-    xi = brentq(eq_L123, -1.5, -1)
+    xi, status = brentq_gf(  # pylint: disable=E0633,E1120
+        -1.5, -1, BRENTQ_XTOL, BRENTQ_RTOL, BRENTQ_MAXITER
+    )
+    assert status == BRENTQ_CONVERGED
     lp[2] = xi + pi2
 
     # L4, L5

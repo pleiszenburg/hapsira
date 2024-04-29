@@ -13,7 +13,7 @@ kernelspec:
 
 # Going to Mars with Python using hapsira
 
-This is an example on how to use [hapsira](https://github.com/hapsira/hapsira), a little library I've been working on to use in my Astrodynamics lessons. It features conversion between **classical orbital elements** and position vectors, propagation of **Keplerian orbits**, initial orbit determination using the solution of the **Lambert's problem** and **orbit plotting**.
+This is an example on how to use [hapsira](https://github.com/pleiszenburg/hapsira), a little library I've been working on to use in my Astrodynamics lessons. It features conversion between **classical orbital elements** and position vectors, propagation of **Keplerian orbits**, initial orbit determination using the solution of the **Lambert's problem** and **orbit plotting**.
 
 In this example we're going to draw the trajectory of the mission [Mars Science Laboratory (MSL)](http://mars.jpl.nasa.gov/msl/), which carried the rover Curiosity to the surface of Mars in a period of something less than 9 months.
 

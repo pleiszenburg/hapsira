@@ -1,5 +1,3 @@
-import functools
-
 from astropy import units as u
 from astropy.coordinates import Angle
 from astropy.tests.helper import assert_quantity_allclose
@@ -10,17 +8,20 @@ import pytest
 
 from hapsira.bodies import Earth, Moon, Sun
 from hapsira.constants import H0_earth, Wdivc_sun, rho0_earth
-from hapsira.core.elements import rv2coe
-from hapsira.core.perturbations import (
-    J2_perturbation,
-    J3_perturbation,
-    atmospheric_drag,
-    atmospheric_drag_exponential,
-    radiation_pressure,
-    third_body,
+from hapsira.core.earth.atmosphere.coesa76 import density_hf as coesa76_density_hf
+from hapsira.core.elements import rv2coe_gf, RV2COE_TOL
+from hapsira.core.jit import hjit, djit
+from hapsira.core.math.linalg import add_VV_hf, mul_Vs_hf, norm_V_hf
+from hapsira.core.perturbations import (  # pylint: disable=E1120,E1136
+    J2_perturbation_hf,
+    J3_perturbation_hf,
+    atmospheric_drag_hf,
+    atmospheric_drag_exponential_hf,
+    radiation_pressure_hf,
+    third_body_hf,
 )
-from hapsira.core.propagation import func_twobody
-from hapsira.earth.atmosphere import COESA76
+from hapsira.core.propagation.base import func_twobody_hf
+
 from hapsira.ephem import build_ephem_interpolant
 from hapsira.twobody import Orbit
 from hapsira.twobody.events import LithobrakeEvent
@@ -37,22 +38,33 @@ def test_J2_propagation_Earth():
     orbit = Orbit.from_vectors(Earth, r0 * u.km, v0 * u.km / u.s)
 
     tofs = [48.0] * u.h
+    J2 = Earth.J2.value
+    R_ = Earth.R.to(u.km).value
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = J2_perturbation(
-            t0, u_, k, J2=Earth.J2.value, R=Earth.R.to(u.km).value
+    @djit(cache=False)
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = J2_perturbation_hf(
+            t0,
+            rr,
+            vv,
+            k,
+            J2,
+            R_,
         )
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    method = CowellPropagator(f=f)
+    method = CowellPropagator(f=f_hf)
     rr, vv = method.propagate_many(orbit._state, tofs)
 
     k = Earth.k.to(u.km**3 / u.s**2).value
 
-    _, _, _, raan0, argp0, _ = rv2coe(k, r0, v0)
-    _, _, _, raan, argp, _ = rv2coe(k, rr[0].to(u.km).value, vv[0].to(u.km / u.s).value)
+    _, _, _, raan0, argp0, _ = rv2coe_gf(  # pylint: disable=E1120,E0633
+        k, r0, v0, RV2COE_TOL
+    )
+    _, _, _, raan, argp, _ = rv2coe_gf(  # pylint: disable=E1120,E0633
+        k, rr[0].to(u.km).value, vv[0].to(u.km / u.s).value, RV2COE_TOL
+    )
 
     raan_variation_rate = (raan - raan0) / tofs[0].to(u.s).value  # type: ignore
     argp_variation_rate = (argp - argp0) / tofs[0].to(u.s).value  # type: ignore
@@ -117,30 +129,53 @@ def test_J3_propagation_Earth(test_params):
         nu=nu_ini,
     )
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = J2_perturbation(
-            t0, u_, k, J2=Earth.J2.value, R=Earth.R.to(u.km).value
+    J2 = Earth.J2.value
+    R_ = Earth.R.to(u.km).value
+
+    @djit(cache=False)
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = J2_perturbation_hf(
+            t0,
+            rr,
+            vv,
+            k,
+            J2,
+            R_,
         )
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
     tofs = np.linspace(0, 10.0 * u.day, 1000)
-    method = CowellPropagator(rtol=1e-8, f=f)
+    method = CowellPropagator(rtol=1e-8, f=f_hf)
     r_J2, v_J2 = method.propagate_many(
         orbit._state,
         tofs,
     )
 
-    def f_combined(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = J2_perturbation(
-            t0, u_, k, J2=Earth.J2.value, R=Earth.R.to_value(u.km)
-        ) + J3_perturbation(t0, u_, k, J3=Earth.J3.value, R=Earth.R.to_value(u.km))
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+    J3 = Earth.J3.value
 
-    method = CowellPropagator(rtol=1e-8, f=f_combined)
+    @djit(cache=False)
+    def f_combined_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad_J2 = J2_perturbation_hf(
+            t0,
+            rr,
+            vv,
+            k,
+            J2,
+            R_,
+        )
+        du_ad_J3 = J3_perturbation_hf(
+            t0,
+            rr,
+            vv,
+            k,
+            J3,
+            R_,
+        )
+        return du_kep_rr, add_VV_hf(du_kep_vv, add_VV_hf(du_ad_J2, du_ad_J3))
+
+    method = CowellPropagator(rtol=1e-8, f=f_combined_hf)
     r_J3, v_J3 = method.propagate_many(
         orbit._state,
         tofs,
@@ -148,13 +183,23 @@ def test_J3_propagation_Earth(test_params):
 
     a_values_J2 = np.array(
         [
-            rv2coe(k, ri, vi)[0] / (1.0 - rv2coe(k, ri, vi)[1] ** 2)
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[0]  # pylint: disable=E1120,E1136
+            / (
+                1.0
+                - rv2coe_gf(k, ri, vi, RV2COE_TOL)[1]  # pylint: disable=E1120,E1136
+                ** 2
+            )
             for ri, vi in zip(r_J2.to(u.km).value, v_J2.to(u.km / u.s).value)
         ]
     )
     a_values_J3 = np.array(
         [
-            rv2coe(k, ri, vi)[0] / (1.0 - rv2coe(k, ri, vi)[1] ** 2)
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[0]  # pylint: disable=E1120,E1136
+            / (
+                1.0
+                - rv2coe_gf(k, ri, vi, RV2COE_TOL)[1]  # pylint: disable=E1120,E1136
+                ** 2
+            )
             for ri, vi in zip(r_J3.to(u.km).value, v_J3.to(u.km / u.s).value)
         ]
     )
@@ -162,13 +207,13 @@ def test_J3_propagation_Earth(test_params):
 
     ecc_values_J2 = np.array(
         [
-            rv2coe(k, ri, vi)[1]
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[1]  # pylint: disable=E1120,E1136
             for ri, vi in zip(r_J2.to(u.km).value, v_J2.to(u.km / u.s).value)
         ]
     )
     ecc_values_J3 = np.array(
         [
-            rv2coe(k, ri, vi)[1]
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[1]  # pylint: disable=E1120,E1136
             for ri, vi in zip(r_J3.to(u.km).value, v_J3.to(u.km / u.s).value)
         ]
     )
@@ -176,13 +221,13 @@ def test_J3_propagation_Earth(test_params):
 
     inc_values_J2 = np.array(
         [
-            rv2coe(k, ri, vi)[2]
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[2]  # pylint: disable=E1120,E1136
             for ri, vi in zip(r_J2.to(u.km).value, v_J2.to(u.km / u.s).value)
         ]
     )
     inc_values_J3 = np.array(
         [
-            rv2coe(k, ri, vi)[2]
+            rv2coe_gf(k, ri, vi, RV2COE_TOL)[2]  # pylint: disable=E1120,E1136
             for ri, vi in zip(r_J3.to(u.km).value, v_J3.to(u.km / u.s).value)
         ]
     )
@@ -226,15 +271,23 @@ def test_atmospheric_drag_exponential():
     # dr_expected = F_r * tof (Newton's integration formula), where
     # F_r = -B rho(r) |r|^2 sqrt(k / |r|^3) = -B rho(r) sqrt(k |r|)
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = atmospheric_drag_exponential(
-            t0, u_, k, R=R, C_D=C_D, A_over_m=A_over_m, H0=H0, rho0=rho0
+    @djit(cache=False)
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = atmospheric_drag_exponential_hf(
+            t0,
+            rr,
+            vv,
+            k,
+            R,
+            C_D,
+            A_over_m,
+            H0,
+            rho0,
         )
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    method = CowellPropagator(f=f)
+    method = CowellPropagator(f=f_hf)
     rr, _ = method.propagate_many(
         orbit._state,
         [tof] * u.s,
@@ -268,15 +321,23 @@ def test_atmospheric_demise():
     lithobrake_event = LithobrakeEvent(R)
     events = [lithobrake_event]
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = atmospheric_drag_exponential(
-            t0, u_, k, R=R, C_D=C_D, A_over_m=A_over_m, H0=H0, rho0=rho0
+    @djit(cache=False)
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = atmospheric_drag_exponential_hf(
+            t0,
+            rr,
+            vv,
+            k,
+            R,
+            C_D,
+            A_over_m,
+            H0,
+            rho0,
         )
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    method = CowellPropagator(events=events, f=f)
+    method = CowellPropagator(events=events, f=f_hf)
     rr, _ = method.propagate_many(
         orbit._state,
         tofs,
@@ -291,7 +352,7 @@ def test_atmospheric_demise():
     lithobrake_event = LithobrakeEvent(R)
     events = [lithobrake_event]
 
-    method = CowellPropagator(events=events, f=f)
+    method = CowellPropagator(events=events, f=f_hf)
     rr, _ = method.propagate_many(
         orbit._state,
         tofs,
@@ -319,27 +380,31 @@ def test_atmospheric_demise_coesa76():
     lithobrake_event = LithobrakeEvent(R)
     events = [lithobrake_event]
 
-    coesa76 = COESA76()
-
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
+    @djit(cache=False)
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
 
         # Avoid undershooting H below attractor radius R
-        H = max(norm(u_[:3]), R)
-        rho = coesa76.density((H - R) * u.km).to_value(u.kg / u.km**3)
+        H = norm_V_hf(rr)
+        if H < R:
+            H = R
 
-        ax, ay, az = atmospheric_drag(
+        rho = (
+            coesa76_density_hf(H - R, True) * 1e9
+        )  # HACK convert from kg/m**3 to kg/km**3
+
+        du_ad = atmospheric_drag_hf(
             t0,
-            u_,
+            rr,
+            vv,
             k,
-            C_D=C_D,
-            A_over_m=A_over_m,
-            rho=rho,
+            C_D,
+            A_over_m,
+            rho,
         )
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    method = CowellPropagator(events=events, f=f)
+    method = CowellPropagator(events=events, f=f_hf)
     rr, _ = method.propagate_many(
         orbit._state,
         tofs,
@@ -373,18 +438,17 @@ def test_cowell_works_with_small_perturbations():
 
     initial = Orbit.from_vectors(Earth, r0, v0)
 
-    def accel(t0, state, k):
-        v_vec = state[3:]
-        norm_v = (v_vec * v_vec).sum() ** 0.5
-        return 1e-5 * v_vec / norm_v
+    @hjit("V(f,V,V,f)")
+    def accel_hf(t0, rr, vv, k):
+        return mul_Vs_hf(vv, 1e-5 / norm_V_hf(vv))
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = accel(t0, u_, k)
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+    @djit
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = accel_hf(t0, rr, vv, k)
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    final = initial.propagate(3 * u.day, method=CowellPropagator(f=f))
+    final = initial.propagate(3 * u.day, method=CowellPropagator(f=f_hf))
 
     # TODO: Accuracy reduced after refactor,
     # but unclear what are we comparing against
@@ -399,18 +463,18 @@ def test_cowell_converges_with_small_perturbations():
 
     initial = Orbit.from_vectors(Earth, r0, v0)
 
-    def accel(t0, state, k):
-        v_vec = state[3:]
-        norm_v = (v_vec * v_vec).sum() ** 0.5
-        return 0.0 * v_vec / norm_v
+    @hjit("V(f,V,V,f)")
+    def accel_hf(t0, rr, vv, k):
+        norm_v = norm_V_hf(vv)
+        return mul_Vs_hf(vv, 0.0 / norm_v)
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = accel(t0, u_, k)
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+    @djit
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = accel_hf(t0, rr, vv, k)
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    final = initial.propagate(initial.period, method=CowellPropagator(f=f))
+    final = initial.propagate(initial.period, method=CowellPropagator(f=f_hf))
 
     assert_quantity_allclose(final.r, initial.r)
     assert_quantity_allclose(final.v, initial.v)
@@ -551,20 +615,22 @@ def test_3rd_body_Curtis(test_params):
         end=epoch + test_params["tof"],
     )
     body_r = build_ephem_interpolant(body, body_epochs)
+    k_third = body.k.to_value(u.km**3 / u.s**2)
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = third_body(
+    @djit(cache=False)
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = third_body_hf(
             t0,
-            u_,
+            rr,
+            vv,
             k,
-            k_third=body.k.to_value(u.km**3 / u.s**2),
-            perturbation_body=body_r,
+            k_third,
+            body_r,  # perturbation_body
         )
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
-    method = CowellPropagator(rtol=1e-10, f=f)
+    method = CowellPropagator(rtol=1e-10, f=f_hf)
     rr, vv = method.propagate_many(
         initial._state,
         np.linspace(0, tof, 400) << u.s,
@@ -573,7 +639,10 @@ def test_3rd_body_Curtis(test_params):
     incs, raans, argps = [], [], []
     for ri, vi in zip(rr.to_value(u.km), vv.to_value(u.km / u.s)):
         angles = Angle(
-            rv2coe(Earth.k.to_value(u.km**3 / u.s**2), ri, vi)[2:5] * u.rad
+            rv2coe_gf(  # pylint: disable=E1120,E1136
+                Earth.k.to_value(u.km**3 / u.s**2), ri, vi, RV2COE_TOL
+            )[2:5]
+            * u.rad
         )  # inc, raan, argp
         angles = angles.wrap_at(180 * u.deg)
         incs.append(angles[0].value)
@@ -604,12 +673,7 @@ def sun_r():
     tof = 600 * u.day
     epoch = Time(j_date, format="jd", scale="tdb")
     ephem_epochs = time_range(epoch, num_values=164, end=epoch + tof)
-    return build_ephem_interpolant(Sun, ephem_epochs)
-
-
-def normalize_to_Curtis(t0, sun_r):
-    r = sun_r(t0)
-    return 149600000 * r / norm(r)
+    return build_ephem_interpolant(Sun, ephem_epochs)  # returns hf
 
 
 @pytest.mark.slow
@@ -641,27 +705,35 @@ def test_solar_pressure(t_days, deltas_expected, sun_r):
             nu=343.4268 * u.deg,
             epoch=epoch,
         )
-    # In Curtis, the mean distance to Sun is used. In order to validate against it, we have to do the same thing
-    sun_normalized = functools.partial(normalize_to_Curtis, sun_r=sun_r)
 
-    def f(t0, u_, k):
-        du_kep = func_twobody(t0, u_, k)
-        ax, ay, az = radiation_pressure(
+    # In Curtis, the mean distance to Sun is used. In order to validate against it, we have to do the same thing
+    @hjit("V(f)", cache=False)
+    def sun_normalized_hf(t0):
+        r = sun_r(t0)  # sun_r is hf, returns V
+        return mul_Vs_hf(r, 149600000 / norm_V_hf(r))
+
+    R_ = Earth.R.to(u.km).value
+    Wdivc_s = Wdivc_sun.value
+
+    @djit(cache=False)
+    def f_hf(t0, rr, vv, k):
+        du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+        du_ad = radiation_pressure_hf(
             t0,
-            u_,
+            rr,
+            vv,
             k,
-            R=Earth.R.to(u.km).value,
-            C_R=2.0,
-            A_over_m=2e-4 / 100,
-            Wdivc_s=Wdivc_sun.value,
-            star=sun_normalized,
+            R_,
+            2.0,  # C_R
+            2e-4 / 100,  # A_over_m
+            Wdivc_s,
+            sun_normalized_hf,  # star
         )
-        du_ad = np.array([0, 0, 0, ax, ay, az])
-        return du_kep + du_ad
+        return du_kep_rr, add_VV_hf(du_kep_vv, du_ad)
 
     method = CowellPropagator(
         rtol=1e-8,
-        f=f,
+        f=f_hf,
     )
     rr, vv = method.propagate_many(
         initial._state,
@@ -670,7 +742,9 @@ def test_solar_pressure(t_days, deltas_expected, sun_r):
 
     delta_eccs, delta_incs, delta_raans, delta_argps = [], [], [], []
     for ri, vi in zip(rr.to(u.km).value, vv.to(u.km / u.s).value):
-        orbit_params = rv2coe(Earth.k.to(u.km**3 / u.s**2).value, ri, vi)
+        orbit_params = rv2coe_gf(  # pylint: disable=E1120,E1136
+            Earth.k.to(u.km**3 / u.s**2).value, ri, vi, RV2COE_TOL
+        )
         delta_eccs.append(orbit_params[1] - initial.ecc.value)
         delta_incs.append((orbit_params[2] * u.rad).to(u.deg).value - initial.inc.value)
         delta_raans.append(

@@ -1,20 +1,36 @@
-from warnings import warn
+from abc import ABC, abstractmethod
+from math import degrees as rad2deg
+from typing import Callable
 
 from astropy import units as u
 from astropy.coordinates import get_body_barycentric_posvel
-import numpy as np
 
-from hapsira._math.linalg import norm
+from hapsira.core.jit import hjit
+from hapsira.core.math.ivp import dop853_dense_interp_brentq_hb
+from hapsira.core.math.linalg import mul_Vs_hf, norm_V_hf
 from hapsira.core.events import (
-    eclipse_function as eclipse_function_fast,
-    line_of_sight as line_of_sight_fast,
+    eclipse_function_hf,
+    line_of_sight_hf,
 )
-from hapsira.core.spheroid_location import (
-    cartesian_to_ellipsoidal as cartesian_to_ellipsoidal_fast,
-)
+from hapsira.core.math.interpolate import interp_hb
+from hapsira.core.spheroid_location import cartesian_to_ellipsoidal_hf
+from hapsira.util import time_range
 
 
-class Event:
+__all__ = [
+    "BaseEvent",
+    "AltitudeCrossEvent",
+    "LithobrakeEvent",
+    "LatitudeCrossEvent",
+    "BaseEclipseEvent",
+    "PenumbraEvent",
+    "UmbraEvent",
+    "NodeCrossEvent",
+    "LosEvent",
+]
+
+
+class BaseEvent(ABC):
     """Base class for event functionalities.
 
     Parameters
@@ -26,9 +42,12 @@ class Event:
 
     """
 
+    @abstractmethod
     def __init__(self, terminal, direction):
         self._terminal, self._direction = terminal, direction
         self._last_t = None
+        self._impl_hf = None
+        self._impl_dense_hf = None
 
     @property
     def terminal(self):
@@ -42,17 +61,33 @@ class Event:
     def last_t(self):
         return self._last_t << u.s
 
-    def __call__(self, t, u, k):
-        raise NotImplementedError
+    @property
+    def last_t_raw(self) -> float:
+        return self._last_t
+
+    @last_t_raw.setter
+    def last_t_raw(self, value: float):
+        self._last_t = value
+
+    @property
+    def impl_hf(self) -> Callable:
+        return self._impl_hf
+
+    @property
+    def impl_dense_hf(self) -> Callable:
+        return self._impl_dense_hf
+
+    def _wrap(self):
+        self._impl_dense_hf = dop853_dense_interp_brentq_hb(self._impl_hf)
 
 
-class AltitudeCrossEvent(Event):
+class AltitudeCrossEvent(BaseEvent):
     """Detect if a satellite crosses a specific threshold altitude.
 
     Parameters
     ----------
     alt: float
-        Threshold altitude (km).
+        Threshold altitude from the ground (km).
     R: float
         Radius of the attractor (km).
     terminal: bool
@@ -66,16 +101,16 @@ class AltitudeCrossEvent(Event):
 
     def __init__(self, alt, R, terminal=True, direction=-1):
         super().__init__(terminal, direction)
-        self._R = R
-        self._alt = alt  # Threshold altitude from the ground.
 
-    def __call__(self, t, u, k):
-        self._last_t = t
-        r_norm = norm(u[:3])
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            r_norm = norm_V_hf(rr)
+            return (
+                r_norm - R - alt
+            )  # If this goes from +ve to -ve, altitude is decreasing.
 
-        return (
-            r_norm - self._R - self._alt
-        )  # If this goes from +ve to -ve, altitude is decreasing.
+        self._impl_hf = impl_hf
+        self._wrap()
 
 
 class LithobrakeEvent(AltitudeCrossEvent):
@@ -94,7 +129,7 @@ class LithobrakeEvent(AltitudeCrossEvent):
         super().__init__(0, R, terminal, direction=-1)
 
 
-class LatitudeCrossEvent(Event):
+class LatitudeCrossEvent(BaseEvent):
     """Detect if a satellite crosses a specific threshold latitude.
 
     Parameters
@@ -114,26 +149,31 @@ class LatitudeCrossEvent(Event):
     def __init__(self, orbit, lat, terminal=False, direction=0):
         super().__init__(terminal, direction)
 
-        self._R = orbit.attractor.R.to_value(u.m)
-        self._R_polar = orbit.attractor.R_polar.to_value(u.m)
-        self._epoch = orbit.epoch
-        self._lat = lat.to_value(u.deg)  # Threshold latitude (in degrees).
+        R = orbit.attractor.R.to_value(u.m)
+        R_polar = orbit.attractor.R_polar.to_value(u.m)
+        lat = lat.to_value(u.deg)  # Threshold latitude (in degrees).
 
-    def __call__(self, t, u_, k):
-        self._last_t = t
-        pos_on_body = (u_[:3] / norm(u_[:3])) * self._R
-        _, lat_, _ = cartesian_to_ellipsoidal_fast(self._R, self._R_polar, *pos_on_body)
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            pos_on_body = mul_Vs_hf(rr, R / norm_V_hf(rr))
+            _, lat_, _ = cartesian_to_ellipsoidal_hf(R, R_polar, *pos_on_body)
+            return rad2deg(lat_) - lat
 
-        return np.rad2deg(lat_) - self._lat
+        self._impl_hf = impl_hf
+        self._wrap()
 
 
-class EclipseEvent(Event):
+class BaseEclipseEvent(BaseEvent):
     """Base class for the eclipse event.
 
     Parameters
     ----------
     orbit: hapsira.twobody.orbit.Orbit
         Orbit of the satellite.
+    tof: ~astropy.units.Quantity
+        Maximum time of flight for interpolator
+    steps: int
+        Steps for interpolator
     terminal: bool, optional
         Whether to terminate integration when the event occurs, defaults to False.
     direction: float, optional
@@ -141,28 +181,27 @@ class EclipseEvent(Event):
 
     """
 
-    def __init__(self, orbit, terminal=False, direction=0):
+    def __init__(self, orbit, tof, steps=50, terminal=False, direction=0):
         super().__init__(terminal, direction)
-        self._primary_body = orbit.attractor
-        self._secondary_body = orbit.attractor.parent
-        self._epoch = orbit.epoch
-        self.k = self._primary_body.k.to_value(u.km**3 / u.s**2)
-        self.R_sec = self._secondary_body.R.to_value(u.km)
-        self.R_primary = self._primary_body.R.to_value(u.km)
+        primary_body = orbit.attractor
+        secondary_body = orbit.attractor.parent
+        epoch = orbit.epoch
 
-    def __call__(self, t, u_, k):
-        # Solve for primary and secondary bodies position w.r.t. solar system
-        # barycenter at a particular epoch.
-        (r_primary_wrt_ssb, _), (r_secondary_wrt_ssb, _) = (
-            get_body_barycentric_posvel(body.name, self._epoch + t * u.s)
-            for body in (self._primary_body, self._secondary_body)
+        self._R_sec = secondary_body.R.to_value(u.km)
+        self._R_primary = primary_body.R.to_value(u.km)
+
+        epochs = time_range(start=epoch, end=epoch + tof, num_values=steps)
+        r_primary_wrt_ssb, _ = get_body_barycentric_posvel(primary_body.name, epochs)
+        r_secondary_wrt_ssb, _ = get_body_barycentric_posvel(
+            secondary_body.name, epochs
         )
-        r_sec = ((r_secondary_wrt_ssb - r_primary_wrt_ssb).xyz << u.km).value
+        self._r_sec_hf = interp_hb(
+            (epochs - epoch).to_value(u.s),
+            (r_secondary_wrt_ssb - r_primary_wrt_ssb).xyz.to_value(u.km),
+        )
 
-        return r_sec
 
-
-class PenumbraEvent(EclipseEvent):
+class PenumbraEvent(BaseEclipseEvent):
     """Detect whether a satellite is in penumbra or not.
 
     Parameters
@@ -177,26 +216,32 @@ class PenumbraEvent(EclipseEvent):
 
     """
 
-    def __init__(self, orbit, terminal=False, direction=0):
-        super().__init__(orbit, terminal, direction)
+    def __init__(self, orbit, tof, steps=50, terminal=False, direction=0):
+        super().__init__(orbit, tof, steps, terminal, direction)
 
-    def __call__(self, t, u_, k):
-        self._last_t = t
+        R_sec = self._R_sec
+        R_primary = self._R_primary
+        r_sec_hf = self._r_sec_hf
 
-        r_sec = super().__call__(t, u_, k)
-        shadow_function = eclipse_function_fast(
-            self.k,
-            u_,
-            r_sec,
-            self.R_sec,
-            self.R_primary,
-            umbra=False,
-        )
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            r_sec = r_sec_hf(t)
+            shadow_function = eclipse_function_hf(
+                k,
+                rr,
+                vv,
+                r_sec,
+                R_sec,
+                R_primary,
+                False,
+            )
+            return shadow_function
 
-        return shadow_function
+        self._impl_hf = impl_hf
+        self._wrap()
 
 
-class UmbraEvent(EclipseEvent):
+class UmbraEvent(BaseEclipseEvent):
     """Detect whether a satellite is in umbra or not.
 
     Parameters
@@ -211,21 +256,32 @@ class UmbraEvent(EclipseEvent):
 
     """
 
-    def __init__(self, orbit, terminal=False, direction=0):
-        super().__init__(orbit, terminal, direction)
+    def __init__(self, orbit, tof, steps=50, terminal=False, direction=0):
+        super().__init__(orbit, tof, steps, terminal, direction)
 
-    def __call__(self, t, u_, k):
-        self._last_t = t
+        R_sec = self._R_sec
+        R_primary = self._R_primary
+        r_sec_hf = self._r_sec_hf
 
-        r_sec = super().__call__(t, u_, k)
-        shadow_function = eclipse_function_fast(
-            self.k, u_, r_sec, self.R_sec, self.R_primary
-        )
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            r_sec = r_sec_hf(t)
+            shadow_function = eclipse_function_hf(
+                k,
+                rr,
+                vv,
+                r_sec,
+                R_sec,
+                R_primary,
+                True,
+            )
+            return shadow_function
 
-        return shadow_function
+        self._impl_hf = impl_hf
+        self._wrap()
 
 
-class NodeCrossEvent(Event):
+class NodeCrossEvent(BaseEvent):
     """Detect equatorial node (ascending or descending) crossings.
 
     Parameters
@@ -242,13 +298,16 @@ class NodeCrossEvent(Event):
     def __init__(self, terminal=False, direction=0):
         super().__init__(terminal, direction)
 
-    def __call__(self, t, u_, k):
-        self._last_t = t
-        # Check if the z coordinate of the satellite is zero.
-        return u_[2]
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            # Check if the z coordinate of the satellite is zero.
+            return rr[2]
+
+        self._impl_hf = impl_hf
+        self._wrap()
 
 
-class LosEvent(Event):
+class LosEvent(BaseEvent):
     """Detect whether there exists a LOS between two satellites.
 
     Parameters
@@ -261,25 +320,25 @@ class LosEvent(Event):
 
     """
 
-    def __init__(self, attractor, pos_coords, terminal=False, direction=0):
+    def __init__(self, attractor, tofs, secondary_rr, terminal=False, direction=0):
         super().__init__(terminal, direction)
-        self._attractor = attractor
-        self._pos_coords = (pos_coords << u.km).value.tolist()
-        self._last_coord = (
-            self._pos_coords[-1] << u.km
-        ).value  # Used to prevent any errors if `self._pos_coords` gets exhausted early.
-        self._R = self._attractor.R.to_value(u.km)
+        secondary_hf = interp_hb(tofs.to_value(u.s), secondary_rr.to_value(u.km))
+        R = attractor.R.to_value(u.km)
 
-    def __call__(self, t, u_, k):
-        self._last_t = t
-
-        if norm(u_[:3]) < self._R:
-            warn(
-                "The norm of the position vector of the primary body is less than the radius of the attractor."
+        @hjit("f(f,V,V,f)", cache=False)
+        def impl_hf(t, rr, vv, k):
+            # Can currently not warn due to: https://github.com/numba/numba/issues/1243
+            # TODO Matching test deactivated ...
+            # if norm_V_hf(rr) < R:
+            #     warn(
+            #         "The norm of the position vector of the primary body is less than the radius of the attractor."
+            #     )
+            delta_angle = line_of_sight_hf(
+                rr,
+                secondary_hf(t),
+                R,
             )
+            return delta_angle
 
-        pos_coord = self._pos_coords.pop(0) if self._pos_coords else self._last_coord
-
-        # Need to cast `pos_coord` to array since `norm` inside numba only works for arrays, not lists.
-        delta_angle = line_of_sight_fast(u_[:3], np.array(pos_coord), self._R)
-        return delta_angle
+        self._impl_hf = impl_hf
+        self._wrap()

@@ -1,5 +1,6 @@
 from astropy import units as u
 from astropy.tests.helper import assert_quantity_allclose
+from numpy.testing import assert_allclose
 import pytest
 
 from hapsira.earth.atmosphere import COESA76
@@ -42,8 +43,10 @@ def test_coefficients_over_86km():
         -12.89844,
     ]
 
-    assert coesa76._get_coefficients_avobe_86(350 * u.km, p_coeff) == expected_p
-    assert coesa76._get_coefficients_avobe_86(350 * u.km, rho_coeff) == expected_rho
+    assert_allclose(coesa76._get_coefficients_avobe_86(350 * u.km, p_coeff), expected_p)
+    assert_allclose(
+        coesa76._get_coefficients_avobe_86(350 * u.km, rho_coeff), expected_rho
+    )
 
 
 # SOLUTIONS DIRECTLY TAKEN FROM COESA76 REPORT

@@ -2,9 +2,9 @@
 
 import astropy.units as u
 
-from hapsira.core.earth_atmosphere.util import (
-    _check_altitude as _check_altitude_fast,
-    _get_index as _get_index_fast,
+from hapsira.core.earth.atmosphere.coesa import (
+    check_altitude_hf,
+    get_index_hf,
 )
 
 
@@ -69,7 +69,7 @@ class COESA:
         alt = alt.to_value(u.km)
         r0 = r0.to_value(u.km)
 
-        z, h = _check_altitude_fast(alt, r0, geometric)
+        z, h = check_altitude_hf(alt, r0, geometric)  # TODO call from compiled context
         z, h = z * u.km, h * u.km
 
         # Assert in range
@@ -98,5 +98,5 @@ class COESA:
         """
         x = x.to_value(u.km)
         x_levels = (x_levels << u.km).value
-        i = _get_index_fast(x, x_levels)
+        i = get_index_hf(x, x_levels)  # TODO call from compiled context
         return i

@@ -4,7 +4,7 @@ jupytext:
     extension: .md
     format_name: myst
     format_version: 0.13
-    jupytext_version: 1.14.1
+    jupytext_version: 1.16.0
 kernelspec:
   display_name: Python 3 (ipykernel)
   language: python
@@ -25,7 +25,7 @@ $$\ddot{\mathbb{r}} = -\frac{\mu}{|\mathbb{r}|^3} \mathbb{r} + \mathbb{a}_d$$
 
 +++
 
-<div class="alert alert-info">An earlier version of this notebook allowed for more flexibility and interactivity, but was considerably more complex. Future versions of hapsira and plotly might bring back part of that functionality, depending on user feedback. You can still download the older version [here](https://github.com/hapsira/hapsira/blob/0.8.x/docs/source/examples/Propagation%20using%20Cowell's%20formulation.ipynb).</div>
+<div class="alert alert-info">An earlier version of this notebook allowed for more flexibility and interactivity, but was considerably more complex. Future versions of hapsira and plotly might bring back part of that functionality, depending on user feedback. You can still download the older version [here](https://github.com/pleiszenburg/hapsira/blob/0.8.x/docs/source/examples/Propagation%20using%20Cowell's%20formulation.ipynb).</div>
 
 +++
 
@@ -40,7 +40,9 @@ from astropy import units as u
 import numpy as np
 
 from hapsira.bodies import Earth
-from hapsira.core.propagation import func_twobody
+from hapsira.core.jit import djit, hjit
+from hapsira.core.math.linalg import add_VV_hf, mul_Vs_hf, norm_V_hf
+from hapsira.core.propagation.base import func_twobody_hf
 from hapsira.examples import iss
 from hapsira.plotting import OrbitPlotter
 from hapsira.plotting.orbit.backends import Plotly3D
@@ -57,22 +59,24 @@ accel = 2e-5
 ```
 
 ```{code-cell} ipython3
-def constant_accel_factory(accel):
-    def constant_accel(t0, u, k):
-        v = u[3:]
-        norm_v = (v[0] ** 2 + v[1] ** 2 + v[2] ** 2) ** 0.5
-        return accel * v / norm_v
+def constant_accel_hb(accel):
 
-    return constant_accel
+    @hjit("V(f,V,V,f)", cache = False)
+    def constant_accel_hf(t0, rr, vv, k):
+        norm_v = norm_V_hf(vv)
+        return mul_Vs_hf(vv, accel / norm_v)
+
+    return constant_accel_hf
 ```
 
 ```{code-cell} ipython3
-def f(t0, state, k):
-    du_kep = func_twobody(t0, state, k)
-    ax, ay, az = constant_accel_factory(accel)(t0, state, k)
-    du_ad = np.array([0, 0, 0, ax, ay, az])
+constant_accel_hf = constant_accel_hb(accel)
 
-    return du_kep + du_ad
+@djit
+def f_hf(t0, rr, vv, k):
+    du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+    a = constant_accel_hf(t0, rr, vv, k)
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 ```
 
 ```{code-cell} ipython3
@@ -82,7 +86,7 @@ times
 
 ```{code-cell} ipython3
 ephem = iss.to_ephem(
-    EpochsArray(iss.epoch + times, method=CowellPropagator(rtol=1e-11, f=f)),
+    EpochsArray(iss.epoch + times, method=CowellPropagator(rtol=1e-11, f=f_hf)),
 )
 ```
 
@@ -93,6 +97,7 @@ frame = OrbitPlotter(backend=Plotly3D())
 
 frame.set_attractor(Earth)
 frame.plot_ephem(ephem, label="ISS")
+frame.show()
 ```
 
 ## Error checking
@@ -165,18 +170,15 @@ So let's create a new circular orbit and perform the necessary checks, assuming 
 orb = Orbit.circular(Earth, 500 << u.km)
 tof = 20 * orb.period
 
-ad = constant_accel_factory(1e-7)
+ad_hf = constant_accel_hb(1e-7)
 
+@djit
+def f_hf(t0, rr, vv, k):
+    du_kep_rr, du_kep_vv = func_twobody_hf(t0, rr, vv, k)
+    a = ad_hf(t0, rr, vv, k)
+    return du_kep_rr, add_VV_hf(du_kep_vv, a)
 
-def f(t0, state, k):
-    du_kep = func_twobody(t0, state, k)
-    ax, ay, az = ad(t0, state, k)
-    du_ad = np.array([0, 0, 0, ax, ay, az])
-
-    return du_kep + du_ad
-
-
-orb_final = orb.propagate(tof, method=CowellPropagator(f=f))
+orb_final = orb.propagate(tof, method=CowellPropagator(f=f_hf))
 ```
 
 ```{code-cell} ipython3

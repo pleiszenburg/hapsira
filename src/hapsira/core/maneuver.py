@@ -4,8 +4,15 @@ from numba import njit as jit
 import numpy as np
 from numpy import cross
 
-from hapsira._math.linalg import norm
-from hapsira.core.elements import coe_rotation_matrix, rv2coe, rv_pqw
+from hapsira.core.elements import (
+    coe_rotation_matrix_hf,
+    rv2coe_hf,
+    RV2COE_TOL,
+    rv_pqw_hf,
+)
+
+from .jit import array_to_V_hf
+from .math.linalg import norm_V_hf
 
 
 @jit
@@ -40,14 +47,16 @@ def hohmann(k, rv, r_f):
         Final orbital radius
 
     """
-    _, ecc, inc, raan, argp, nu = rv2coe(k, *rv)
-    h_i = norm(cross(*rv))
+    _, ecc, inc, raan, argp, nu = rv2coe_hf(
+        k, array_to_V_hf(rv[0]), array_to_V_hf(rv[1]), RV2COE_TOL
+    )
+    h_i = norm_V_hf(array_to_V_hf(cross(*rv)))
     p_i = h_i**2 / k
 
-    r_i, v_i = rv_pqw(k, p_i, ecc, nu)
+    r_i, v_i = rv_pqw_hf(k, p_i, ecc, nu)
 
-    r_i = norm(r_i)
-    v_i = norm(v_i)
+    r_i = norm_V_hf(r_i)
+    v_i = norm_V_hf(v_i)
     a_trans = (r_i + r_f) / 2
 
     dv_a = np.sqrt(2 * k / r_i - k / a_trans) - v_i
@@ -56,7 +65,7 @@ def hohmann(k, rv, r_f):
     dv_a = np.array([0, dv_a, 0])
     dv_b = np.array([0, -dv_b, 0])
 
-    rot_matrix = coe_rotation_matrix(inc, raan, argp)
+    rot_matrix = np.array(coe_rotation_matrix_hf(inc, raan, argp))
 
     dv_a = rot_matrix @ dv_a
     dv_b = rot_matrix @ dv_b
@@ -110,14 +119,16 @@ def bielliptic(k, r_b, r_f, rv):
         Position and velocity vectors
 
     """
-    _, ecc, inc, raan, argp, nu = rv2coe(k, *rv)
-    h_i = norm(cross(*rv))
+    _, ecc, inc, raan, argp, nu = rv2coe_hf(
+        k, array_to_V_hf(rv[0]), array_to_V_hf(rv[1]), RV2COE_TOL
+    )
+    h_i = norm_V_hf(array_to_V_hf(cross(*rv)))
     p_i = h_i**2 / k
 
-    r_i, v_i = rv_pqw(k, p_i, ecc, nu)
+    r_i, v_i = rv_pqw_hf(k, p_i, ecc, nu)
 
-    r_i = norm(r_i)
-    v_i = norm(v_i)
+    r_i = norm_V_hf(r_i)
+    v_i = norm_V_hf(v_i)
     a_trans1 = (r_i + r_b) / 2
     a_trans2 = (r_b + r_f) / 2
 
@@ -129,7 +140,7 @@ def bielliptic(k, r_b, r_f, rv):
     dv_b = np.array([0, -dv_b, 0])
     dv_c = np.array([0, dv_c, 0])
 
-    rot_matrix = coe_rotation_matrix(inc, raan, argp)
+    rot_matrix = np.array(coe_rotation_matrix_hf(inc, raan, argp))
 
     dv_a = rot_matrix @ dv_a
     dv_b = rot_matrix @ dv_b
@@ -190,6 +201,6 @@ def correct_pericenter(k, R, J2, max_delta_r, v, a, inc, ecc):
     delta_t = abs(delta_w / dw)
     delta_v = 0.5 * n * a * ecc * abs(delta_w)
 
-    vf_ = v / norm(v) * delta_v
+    vf_ = v / norm_V_hf(array_to_V_hf(v)) * delta_v
 
     return delta_t, vf_

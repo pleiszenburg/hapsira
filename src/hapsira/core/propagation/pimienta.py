@@ -1,17 +1,29 @@
-from numba import njit as jit
-import numpy as np
+from math import sqrt
 
-from hapsira.core.angles import E_to_M, E_to_nu, nu_to_E
-from hapsira.core.elements import coe2rv, rv2coe
+from ..angles import E_to_M_hf, E_to_nu_hf, nu_to_E_hf
+from ..elements import coe2rv_hf, rv2coe_hf, RV2COE_TOL
+from ..jit import array_to_V_hf, hjit, vjit, gjit
 
 
-@jit
-def pimienta_coe(k, p, ecc, inc, raan, argp, nu, tof):
+__all__ = [
+    "pimienta_coe_hf",
+    "pimienta_coe_vf",
+    "pimienta_rv_hf",
+    "pimienta_rv_gf",
+]
+
+
+@hjit("f(f,f,f,f,f,f,f,f)")
+def pimienta_coe_hf(k, p, ecc, inc, raan, argp, nu, tof):
+    """
+    Scalar pimienta_coe
+    """
+
     q = p / (1 + ecc)
 
     # TODO: Do something to allow parabolic and hyperbolic orbits?
-    n = np.sqrt(k * (1 - ecc) ** 3 / q**3)
-    M0 = E_to_M(nu_to_E(nu, ecc), ecc)
+    n = sqrt(k * (1 - ecc) ** 3 / q**3)
+    M0 = E_to_M_hf(nu_to_E_hf(nu, ecc), ecc)
 
     M = M0 + n * tof
 
@@ -19,7 +31,7 @@ def pimienta_coe(k, p, ecc, inc, raan, argp, nu, tof):
     c3 = 5 / 2 + 560 * ecc
     a = 15 * (1 - ecc) / c3
     b = -M / c3
-    y = np.sqrt(b**2 / 4 + a**3 / 27)
+    y = sqrt(b**2 / 4 + a**3 / 27)
 
     # Equation (33)
     x_bar = (-b / 2 + y) ** (1 / 3) - (b / 2 + y) ** (1 / 3)
@@ -333,11 +345,20 @@ def pimienta_coe(k, p, ecc, inc, raan, argp, nu, tof):
         + 15 * w
     )
 
-    return E_to_nu(E, ecc)
+    return E_to_nu_hf(E, ecc)
 
 
-@jit
-def pimienta(k, r0, v0, tof):
+@vjit("f(f,f,f,f,f,f,f,f)")
+def pimienta_coe_vf(k, p, ecc, inc, raan, argp, nu, tof):
+    """
+    Vectorized pimienta_coe
+    """
+
+    return pimienta_coe_hf(k, p, ecc, inc, raan, argp, nu, tof)
+
+
+@hjit("Tuple([V,V])(f,V,V,f)")
+def pimienta_rv_hf(k, r0, v0, tof):
     """Raw algorithm for Adonis' Pimienta and John L. Crassidis 15th order
     polynomial Kepler solver.
 
@@ -368,7 +389,18 @@ def pimienta(k, r0, v0, tof):
     # TODO: implement hyperbolic case
 
     # Solve first for eccentricity and mean anomaly
-    p, ecc, inc, raan, argp, nu = rv2coe(k, r0, v0)
-    nu = pimienta_coe(k, p, ecc, inc, raan, argp, nu, tof)
+    p, ecc, inc, raan, argp, nu = rv2coe_hf(k, r0, v0, RV2COE_TOL)
+    nu = pimienta_coe_hf(k, p, ecc, inc, raan, argp, nu, tof)
 
-    return coe2rv(k, p, ecc, inc, raan, argp, nu)
+    return coe2rv_hf(k, p, ecc, inc, raan, argp, nu)
+
+
+@gjit("void(f,f[:],f[:],f,f[:],f[:])", "(),(n),(n),()->(n),(n)")
+def pimienta_rv_gf(k, r0, v0, tof, rr, vv):
+    """
+    Vectorized pimienta_rv
+    """
+
+    (rr[0], rr[1], rr[2]), (vv[0], vv[1], vv[2]) = pimienta_rv_hf(
+        k, array_to_V_hf(r0), array_to_V_hf(v0), tof
+    )

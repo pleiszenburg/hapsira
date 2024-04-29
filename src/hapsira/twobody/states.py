@@ -1,9 +1,22 @@
 from functools import cached_property
 
 from astropy import units as u
+import numpy as np
 
-from hapsira.core.elements import coe2mee, coe2rv, mee2coe, mee2rv, rv2coe
-from hapsira.twobody.elements import mean_motion, period, t_p
+from hapsira.core.elements import (
+    coe2mee_gf,
+    coe2rv_gf,
+    mee2coe_gf,
+    mee2rv_gf,
+    rv2coe_gf,
+    RV2COE_TOL,
+    mean_motion_vf,
+    period_vf,
+)
+from hapsira.core.propagation.farnocchia import delta_t_from_nu_vf, FARNOCCHIA_DELTA
+
+
+u_km3s2 = u.km**3 / u.s**2
 
 
 class BaseState:
@@ -39,12 +52,25 @@ class BaseState:
     @cached_property
     def n(self):
         """Mean motion."""
-        return mean_motion(self.attractor.k, self.to_classical().a)
+        return (
+            mean_motion_vf(
+                self.attractor.k.to_value(u_km3s2),
+                self.to_classical().a.to_value(u.km),
+            )
+            * u.rad
+            / u.s
+        )
 
     @cached_property
     def period(self):
         """Period of the orbit."""
-        return period(self.attractor.k, self.to_classical().a)
+        return (
+            period_vf(
+                self.attractor.k.to_value(u_km3s2),
+                self.to_classical().a.to_value(u.km),
+            )
+            * u.s
+        )
 
     @cached_property
     def r_p(self):
@@ -59,11 +85,16 @@ class BaseState:
     @cached_property
     def t_p(self):
         """Elapsed time since latest perifocal passage."""
-        return t_p(
-            self.to_classical().nu,
-            self.to_classical().ecc,
-            self.attractor.k,
-            self.r_p,
+        self_classical = self.to_classical()
+        return (
+            delta_t_from_nu_vf(
+                self_classical.nu.to_value(u.rad),
+                self_classical.ecc.value,
+                self.attractor.k.to_value(u_km3s2),
+                self.r_p.to_value(u.km),
+                FARNOCCHIA_DELTA,
+            )
+            * u.s
         )
 
     def to_tuple(self):
@@ -171,7 +202,17 @@ class ClassicalState(BaseState):
 
     def to_vectors(self):
         """Converts to position and velocity vector representation."""
-        r, v = coe2rv(self.attractor.k.to_value(u.km**3 / u.s**2), *self.to_value())
+
+        r = np.zeros(self.attractor.k.shape + (3,), dtype=self.attractor.k.dtype)
+        v = np.zeros(self.attractor.k.shape + (3,), dtype=self.attractor.k.dtype)
+
+        coe2rv_gf(
+            self.attractor.k.to_value(u.km**3 / u.s**2),
+            *self.to_value(),
+            np.zeros((3,), dtype="u1"),  # dummy
+            r,
+            v,
+        )
 
         return RVState(self.attractor, (r << u.km, v << u.km / u.s), self.plane)
 
@@ -181,7 +222,8 @@ class ClassicalState(BaseState):
 
     def to_equinoctial(self):
         """Converts to modified equinoctial elements representation."""
-        p, f, g, h, k, L = coe2mee(*self.to_value())
+
+        p, f, g, h, k, L = coe2mee_gf(*self.to_value())  # pylint: disable=E1120,E0633
 
         return ModifiedEquinoctialState(
             self.attractor,
@@ -231,9 +273,10 @@ class RVState(BaseState):
 
     def to_classical(self):
         """Converts to classical orbital elements representation."""
-        (p, ecc, inc, raan, argp, nu) = rv2coe(
+        (p, ecc, inc, raan, argp, nu) = rv2coe_gf(  # pylint: disable=E1120,E0633
             self.attractor.k.to_value(u.km**3 / u.s**2),
             *self.to_value(),
+            RV2COE_TOL,
         )
 
         return ClassicalState(
@@ -312,7 +355,9 @@ class ModifiedEquinoctialState(BaseState):
 
     def to_classical(self):
         """Converts to classical orbital elements representation."""
-        p, ecc, inc, raan, argp, nu = mee2coe(*self.to_value())
+        p, ecc, inc, raan, argp, nu = mee2coe_gf(  # pylint: disable=E1120,E0633
+            *self.to_value()
+        )
 
         return ClassicalState(
             self.attractor,
@@ -329,5 +374,7 @@ class ModifiedEquinoctialState(BaseState):
 
     def to_vectors(self):
         """Converts to position and velocity vector representation."""
-        r, v = mee2rv(*self.to_value())
+        r, v = mee2rv_gf(  # pylint: disable=E1120,E0633
+            *self.to_value(), np.zeros((3,), dtype="u1")
+        )
         return RVState(self.attractor, (r << u.km, v << u.km / u.s), self.plane)

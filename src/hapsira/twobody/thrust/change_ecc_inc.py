@@ -1,8 +1,6 @@
 from astropy import units as u
 
-from hapsira.core.thrust.change_ecc_inc import (
-    change_ecc_inc as change_ecc_inc_fast,
-)
+from hapsira.core.thrust.change_ecc_inc import change_ecc_inc_hb
 
 
 def change_ecc_inc(orb_0, ecc_f, inc_f, f):
@@ -28,11 +26,11 @@ def change_ecc_inc(orb_0, ecc_f, inc_f, f):
     * Pollard, J. E. "Simplified Analysis of Low-Thrust Orbital Maneuvers", 2000.
     """
     r, v = orb_0.rv()
-    a_d, delta_V, t_f = change_ecc_inc_fast(
+    a_d_hf, delta_V, t_f = change_ecc_inc_hb(
         k=orb_0.attractor.k.to_value(u.km**3 / u.s**2),
         a=orb_0.a.to_value(u.km),
         ecc_0=orb_0.ecc.value,
-        ecc_f=ecc_f,
+        ecc_f=getattr(ecc_f, "value", ecc_f),  # in case of u.one
         inc_0=orb_0.inc.to_value(u.rad),
         inc_f=inc_f.to_value(u.rad),
         argp=orb_0.argp.to_value(u.rad),
@@ -40,4 +38,4 @@ def change_ecc_inc(orb_0, ecc_f, inc_f, f):
         v=v.to_value(u.km / u.s),
         f=f.to_value(u.km / u.s**2),
     )
-    return a_d, delta_V << (u.km / u.s), t_f << u.s
+    return a_d_hf, delta_V << (u.km / u.s), t_f << u.s

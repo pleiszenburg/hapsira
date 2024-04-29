@@ -15,6 +15,9 @@ def dop853_dense_interp_hf(t, t_old, h, rr_old, vv_old, F):
     Local interpolant over step made by an ODE solver.
     Evaluate the interpolant.
 
+    Based on
+    https://github.com/scipy/scipy/blob/4edfcaa3ce8a387450b6efce968572def71be089/scipy/integrate/_ivp/rk.py#L584
+
     Parameters
     ----------
     t : float or array_like with shape (n_points,)

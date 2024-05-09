@@ -134,7 +134,7 @@ For example, start by importing an example orbit from the International Space St
 <Time object: scale='utc' format='iso' value=2013-03-18 12:00:00.000>
 >>> iss.nu.to(u.deg)
 <Quantity 46.595804677061956 deg>
->>> iss.n.to(u.deg / u.min)
+>>> iss.n.to(u.deg) / u.min
 <Quantity 3.887010576192155 deg / min>
 ```
 

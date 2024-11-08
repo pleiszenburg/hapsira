@@ -71,7 +71,7 @@ class Matplotlib2D(OrbitPlotterBackend):
         if color is None:
             try:
                 # Updated HACK, see https://stackoverflow.com/a/78938755
-                color = ax._get_lines.get_next_color()
+                color = self.ax._get_lines.get_next_color()
             except AttributeError:
                 # HACK: https://stackoverflow.com/a/13831816/554319
                 color = next(self.ax._get_lines.prop_cycler)["color"]

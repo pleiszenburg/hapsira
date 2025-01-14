@@ -157,6 +157,7 @@ The `propagate` method gives you the final orbit at the epoch you designated. To
 ```python
 from hapsira.twobody.sampling import EpochsArray, TrueAnomalyBounds, EpochBounds
 from hapsira.util import time_range
+from astropy.time import Time
 
 start_date = Time("2022-07-11 05:05", scale="utc")
 end_date = Time("2022-07-11 07:05", scale="utc")
@@ -165,7 +166,7 @@ end_date = Time("2022-07-11 07:05", scale="utc")
 ephem1 = iss.to_ephem()
 
 # Explicit times given
-ephem2 = iss.to_ephem(strategy=EpochsArray(epochs=time_range(start_date, end_date)))
+ephem2 = iss.to_ephem(strategy=EpochsArray(epochs=time_range(start=start_date, end=end_date)))
 
 # Automatic grid, true anomaly limits
 ephem3 = iss.to_ephem(strategy=TrueAnomalyBounds(min_nu=0 << u.deg, max_nu=180 << u.deg))

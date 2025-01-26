@@ -23,5 +23,6 @@ The following page contains a collection of practical examples and problems solv
    /examples/tisserand.myst.md
    /examples/detecting-events.myst.md
    /examples/loading-OMM-and-TLE-satellite-data.myst.md
+   /examples/render-dsk-kernels.myst.md
 
 ```

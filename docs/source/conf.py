@@ -65,6 +65,8 @@ hoverxref_intersphinx = [
     "numpy",
     "scipy",
     "matplotlib",
+    "vispy",
+    "pandas",
 ]
 hoverxref_domains = ["py"]
 hoverxref_role_types = {

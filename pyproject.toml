@@ -56,6 +56,7 @@ dependencies = [
     "plotly", #  >=4.0,<6",
     "pyerfa",
     "scipy", #  >=1.4.0",
+    "vispy",
 ]
 dynamic = ["version", "description"]
 
@@ -80,11 +81,12 @@ doc = [
     "ipywidgets",# >=7.6",
     "jupyter-client",
     "jupytext",
+    "jupyter_rfb",
     "myst-parser", # >=0.13.1",
     "nbsphinx", # >=0.8.6",
     "nbconvert", # >=5.5",
     "sgp4",
-    "sphinx", # !=3.5,!=4.0,<5.1",  # https://github.com/readthedocs/sphinx-hoverxref/issues/119
+    "sphinx<8.0", # !=3.5,!=4.0,<5.1",  # https://github.com/readthedocs/sphinx-hoverxref/issues/119
     "sphinx-autoapi>=3",
     "sphinx-gallery<=0.7.0",  # Just to avoid the jupytext warning
     "sphinx_rtd_theme", # ~=1.0.0",

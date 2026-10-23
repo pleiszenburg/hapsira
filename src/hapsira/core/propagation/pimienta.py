@@ -15,6 +15,9 @@ def pimienta_coe(k, p, ecc, inc, raan, argp, nu, tof):
 
     M = M0 + n * tof
 
+    # Range between -pi and pi: the starter assumes one revolution
+    M = (M + np.pi) % (2 * np.pi) - np.pi
+
     # Equation (32a), (32b), (32c) and (32d)
     c3 = 5 / 2 + 560 * ecc
     a = 15 * (1 - ecc) / c3

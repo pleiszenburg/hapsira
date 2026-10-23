@@ -28,13 +28,16 @@ def mikkola_coe(k, p, ecc, inc, raan, argp, nu, tof):
         M0 = F_to_M(nu_to_F(nu, ecc), ecc)
 
     M = M0 + n * tof
+    if ecc < 1.0:
+        # Range between -pi and pi: the cubic starter assumes one revolution
+        M = (M + np.pi) % (2 * np.pi) - np.pi
     beta = M / 2 / (4 * ecc + 1 / 2)
 
-    # Equation (9b)
+    # Equation (9b), with a real cube root so that negative beta does not give nan
     if beta >= 0:
-        z = (beta + np.sqrt(beta**2 + alpha**3)) ** (1 / 3)
+        z = np.cbrt(beta + np.sqrt(beta**2 + alpha**3))
     else:
-        z = (beta - np.sqrt(beta**2 + alpha**3)) ** (1 / 3)
+        z = np.cbrt(beta - np.sqrt(beta**2 + alpha**3))
 
     s = z - alpha / z
 

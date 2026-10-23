@@ -28,8 +28,9 @@ def danby_coe(k, p, ecc, inc, raan, argp, nu, tof, numiter=20, rtol=1e-8):
         # For parabolic and hyperbolic
         M0 = F_to_M(nu_to_F(nu, ecc), ecc)
         M = M0 + n * tof
-        xma = M - 2 * np.pi * np.floor(M / 2 / np.pi)
-        E = np.log(2 * xma / ecc + 1.8)
+        # The hyperbolic mean anomaly is not periodic, so it must not be reduced
+        xma = M
+        E = np.sign(xma) * np.log(2 * np.abs(xma) / ecc + 1.8)
 
     # Iterations begin
     n = 0

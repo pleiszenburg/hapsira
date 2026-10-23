@@ -1,5 +1,6 @@
 from astropy import units as u
 from astropy.tests.helper import assert_quantity_allclose
+import numpy as np
 import pytest
 
 from hapsira.core.propagation import (
@@ -42,3 +43,40 @@ def test_propagate_with_coe(propagator_coe):
     nu_final = propagator_coe(k, p, ecc, inc, raan, argp, nu, period)
 
     assert_quantity_allclose(nu_final, nu)
+
+
+def _angle_difference(a, b):
+    return abs((a - b + np.pi) % (2 * np.pi) - np.pi)
+
+
+@pytest.mark.parametrize("ecc", [1.2, 2.0, 5.0])
+@pytest.mark.parametrize("nu", [-1.0, -0.3, 0.3, 1.0])
+@pytest.mark.parametrize("tof_units", [0.3, 1.0, 3.0, 10.0, -0.3, -3.0])
+def test_danby_hyperbolic_agrees_with_farnocchia(ecc, nu, tof_units):
+    # The hyperbolic mean anomaly is not periodic: covers before and after periapsis
+    k = iss.attractor.k.to_value(u.km**3 / u.s**2)
+    rp = 6800.0  # km
+    p = rp * (1 + ecc)
+    inc, raan, argp = 0.9, 0.5, 1.2
+    tof = tof_units * np.sqrt(rp**3 / k)
+
+    nu_final = danby_coe(k, p, ecc, inc, raan, argp, nu, tof)
+    nu_expected = farnocchia_coe(k, p, ecc, inc, raan, argp, nu, tof)
+
+    assert _angle_difference(nu_final, nu_expected) < 1e-7
+
+
+@pytest.mark.parametrize("ecc", [0.3, 0.9, 0.99, 0.999])
+@pytest.mark.parametrize("tof_units", [0.3, 1.0, 3.0, 10.0])
+def test_gooding_converges_near_parabolic(ecc, tof_units):
+    # The default tolerance must give the documented accuracy, including near e = 1
+    k = iss.attractor.k.to_value(u.km**3 / u.s**2)
+    rp = 6800.0  # km
+    p = rp * (1 + ecc)
+    inc, raan, argp, nu = 0.9, 0.5, 1.2, -1.0
+    tof = tof_units * np.sqrt(rp**3 / k)
+
+    nu_final = gooding_coe(k, p, ecc, inc, raan, argp, nu, tof)
+    nu_expected = farnocchia_coe(k, p, ecc, inc, raan, argp, nu, tof)
+
+    assert _angle_difference(nu_final, nu_expected) < 1e-7

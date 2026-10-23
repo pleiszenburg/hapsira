@@ -24,7 +24,7 @@ def gooding_coe(k, p, ecc, inc, raan, argp, nu, tof, numiter=150, rtol=1e-8):
     s = ecc * np.sin(M)
     psi = s / np.sqrt(1 - 2 * c + ecc**2)
     f = 1.0
-    while f**2 >= rtol and n <= numiter:
+    while np.abs(f) >= rtol and n <= numiter:
         xi = np.cos(psi)
         eta = np.sin(psi)
         fd = (1 - c * xi) + s * eta

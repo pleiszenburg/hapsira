@@ -77,3 +77,22 @@ def test_coe_to_mee_raises_singularity_error_orbit_equatorial_and_retrograde():
         "Cannot compute modified equinoctial set for 180 degrees orbit inclination due to `h` and `k` singularity."
         in excinfo.exconly()
     )
+
+
+def test_mee_to_vectors_matches_classical_to_vectors():
+    # Mars data from HORIZONS at J2000
+    a = 1.523679 * u.AU
+    ecc = 0.093315 * u.one
+    inc = 1.85 * u.deg
+    raan = 49.562 * u.deg
+    argp = 286.537 * u.deg
+    nu = 23.33 * u.deg
+
+    ss = ClassicalState(Sun, (a * (1 - ecc**2), ecc, inc, raan, argp, nu), None)
+    mee = ss.to_equinoctial()
+
+    rv_expected = ss.to_vectors()
+    rv_result = mee.to_vectors()
+
+    assert_quantity_allclose(rv_result.r, rv_expected.r)
+    assert_quantity_allclose(rv_result.v, rv_expected.v)

@@ -5,7 +5,7 @@ from numpy.testing import assert_allclose
 import pytest
 
 from hapsira.bodies import Earth
-from hapsira.core.elements import coe2mee, coe2rv, mee2coe, rv2coe
+from hapsira.core.elements import coe2mee, coe2rv, mee2coe, mee2rv, rv2coe
 from hapsira.twobody.angles import (
     E_to_M,
     E_to_nu,
@@ -218,6 +218,57 @@ def test_convert_between_coe_and_rv_is_transitive(classical):
 def test_convert_between_coe_and_mee_is_transitive(classical):
     res = mee2coe(*coe2mee(*classical))
     assert_allclose(res, classical)
+
+
+def test_convert_between_mee_and_rv_matches_coe2rv(classical):
+    k = Earth.k.to(u.km**3 / u.s**2).value  # u.km**3 / u.s**2
+    mee = coe2mee(*classical)
+    r_mee, v_mee = mee2rv(k, *mee)
+    r_coe, v_coe = coe2rv(k, *classical)
+    assert_allclose(r_mee, r_coe)
+    assert_allclose(v_mee, v_coe)
+
+
+@pytest.mark.parametrize(
+    "elements",
+    [
+        # p (km), ecc, inc (rad), raan (rad), argp (rad), nu (rad)
+        # Polar orbit
+        (
+            12000.0,
+            0.3,
+            np.deg2rad(90.0),
+            np.deg2rad(45.8),
+            np.deg2rad(63.0),
+            np.deg2rad(40.1),
+        ),
+        # Near-circular orbit
+        (
+            9000.0,
+            0.05,
+            np.deg2rad(11.5),
+            np.deg2rad(143.2),
+            np.deg2rad(229.2),
+            np.deg2rad(171.9),
+        ),
+        # Molniya-like orbit
+        (
+            24464.560,
+            0.7311,
+            np.deg2rad(63.434),
+            np.deg2rad(0.0),
+            np.deg2rad(270.0),
+            np.deg2rad(45.0),
+        ),
+    ],
+)
+def test_convert_between_mee_and_rv_matches_coe2rv_multiple_orbits(elements):
+    k = Earth.k.to(u.km**3 / u.s**2).value  # u.km**3 / u.s**2
+    mee = coe2mee(*elements)
+    r_mee, v_mee = mee2rv(k, *mee)
+    r_coe, v_coe = coe2rv(k, *elements)
+    assert_allclose(r_mee, r_coe)
+    assert_allclose(v_mee, v_coe)
 
 
 def test_convert_coe_and_rv_circular(circular):

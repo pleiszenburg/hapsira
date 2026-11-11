@@ -260,6 +260,25 @@ def test_convert_between_mee_and_rv_matches_coe2rv(classical):
             np.deg2rad(270.0),
             np.deg2rad(45.0),
         ),
+        # Equatorial orbit (h = k = 0, the case modified equinoctial
+        # elements exist for)
+        (
+            15000.0,
+            0.2,
+            np.deg2rad(0.0),
+            np.deg2rad(30.0),
+            np.deg2rad(10.0),
+            np.deg2rad(120.0),
+        ),
+        # Circular equatorial orbit
+        (
+            8000.0,
+            0.0,
+            np.deg2rad(0.0),
+            np.deg2rad(0.0),
+            np.deg2rad(0.0),
+            np.deg2rad(50.0),
+        ),
     ],
 )
 def test_convert_between_mee_and_rv_matches_coe2rv_multiple_orbits(elements):
